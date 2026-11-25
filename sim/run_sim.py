@@ -364,54 +364,78 @@ class GameDatabase:
         self.stages.sort(key=lambda s: (s["recLv"], s["mapId"]))
 
     def _compute_all_base_prices(self) -> None:
-        # 計算怪物掉率最稀有的最小 chance，用來幫 BOSS / 稀有裝估價
-        min_chance: dict[int, int] = {}
-        boss_only: set[int] = set()
-        normal_drop: set[int] = set()
+        # 蒐集每個道具的所有非活動掉落來源（怪物等級、血量、首領與否、掉落率）
+        sources_by_item: dict[int, list[tuple[int, int, bool, int]]] = {}
         for m in self.monsters:
+            lvl = max(1, int(m.get("lvl", 1)))
+            hp = max(1, int(m.get("hp", 1)))
             is_boss = bool(m.get("boss"))
             for dr in m.get("drops", []):
                 iid = int(dr["item"])
-                ch = int(dr.get("chance", 10000))
-                if iid not in min_chance or ch < min_chance[iid]:
-                    min_chance[iid] = ch
-                if is_boss:
-                    boss_only.add(iid)
-                else:
-                    normal_drop.add(iid)
+                ch = max(1, int(dr.get("chance", 10000)))
+                sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, ch))
 
+        # 商店直接販賣中的道具集合（僅限消耗品、雜物與一般裝備才受商店售價錨定）
         for iid, it in self.items.items():
             kind = it.get("kind")
             typ = it.get("type")
-            if iid in self.gear_prices:
-                p = self.gear_prices[iid]
+            slot = it.get("slot") or typ
+            if kind in ("weapon", "armor"):
+                add = it.get("add") or {}
+                # 1. 基礎能力評分估價（避免 hp+80 被過度放大，保留高階詞條價值）
+                stat_score = sum(abs(v) for k, v in add.items() if k != "hp") * 38000 + abs(add.get("hp", 0)) * 2200
+                power = (
+                    it.get("dmgS", 0) * 2000
+                    + it.get("dmgL", 0) * 1500
+                    + it.get("hit", 0) * 6500
+                    + it.get("dmg", 0) * 14000
+                    + abs(it.get("ac", 0)) * 6000
+                    + it.get("mdef", 0) * 3200
+                    + it.get("dr", 0) * 35000
+                    + it.get("bowHit", 0) * 7500
+                    + it.get("bowDmg", 0) * 18000
+                    + stat_score
+                    + (35000 if it.get("minlvl", 0) >= 30 else 0)
+                )
+
+                # 2. 依掉寶率與怪物／首領強度推算取得難度底價
+                srcs = sources_by_item.get(iid, [])
+                drop_floor = 0
+                if srcs:
+                    best_source_val = None
+                    all_boss = all(s[2] for s in srcs)
+                    for lvl, hp, is_boss, ch in srcs:
+                        toughness = lvl * 1300 + (hp ** 0.55) * 950 + (160000 if is_boss else 0)
+                        scarcity = min(220.0, (1_000_000.0 / ch) ** 0.66)
+                        val = toughness * scarcity * 0.30
+                        if best_source_val is None or val < best_source_val:
+                            best_source_val = val
+                    drop_floor = int(best_source_val or 0)
+                    if all_boss:
+                        drop_floor = int(drop_floor * 1.45)
+
+                # 3. 飾品類（戒指／項鍊／耳環／皮帶／臂甲）屬於遊戲內稀有部位，保底百萬起跳
+                acc_floor = 0
+                if slot in ("ring", "amulet", "earring", "belt"):
+                    acc_floor = 2_200_000 if (srcs or slot == "earring") else 1_800_000
+                elif slot == "guarder":
+                    acc_floor = 1_650_000
+
+                # 4. 商店/曼孟目錄與特殊配方保底（忽略 BUYP 對稀有飾品/高階裝的低估，例如 20284 被標 3000）
+                gp = self.gear_prices.get(iid, 0)
+                if iid == 172:
+                    p = 50  # 初始白弓
+                else:
+                    p = max(1200, gp, int(power), drop_floor, acc_floor)
+                # 微調特例：靈屬性手套 (水/地/火靈手套，僅能製作取得，加屬性與回魔)
+                if iid in (20172, 20177, 20181):
+                    p = max(p, 360000)
+                elif iid == 47:  # 沉默之劍
+                    p = max(p, 580000)
+                elif iid in (20013, 20014, 20015):  # 魔法頭盔系列
+                    p = max(p, 160000)
             elif iid in self.shop_anchor:
                 p = self.shop_anchor[iid]
-            elif kind in ("weapon", "armor"):
-                add = it.get("add") or {}
-                power = (
-                    it.get("dmgS", 0) * 1800
-                    + it.get("dmgL", 0) * 1400
-                    + it.get("hit", 0) * 5500
-                    + it.get("dmg", 0) * 12000
-                    + abs(it.get("ac", 0)) * 5000
-                    + it.get("mdef", 0) * 2800
-                    + it.get("dr", 0) * 28000
-                    + it.get("bowHit", 0) * 6500
-                    + it.get("bowDmg", 0) * 15000
-                    + sum(abs(v) for v in add.values()) * 22000
-                    + (25000 if it.get("minlvl", 0) >= 30 else 0)
-                )
-                rarity_bonus = 1
-                if iid in boss_only and iid not in normal_drop:
-                    ch = min_chance.get(iid, 4000)
-                    if ch <= 50:
-                        rarity_bonus = 18  # 隱身斗篷級
-                    elif ch <= 5000:
-                        rarity_bonus = 5
-                    else:
-                        rarity_bonus = 2.2
-                p = max(1200, int(max(1200, power) * rarity_bonus))
             elif iid in (140074,):
                 p = 260000
             elif iid in (140087,):
@@ -430,7 +454,7 @@ class GameDatabase:
                 p = 65000  # 靈魂石
             else:
                 p = 250
-            self.market_base[iid] = max(15, int(p))
+            self.market_base[iid] = max(15, int(round(p / 10.0) * 10) if p >= 100 else int(p))
 
     def can_equip(self, cls: str, iid: int) -> bool:
         it = self.items.get(iid)
@@ -784,8 +808,8 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
             upkeep = 500 + st["recLv"] * (130 if tier == "whale" else 85 if tier == "regular" else 40)
             npc["gold"] = max(200, npc["gold"] + run_gold - upkeep)
 
-        # 高金幣 NPC 消耗金幣買曼孟強化／隨機裝（模擬真實玩家金幣黑洞，防止全服人均幾千萬）
-        sink_cap = 2_400_000 if tier in ("whale", "scalper") else 1_100_000
+        # 高金幣 NPC 消耗金幣買曼孟強化／隨機裝（模擬真實玩家金幣黑洞，同時讓重課與奸商保有購買百萬飾品的能力）
+        sink_cap = 4_200_000 if tier in ("whale", "scalper") else 1_400_000
         if npc["gold"] > sink_cap:
             spend = min(npc["gold"] - sink_cap // 2, 1_000_000 if rng.random() < 0.5 else 350_000)
             npc["gold"] -= spend
