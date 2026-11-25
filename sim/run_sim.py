@@ -228,6 +228,8 @@ class GameDatabase:
         self.bxp: dict[int, int] = {}
         self.rec: dict[int, int] = {}
         self.stages: list[dict[str, Any]] = []
+        self.segments: list[dict[str, Any]] = []
+        self.diffs: list[dict[str, Any]] = []
         self.stage_mobs: set[int] = set()
         self.recipes: list[dict[str, Any]] = []
         self.recipes_by_out: dict[int, list[dict[str, Any]]] = {}
@@ -437,6 +439,10 @@ class GameDatabase:
         m_st = re.search(r"const STAGES\s*=\s*\[(.*?)\n\s*\];", game_txt, re.S)
         if not m_st:
             return
+        raw_stages: list[dict[str, Any] | None] = []
+        by_map_idx: dict[int, int] = {}
+        gm_only_maps = {252, 253, 254, 2005, 610}
+
         for line in m_st.group(1).splitlines():
             mid_m = re.search(r"mapId:\s*(\d+)", line)
             nm_m = re.search(r"name:\s*['\"]([^'\"]+)['\"]", line)
@@ -444,36 +450,7 @@ class GameDatabase:
                 continue
             mid = int(mid_m.group(1))
             name = nm_m.group(1)
-            # 跳過 GM 活動地圖與純單王房（保留主要練功/打王主線地圖）
-            if mid in (252, 253, 254, 2005, 610) or "nopool: 1" in line:
-                continue
-
-            rec_lv = self.rec.get(mid, 10)
-            pool_ids: list[int] = []
-            ids_m = re.search(r"byIds\(\[([^\]]+)\]\)", line)
-            names_m = re.search(r"byNamesX?\(\[([^\]]+)\]\)", line)
-            if ids_m:
-                pool_ids = [int(x.strip()) for x in ids_m.group(1).split(",") if x.strip().isdigit()]
-            elif names_m:
-                raw_names = re.findall(r"['\"]([^'\"]+)['\"]", names_m.group(1))
-                for rn in raw_names:
-                    for mon in by_name_all.get(rn, []):
-                        pool_ids.append(int(mon["id"]))
-            else:
-                matched_pool = next((vn for vn in named_pools if re.search(r"\b" + re.escape(vn) + r"\b", line)), None)
-                if matched_pool:
-                    for rn in named_pools[matched_pool]:
-                        for mon in by_name_all.get(rn, []):
-                            pool_ids.append(int(mon["id"]))
-                elif re.search(r"\bMON\b", line):
-                    pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and m.get("lvl", 1) <= 18]
-                else:
-                    # 未來新增關卡若採用其他寫法，自動依推薦等級 recLv 挑選附近一般怪進池
-                    pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and abs(int(m.get("lvl", 1)) - rec_lv) <= 8]
-
-            pool_ids = [pid for pid in pool_ids if pid in self.monsters_by_id]
-            if not pool_ids:
-                continue
+            is_nopool = "nopool: 1" in line
 
             boss_id = None
             bx_m = re.search(r"boss:\s*BX\((\d+)\)", line)
@@ -487,16 +464,111 @@ class GameDatabase:
                 if bn_m and bn_m.group(1) in named_boss_map:
                     boss_id = named_boss_map[bn_m.group(1)]
 
-            self.stages.append(
-                {
-                    "mapId": mid,
-                    "name": name,
-                    "recLv": rec_lv,
-                    "pool": pool_ids,
-                    "bossId": boss_id if boss_id in self.monsters_by_id else None,
-                }
-            )
+            if boss_id == 71014 and boss_id not in self.monsters_by_id and 45682 in self.monsters_by_id:
+                boss_id = 45682
+
+            if mid in gm_only_maps:
+                raw_stages.append(None)
+                continue
+
+            rec_lv = self.rec.get(mid, 10)
+            pool_ids: list[int] = []
+            if not is_nopool:
+                ids_m = re.search(r"byIds\(\[([^\]]+)\]\)", line)
+                names_m = re.search(r"byNamesX?\(\[([^\]]+)\]\)", line)
+                if ids_m:
+                    pool_ids = [int(x.strip()) for x in ids_m.group(1).split(",") if x.strip().isdigit()]
+                elif names_m:
+                    raw_names = re.findall(r"['\"]([^'\"]+)['\"]", names_m.group(1))
+                    for rn in raw_names:
+                        for mon in by_name_all.get(rn, []):
+                            pool_ids.append(int(mon["id"]))
+                else:
+                    matched_pool = next((vn for vn in named_pools if re.search(r"\b" + re.escape(vn) + r"\b", line)), None)
+                    if matched_pool:
+                        for rn in named_pools[matched_pool]:
+                            for mon in by_name_all.get(rn, []):
+                                pool_ids.append(int(mon["id"]))
+                    elif re.search(r"\bMON\b", line):
+                        pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and m.get("lvl", 1) <= 18]
+                    else:
+                        # 未來新增關卡若採用其他寫法，自動依推薦等級 recLv 挑選附近一般怪進池
+                        pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and abs(int(m.get("lvl", 1)) - rec_lv) <= 8]
+                pool_ids = [pid for pid in pool_ids if pid in self.monsters_by_id]
+                if not pool_ids:
+                    raw_stages.append(None)
+                    continue
+            elif boss_id not in self.monsters_by_id:
+                raw_stages.append(None)
+                continue
+
+            st_obj = {
+                "mapId": mid,
+                "name": name,
+                "recLv": rec_lv,
+                "pool": pool_ids,
+                "nopool": is_nopool,
+                "bossId": boss_id if boss_id in self.monsters_by_id else None,
+            }
+            by_map_idx[mid] = len(raw_stages)
+            raw_stages.append(st_obj)
+            self.stages.append(st_obj)
+
+        # 解析遊戲難度表 DIFF_NAMES / DIFFT
+        diff_names = ["簡單", "普通", "困難", "惡夢"]
+        dn_m = re.search(r"const DIFF_NAMES\s*=\s*\[([^\]]+)\]", game_txt)
+        if dn_m:
+            parsed_dn = re.findall(r"['\"]([^'\"]+)['\"]", dn_m.group(1))
+            if len(parsed_dn) == 4:
+                diff_names = parsed_dn
+        dt_m = re.search(r"const DIFFT\s*=\s*\[([^\n]+)\];", game_txt)
+        hard_scale = [0.58, 1.00, 1.42, 1.98]
+        if dt_m:
+            parsed_dt = json.loads(re.sub(r"([a-zA-Z_]+)\s*:", r'"\1":', re.sub(r"1\s*/\s*3", "0.3333", re.sub(r"1\s*/\s*4", "0.25", "[" + dt_m.group(1) + "]"))))
+            for di, row in enumerate(parsed_dt[:4]):
+                self.diffs.append({
+                    "idx": di,
+                    "name": diff_names[di],
+                    "mon": float(row.get("mon", 1.0)),
+                    "boss": float(row.get("boss", 1.0)),
+                    "exp": float(row.get("exp", 1.0)),
+                    "drop": float(row.get("drop", 1.0)),
+                    "rare": float(row.get("rare", 1.0)),
+                    "bossrw": float(row.get("bossrw", 1.0)),
+                    "hard": hard_scale[di],
+                })
+        if not self.diffs:
+            self.diffs = [
+                {"idx": 0, "name": "簡單", "mon": 0.3333, "boss": 0.25, "exp": 2.0, "drop": 1.0, "rare": 0.5, "bossrw": 0.5, "hard": 0.58},
+                {"idx": 1, "name": "普通", "mon": 1.0, "boss": 1.0, "exp": 1.0, "drop": 1.0, "rare": 1.0, "bossrw": 1.0, "hard": 1.00},
+                {"idx": 2, "name": "困難", "mon": 2.0, "boss": 2.0, "exp": 1.5, "drop": 1.3, "rare": 2.0, "bossrw": 2.0, "hard": 1.42},
+                {"idx": 3, "name": "惡夢", "mon": 4.0, "boss": 4.0, "exp": 2.5, "drop": 1.8, "rare": 4.0, "bossrw": 4.0, "hard": 1.98},
+            ]
+
+        # 解析 SEGMENTS 完整流程路線（與前端選單完全一致）
+        seg_m = re.search(r"const SEGMENTS\s*=\s*\{(.*?)\n\s*\};", game_txt, re.S)
+        if seg_m:
+            for item_m in re.finditer(r"label:\s*['\"]([^'\"]+)['\"][^}]*?s:\s*_si\((\d+)\)\s*,\s*e:\s*_si\((\d+)\)", seg_m.group(1)):
+                label = item_m.group(1)
+                s_mid, e_mid = int(item_m.group(2)), int(item_m.group(3))
+                if s_mid in by_map_idx and e_mid in by_map_idx:
+                    si, ei = by_map_idx[s_mid], by_map_idx[e_mid]
+                    seg_sts = [st for st in raw_stages[si : ei + 1] if st is not None]
+                    if seg_sts:
+                        entry_rec = seg_sts[0]["recLv"]
+                        peak_rec = max(st["recLv"] for st in seg_sts)
+                        self.segments.append({
+                            "label": label,
+                            "stages": seg_sts,
+                            "entryRec": entry_rec,
+                            "peakRec": peak_rec,
+                        })
+        if not self.segments:
+            for st in self.stages:
+                self.segments.append({"label": st["name"], "stages": [st], "entryRec": st["recLv"], "peakRec": st["recLv"]})
+
         self.stages.sort(key=lambda s: (s["recLv"], s["mapId"]))
+        self.segments.sort(key=lambda g: (g["entryRec"], g["peakRec"]))
         self.stage_mobs = {pid for s in self.stages for pid in s["pool"]} | {s["bossId"] for s in self.stages if s["bossId"]}
 
     def _compute_all_base_prices(self) -> None:
@@ -983,19 +1055,84 @@ def generate_offline_bark(npc: dict[str, Any], db: GameDatabase, rng: random.Ran
     return rng.choice(general), None
 
 
-def choose_stage(npc: dict[str, Any], db: GameDatabase, rng: random.Random) -> dict[str, Any]:
+def npc_combat_power(npc: dict[str, Any], db: GameDatabase) -> float:
+    """綜合等級、全身裝備與強化、詞綴與身分操作技術，估算真實推圖戰力（無難度與無手氣前）"""
+    cls = npc["cls"]
+    lv = npc["lv"]
+    gear_pts = 0.0
+    aff_cnt = 0
+    for item in (npc.get("eq") or {}).values():
+        sc = db.item_power_score(cls, item["id"], item.get("ench", 0))
+        if sc > 0:
+            gear_pts += sc
+        if item.get("aff"):
+            aff_cnt += 1
+    tier = npc["tier"]
+    skill_mult = 1.18 if tier == "whale" else 1.00 if tier == "regular" else 0.96 if tier == "scalper" else 0.85
+    # Lv.1 裸裝 ~14；Lv.30 全+4~+6裝 ~95；Lv.45~50 滿裝大佬 ~150~210
+    return (lv * 2.1 + gear_pts * 0.32 + aff_cnt * 4.5 + 8.0) * skill_mult
+
+
+def stage_power_req(st: dict[str, Any]) -> float:
+    """該層地圖的基準通關需求（對齊遊戲內 50 等滿等架構，龍王與深處為高壓終局門檻）"""
+    mid = st["mapId"]
+    if st.get("nopool"):
+        # 安塔瑞斯 (37) / 法利昂 (65) 單王終局房
+        return 76.0 if mid == 37 else 84.0
+    if mid == 4203:
+        return 60.0
+    return float(st["recLv"]) * 1.15
+
+
+def choose_segment_and_diff(
+    npc: dict[str, Any], db: GameDatabase, rng: random.Random
+) -> tuple[dict[str, Any], dict[str, Any]]:
     lv = npc["lv"]
     tier = npc["tier"]
-    tier_offset = 6 if tier == "whale" else 2 if tier == "regular" else -2 if tier == "casual" else 0
-    target_rec = max(8, lv + tier_offset)
-    # 排除超高 Lv80+ 單挑龍窟直到後期 42 級以上
-    cands = [s for s in db.stages if s["recLv"] <= target_rec + 5]
+    tier_offset = 8 if tier == "whale" else 3 if tier == "regular" else -1 if tier == "casual" else 1
+    target_entry = max(9, lv + tier_offset)
+
+    # 只要起始門檻達標就可挑戰整段路線（例如海音 3F=30 就可進含法利昂的路線，但能否走到尾王要看實力）
+    cands = [g for g in db.segments if g["entryRec"] <= target_entry + 6]
     if not cands:
-        cands = [db.stages[0]]
-    # 偏向挑選接近目標推薦等級的地圖
-    cands.sort(key=lambda s: abs(s["recLv"] - target_rec))
-    top = cands[: min(4, len(cands))]
-    return rng.choice(top)
+        cands = [db.segments[0]]
+    cands.sort(key=lambda g: (abs(g["entryRec"] - target_entry), abs(g["peakRec"] - target_entry)))
+    seg = rng.choice(cands[: min(4, len(cands))])
+
+    # 依自身戰力相對於該路線的需求選擇難易度（簡單 / 普通 / 困難 / 惡夢）
+    pwr = npc_combat_power(npc, db)
+    entry_req = stage_power_req(seg["stages"][0])
+    rel = pwr / max(8.0, entry_req)
+
+    if tier == "casual":
+        weights = [0.62, 0.35, 0.03, 0.0] if rel < 1.35 else [0.35, 0.55, 0.10, 0.0]
+    elif tier == "scalper":
+        weights = [0.25, 0.65, 0.10, 0.0] if rel < 1.4 else [0.10, 0.65, 0.25, 0.0]
+    elif tier == "regular":
+        if rel < 1.05:
+            weights = [0.40, 0.55, 0.05, 0.0]
+        elif rel < 1.45:
+            weights = [0.10, 0.58, 0.30, 0.02]
+        else:
+            weights = [0.05, 0.35, 0.48, 0.12]
+    else:  # whale
+        if rel < 1.10:
+            weights = [0.10, 0.55, 0.32, 0.03]
+        elif rel < 1.50:
+            weights = [0.02, 0.25, 0.55, 0.18]
+        else:
+            weights = [0.0, 0.12, 0.45, 0.43]
+
+    diff = rng.choices(db.diffs, weights=weights, k=1)[0]
+    return seg, diff
+
+
+def survival_prob(eff_power: float, req: float) -> float:
+    """硬核真實通關機率曲線：實力相當約 58%，越級或選高難度會明顯容易翻車"""
+    ratio = eff_power / max(6.0, req)
+    # logit 在 ratio=1.0 時約 58%，0.70 時 ~18%，1.35 時 ~89%
+    z = 4.6 * (ratio - 1.0) + 0.32
+    return max(0.06, min(0.97, 1.0 / (1.0 + math.exp(-z))))
 
 
 def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, args: argparse.Namespace) -> dict[str, Any]:
@@ -1012,6 +1149,7 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
     # --- 1. 推進每名 NPC 1 小時打怪／升級／掉寶／消耗 ---
     next_listing_seq = state.setdefault("nextSeq", 1000)
 
+    retire_lv = max(10, min(50, int(getattr(args, "retire_lv", 50))))
     for npc in npcs:
         # 清理若從舊資料集升級時已移除的道具編號，確保改版不相容不崩潰
         for sl in list(npc.get("eq", {}).keys()):
@@ -1026,102 +1164,183 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         if n_runs == 0 and npc["ageTicks"] % 8 == 0:
             n_runs = 1
 
-        # 記錄最近發生的精彩事蹟
+        # 記錄最近發生的精彩事蹟（每「場」= 從起點走完一條完整 SEGMENTS 流程關卡，中途輸了就結束該場）
         new_events: list[str] = []
+        base_power = npc_combat_power(npc, db)
         for _ in range(n_runs):
             npc["runs"] = npc.get("runs", 0) + 1
-            st = choose_stage(npc, db, rng)
-            pool = st["pool"]
-            # 《天堂倖存者》每場擊殺數依戰力分層，拉開重課(速衝50)與一般/新手(緩慢成長)的等級跨度
+            seg, diff = choose_segment_and_diff(npc, db, rng)
+            # 本場局內抽卡（變身卡／技能構築）與走位操作手氣
+            run_luck = rng.uniform(0.76, 1.32)
+            eff_power = base_power * run_luck
+
+            floors = seg["stages"]
             if tier == "whale":
-                power_factor = min(3.8, 1.05 + npc["lv"] * 0.065)
+                power_factor = min(3.4, 0.95 + npc["lv"] * 0.055)
             elif tier == "regular":
-                power_factor = min(2.3, 0.65 + npc["lv"] * 0.035)
+                power_factor = min(2.1, 0.62 + npc["lv"] * 0.032)
             elif tier == "scalper":
-                power_factor = min(1.8, 0.55 + npc["lv"] * 0.025)
+                power_factor = min(1.7, 0.52 + npc["lv"] * 0.023)
             else:
-                power_factor = min(1.25, 0.35 + npc["lv"] * 0.018)
-            kills = int(rng.randint(1200, 2400) * power_factor)
-            npc["kills"] = npc.get("kills", 0) + kills
+                power_factor = min(1.2, 0.35 + npc["lv"] * 0.017)
 
-            # 經驗值：從該地圖怪物池隨機抽取樣本估算平均 MEXP
-            sample_mons = [db.monsters_by_id[rng.choice(pool)] for _ in range(12)]
-            avg_mexp = sum(db.mexp.get(int(m["id"]), 2) for m in sample_mons) / max(1, len(sample_mons))
-            elite_ratio = 0.09
-            exp_gain = int(kills * avg_mexp * (1 + elite_ratio))
+            # 單場多關卡時，每層的清怪密度縮放，避免多層圖經驗與道具過度暴衝
+            floor_scale = 0.62 if len(floors) >= 3 else 0.78 if len(floors) == 2 else 1.0
+            diff_gold_mult = (2.1 if tier == "whale" else 1.9 if tier == "scalper" else 1.5 if tier == "regular" else 1.1) * (
+                0.75 if diff["idx"] == 0 else 1.0 if diff["idx"] == 1 else 1.35 if diff["idx"] == 2 else 1.85
+            )
 
-            # 首領判定
-            boss_killed = False
-            if st["bossId"] and rng.random() < (0.85 if tier == "whale" else 0.65):
-                boss_killed = True
-                exp_gain += db.bxp.get(st["mapId"], 110)
+            run_gold_acc = 0
+            wiped = False
+            for st in floors:
+                pool = st["pool"]
+                req_base = stage_power_req(st) * diff["hard"]
+                upkeep_fl = 850 + st["recLv"] * (210 if tier == "whale" else 135 if tier == "regular" else 70)
 
-            # 套用真實 EXPT 升級
-            if npc["lv"] < 50:
-                npc["exp"] += exp_gain
-                while npc["lv"] < 50 and npc["exp"] >= (db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]):
-                    npc["exp"] -= db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]
-                    npc["lv"] += 1
-                    new_events.append(f"剛升上 Lv.{npc['lv']}！離頂點又近了一步")
-                    if npc["lv"] >= 50:
-                        npc["exp"] = 0
-                        ticker.append(f"🎉【滿級賀電】{CLS_ZH[cls]}「{npc['name']}」在{st['name']}達成 Lv.50！")
+                if not st.get("nopool") and pool:
+                    # 1) 小怪推進與掉落
+                    kills = int(rng.randint(950, 1850) * power_factor * floor_scale)
+                    npc["kills"] = npc.get("kills", 0) + kills
+                    sample_mons = [db.monsters_by_id[rng.choice(pool)] for _ in range(10)]
+                    avg_mexp = sum(db.mexp.get(int(m["id"]), 2) for m in sample_mons) / max(1, len(sample_mons))
+                    exp_gain = int(kills * avg_mexp * 1.09 * diff["exp"])
 
-            # 掉寶與實戰金幣產出（反映高圖大量清怪 + 困難/惡夢掉寶 + 戰利品自動折現）
-            drop_rolls = max(12, min(28, 10 + npc["lv"] // 3))
-            diff_gold_mult = 2.4 if tier == "whale" else 2.2 if tier == "scalper" else 1.7 if tier == "regular" else 1.2
-            run_gold = int((rng.randint(6000, 14000) + st["recLv"] * rng.randint(650, 1300)) * diff_gold_mult)
-            for _r in range(drop_rolls):
-                mon = db.monsters_by_id[rng.choice(pool)]
-                for dr in mon.get("drops", []):
-                    iid = int(dr["item"])
-                    if iid == GOLD_ID:
-                        run_gold += int(rng.randint(int(dr.get("min", 25)), int(dr.get("max", 90))) * 4.5 * diff_gold_mult)
-                        continue
-                    if iid in db.no_drop or iid not in db.items:
-                        continue
-                    ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0)) / 1_000_000.0
-                    # 模擬整場約數千隻怪的縮放抽樣：高機率材料常態掉落，極稀有料 (如食人巨魔的血) 維持罕見
-                    eff_roll = min(0.28, ch * 3.0)
-                    if rng.random() < eff_roll:
-                        it = db.items[iid]
-                        ench = 0
-                        aff = None
-                        if it.get("kind") in ("weapon", "armor"):
-                            if rng.random() < 0.09:
-                                ench = 1
-                            if st["recLv"] >= 20 and rng.random() < 0.08:
-                                aff = rng.choice(AFFIX_POOL)
-                            self_bag_add(npc, iid, ench, 1, aff)
+                    drop_rolls = max(7, min(18, int((8 + npc["lv"] // 3) * floor_scale)))
+                    fl_gold = int((rng.randint(3800, 9200) + st["recLv"] * rng.randint(420, 880)) * diff_gold_mult * floor_scale)
+                    for _r in range(drop_rolls):
+                        mon = db.monsters_by_id[rng.choice(pool)]
+                        for dr in mon.get("drops", []):
+                            iid = int(dr["item"])
+                            if iid == GOLD_ID:
+                                fl_gold += int(rng.randint(int(dr.get("min", 25)), int(dr.get("max", 90))) * 3.5 * diff_gold_mult * floor_scale)
+                                continue
+                            if iid in db.no_drop or iid not in db.items:
+                                continue
+                            it = db.items[iid]
+                            drop_mult = diff["rare"] if it.get("kind") in ("weapon", "armor") else diff["drop"]
+                            ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0) * drop_mult) / 1_000_000.0
+                            eff_roll = min(0.28, ch * 2.4)
+                            if rng.random() < eff_roll:
+                                ench = 0
+                                aff = None
+                                if it.get("kind") in ("weapon", "armor"):
+                                    if rng.random() < 0.08:
+                                        ench = 1
+                                    if st["recLv"] >= 20 and rng.random() < 0.08:
+                                        aff = rng.choice(AFFIX_POOL)
+                                    self_bag_add(npc, iid, ench, 1, aff)
+                                else:
+                                    qty = rng.randint(int(dr.get("min", 1)), int(dr.get("max", 1)))
+                                    self_bag_add(npc, iid, 0, qty, None)
+
+                    # 小怪層撐不撐得過檢定（沒撐過就半途翻車，後面的層與王全沒了）
+                    surv_p = survival_prob(eff_power, req_base * 0.92)
+                    if rng.random() > surv_p:
+                        exp_gain = int(exp_gain * 0.65)
+                        run_gold_acc += max(0, int(fl_gold * 0.55) - upkeep_fl)
+                        wiped = True
+                        if diff["idx"] >= 2 or st["recLv"] >= 30:
+                            new_events.append(f"在{diff['name']}【{st['name']}】不敵怪潮飲恨撤退")
+                        # 適用當層已拿到的部分經驗
+                        if npc["lv"] < retire_lv:
+                            npc["exp"] += exp_gain
+                            while npc["lv"] < retire_lv and npc["exp"] >= (db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]):
+                                npc["exp"] -= db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]
+                                npc["lv"] += 1
+                        break
+
+                    # 2) 本層首領判定（若有）
+                    if st["bossId"]:
+                        boss_p = survival_prob(eff_power, req_base * 1.10)
+                        if rng.random() < boss_p:
+                            bmon = db.monsters_by_id[st["bossId"]]
+                            exp_gain += int(db.bxp.get(st["mapId"], 110) * diff["exp"])
+                            fl_gold += int(rng.randint(12000, 36000) * diff_gold_mult)
+                            if rng.random() < min(0.85, 0.38 * diff["bossrw"]) and db.chest_mats:
+                                mat_id = rng.choice(db.chest_mats)
+                                if mat_id in db.items:
+                                    self_bag_add(npc, mat_id, 0, 1, None)
+                            if rng.random() < 0.014 * diff["bossrw"]:
+                                self_bag_add(npc, 84072, 0, 1, None)
+                            for dr in bmon.get("drops", []):
+                                iid = int(dr["item"])
+                                if iid == GOLD_ID or iid in db.no_drop or iid not in db.items:
+                                    continue
+                                ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0) * diff["bossrw"]) / 1_000_000.0
+                                if rng.random() < min(0.45, ch):
+                                    it = db.items[iid]
+                                    aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.18) else None
+                                    self_bag_add(npc, iid, 0, 1, aff)
+                                    if db.market_base.get(iid, 0) >= 250_000:
+                                        ticker.append(f"💎【打王掉寶】「{npc['name']}」推倒{diff['name']}{bmon['name']}喜獲【{it['name']}】！")
                         else:
-                            qty = rng.randint(int(dr.get("min", 1)), int(dr.get("max", 1)))
-                            self_bag_add(npc, iid, 0, qty, None)
+                            # 在該層尾王倒下：該層進度結算一半，並直接結束這趟流程
+                            run_gold_acc += max(0, int(fl_gold * 0.75) - upkeep_fl)
+                            wiped = True
+                            if diff["idx"] >= 2 or st["recLv"] >= 28:
+                                new_events.append(f"挑戰{diff['name']}【{st['name']}】首領失敗")
+                            if npc["lv"] < retire_lv:
+                                npc["exp"] += exp_gain
+                                while npc["lv"] < retire_lv and npc["exp"] >= (db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]):
+                                    npc["exp"] -= db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]
+                                    npc["lv"] += 1
+                            break
 
-            if boss_killed and st["bossId"]:
-                bmon = db.monsters_by_id[st["bossId"]]
-                run_gold += int(rng.randint(15000, 48000) * diff_gold_mult)
-                # 開啟首領寶箱/特殊寶箱（依 game.js CHEST_MATS 產出製作材料與祝武/防）
-                if rng.random() < 0.45 and db.chest_mats:
-                    mat_id = rng.choice(db.chest_mats)
-                    if mat_id in db.items:
-                        self_bag_add(npc, mat_id, 0, 1, None)
-                if rng.random() < 0.015:
-                    self_bag_add(npc, 84072, 0, 1, None)  # 純白的萬能藥
-                for dr in bmon.get("drops", []):
-                    iid = int(dr["item"])
-                    if iid == GOLD_ID or iid in db.no_drop or iid not in db.items:
+                    run_gold_acc += fl_gold - upkeep_fl
+                    if npc["lv"] < retire_lv:
+                        npc["exp"] += exp_gain
+                        while npc["lv"] < retire_lv and npc["exp"] >= (db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]):
+                            npc["exp"] -= db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]
+                            npc["lv"] += 1
+                            new_events.append(f"剛升上 Lv.{npc['lv']}！離頂點又近了一步")
+                            if npc["lv"] >= retire_lv:
+                                npc["exp"] = 0
+                                ticker.append(f"🎉【滿級賀電】{CLS_ZH[cls]}「{npc['name']}」在{st['name']}達成 Lv.{retire_lv}！")
+                else:
+                    # 3) 純單王終局房（安塔瑞斯 37 / 法利昂 65）
+                    bmon = db.monsters_by_id.get(st["bossId"]) if st["bossId"] else None
+                    if not bmon:
                         continue
-                    ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0)) / 1_000_000.0
-                    if rng.random() < min(0.38, ch * 1.1):
-                        it = db.items[iid]
-                        aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.18) else None
-                        self_bag_add(npc, iid, 0, 1, aff)
-                        if db.market_base.get(iid, 0) >= 250_000:
-                            ticker.append(f"💎【打王掉寶】「{npc['name']}」推倒{bmon['name']}喜獲【{it['name']}】！")
+                    dragon_p = survival_prob(eff_power, req_base * 1.12)
+                    if rng.random() < dragon_p:
+                        npc["kills"] = npc.get("kills", 0) + 1
+                        exp_gain = int(db.bxp.get(st["mapId"], 500) * diff["exp"])
+                        fl_gold = int(rng.randint(60000, 140000) * diff_gold_mult)
+                        run_gold_acc += fl_gold - upkeep_fl
+                        if rng.random() < min(0.95, 0.65 * diff["bossrw"]) and db.chest_mats:
+                            for _c in range(2):
+                                mat_id = rng.choice(db.chest_mats)
+                                if mat_id in db.items:
+                                    self_bag_add(npc, mat_id, 0, 1, None)
+                        if rng.random() < 0.04 * diff["bossrw"]:
+                            self_bag_add(npc, 84072, 0, 1, None)
+                        for dr in bmon.get("drops", []):
+                            iid = int(dr["item"])
+                            if iid == GOLD_ID or iid in db.no_drop or iid not in db.items:
+                                continue
+                            ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0) * diff["bossrw"]) / 1_000_000.0
+                            if rng.random() < min(0.55, ch):
+                                it = db.items[iid]
+                                aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.25) else None
+                                self_bag_add(npc, iid, 0, 1, aff)
+                        ticker.append(f"🐉【屠龍捷報】「{npc['name']}」在{diff['name']}【{st['name']}】成功斬殺【{bmon['name']}】！")
+                        new_events.append(f"破關{diff['name']}「{seg['label']}」並擊敗{bmon['name']}！")
+                        if npc["lv"] < retire_lv:
+                            npc["exp"] += exp_gain
+                            while npc["lv"] < retire_lv and npc["exp"] >= (db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]):
+                                npc["exp"] -= db.expt[npc["lv"]] - db.expt[npc["lv"] - 1]
+                                npc["lv"] += 1
+                                if npc["lv"] >= retire_lv:
+                                    npc["exp"] = 0
+                                    ticker.append(f"🎉【滿級賀電】{CLS_ZH[cls]}「{npc['name']}」屠龍後達成 Lv.{retire_lv}！")
+                    else:
+                        run_gold_acc -= upkeep_fl
+                        wiped = True
+                        ticker.append(f"💀【挑戰失利】「{npc['name']}」勇闖{diff['name']}【{st['name']}】遭{bmon['name']}擊退！")
+                        new_events.append(f"於{diff['name']}【{st['name']}】遭{bmon['name']}擊退")
+                        break
 
-            # 水錢／傳送／彈藥／基礎強化消耗
-            upkeep = 1200 + st["recLv"] * (280 if tier == "whale" else 170 if tier == "regular" else 80)
-            npc["gold"] = max(0, npc["gold"] + run_gold - upkeep)
+            npc["gold"] = max(0, npc["gold"] + run_gold_acc)
 
         # 高金幣 NPC 消耗金幣開曼孟 100萬/900萬裝備箱（維持千萬級別流通水位又能買玩家高價貨）
         sink_cap = 22_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
@@ -1149,15 +1368,15 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
     # --- 4. NPC ↔ NPC 跨商店市場交易（10% 稅金銷毀）---
     run_npc_market_clearing(npcs, db, market, rng, ticker)
 
-    # --- 5. Lv.50 退坑循環 → 補進 Lv.1 新手 ---
+    # --- 5. 滿級（預設 Lv.50）退坑循環 → 補進 Lv.1 新手 ---
     for i, npc in enumerate(npcs):
-        if npc["lv"] >= 50:
+        if npc["lv"] >= retire_lv:
             npc["maxLvTicks"] = npc.get("maxLvTicks", 0) + 1
         # 滿級後逐步光榮退坑（同時若老號退坑比例低於定額，老玩家也有極低機率換血重練），維持全等級生態
         retire_prob = 0.0
         if npc["maxLvTicks"] >= 18:
             retire_prob = 0.07 if npc["tier"] == "whale" else 0.05
-        elif npc["ageTicks"] > 180 and npc["lv"] >= 35 and npc["tier"] in ("casual", "regular"):
+        elif npc["ageTicks"] > 180 and npc["lv"] >= min(35, retire_lv - 2) and npc["tier"] in ("casual", "regular"):
             retire_prob = 0.008
         if retire_prob > 0 and rng.random() < retire_prob:
             retired_total += 1
@@ -1716,6 +1935,7 @@ def main() -> None:
     parser.add_argument("--reset", action="store_true", help="重置世界並重跑開服狀態")
     parser.add_argument("--warmup-ticks", type=int, default=336, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
     parser.add_argument("--seed", type=int, default=None, help="固定亂數種子方便測試重現")
+    parser.add_argument("--retire-lv", type=int, default=50, help="滿級退坑門檻等級 (預設 50)")
     parser.add_argument("--ai", action="store_true", help="有設定 API KEY 時啟用單次 Batch AI 新聞潤飾")
     parser.add_argument(
         "--out",
