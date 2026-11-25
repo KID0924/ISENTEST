@@ -453,6 +453,7 @@
       .table-wrapper td:nth-child(4)::before { content: var(--label-4) ": "; }
       .table-wrapper td:nth-child(5)::before { content: var(--label-5) ": "; }
       .table-wrapper td:nth-child(6)::before { content: var(--label-6) ": "; }
+      .table-wrapper td:nth-child(7)::before { content: var(--label-7) ": "; }
     }
 
     /* Modal Dialog */
@@ -531,7 +532,8 @@
       </div>
       <div class="actions">
         <button type="button" class="btn primary" id="btnReload">立即重新抓取</button>
-        <a class="btn" href="world_state.json" target="_blank" rel="noopener">查看原始 JSON</a>
+        <a class="btn" href="world_state.json" target="_blank" rel="noopener">公開 JSON</a>
+        <a class="btn" href="sim/npc_state.json" target="_blank" rel="noopener">完整狀態 (含背包)</a>
       </div>
     </header>
 
@@ -593,7 +595,7 @@
     <!-- Panel 2: NPCs -->
     <section role="tabpanel" id="panel-npcs" aria-labelledby="tab-npcs" hidden>
       <div class="controls">
-        <input type="search" id="qNpc" placeholder="搜尋角色名稱、主手武器或喊話…" aria-label="搜尋冒險者">
+        <input type="search" id="qNpc" placeholder="搜尋角色名稱、主武、喊話或背包物品…" aria-label="搜尋冒險者">
         <select id="fNpcTier" aria-label="篩選玩家類型">
           <option value="all">全部生態身分</option>
           <option value="whale">重課肝帝</option>
@@ -609,7 +611,7 @@
         <span class="count-note" id="nNpc">顯示 0 人</span>
       </div>
       <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-npcs">
-        <table id="tblNpcs" style="--label-1:'冒險者';--label-2:'職業 / 身分';--label-3:'等級';--label-4:'持有金幣';--label-5:'貨架件數';--label-6:'狀態 / 目前武器';">
+        <table id="tblNpcs" style="--label-1:'冒險者';--label-2:'職業 / 身分';--label-3:'等級';--label-4:'持有金幣';--label-5:'貨架';--label-6:'背包';--label-7:'狀態 / 主武';">
           <caption id="cap-npcs" class="sr-only-caption">70 位冒險者清單</caption>
           <thead>
             <tr>
@@ -618,6 +620,7 @@
               <th scope="col" data-type="number" data-align="end" aria-sort="descending"><button type="button" commandfor="tblNpcs" command="--sort"><span>等級</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblNpcs" command="--sort"><span>持有金幣</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblNpcs" command="--sort"><span>貨架</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblNpcs" command="--sort"><span>背包</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               <th scope="col" data-type="text"><button type="button" commandfor="tblNpcs" command="--sort"><span>狀態 / 主武</span><span class="sort-ind" aria-hidden="true"></span></button></th>
             </tr>
           </thead>
@@ -645,7 +648,7 @@
         <span class="count-note" id="nMkt">顯示 0 項</span>
       </div>
       <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-mkt">
-        <table id="tblMarket" style="--label-1:'物品';--label-2:'編號 / 強化';--label-3:'類別';--label-4:'基準行情 (金幣)';--label-5:'目前貨架存量';">
+        <table id="tblMarket" style="--label-1:'物品';--label-2:'編號 / 強化';--label-3:'類別';--label-4:'基準行情 (金幣)';--label-5:'架上存量';--label-6:'全服背包總量';">
           <caption id="cap-mkt" class="sr-only-caption">全服行情基準表</caption>
           <thead>
             <tr>
@@ -653,7 +656,8 @@
               <th scope="col" data-type="text"><button type="button" commandfor="tblMarket" command="--sort"><span>編號 / 強化</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               <th scope="col" data-type="text"><button type="button" commandfor="tblMarket" command="--sort"><span>類別</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               <th scope="col" data-type="number" data-align="end" aria-sort="descending"><button type="button" commandfor="tblMarket" command="--sort"><span>基準行情 (金幣)</span><span class="sort-ind" aria-hidden="true"></span></button></th>
-              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblMarket" command="--sort"><span>目前上架件數</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblMarket" command="--sort"><span>架上件數</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblMarket" command="--sort"><span>全服背包總量</span><span class="sort-ind" aria-hidden="true"></span></button></th>
             </tr>
           </thead>
           <tbody id="tbMarket"></tbody>
@@ -708,6 +712,7 @@
       const CLS_ZH = { royal: '王族', knight: '騎士', elf: '妖精', mage: '法師', darkelf: '黑暗妖精', dk: '龍騎士', ill: '幻術師' };
       const TIER_ZH = { whale: '重課肝帝', regular: '一般冒險者', casual: '新手探險家', scalper: '奇岩商人' };
       const SLOT_ZH = { weapon: '武器', helm: '頭盔', armor: '盔甲', shield: '盾牌', cloak: '斗篷', glove: '手套', boots: '長靴', pants: '脛甲', belt: '皮帶', ring: '戒指', ring1: '戒指1', ring2: '戒指2', amulet: '項鍊', earring: '耳環', guarder: '臂甲' };
+      const AFFIX_ZH = { atk: '勇猛', hit: '精準', hp: '體魄', dr: '守護', spd: '迅捷', crit: '必殺' };
       const collator = new Intl.Collator('zh-Hant', { numeric: true, sensitivity: 'base' });
       const fmtNum = (n) => Number(n || 0).toLocaleString('zh-Hant');
 
@@ -715,6 +720,8 @@
       let ALL_SHOPS = [];
       let ALL_MKT = [];
       let SUPPLY_MAP = new Map();
+      let BAG_MAP = new Map();       // npcId -> { items: [...], totalQty, totalVal, searchBlob }
+      let BAG_SUPPLY = new Map();    // "id_ench" -> totalQty across all 70 NPCs
 
       function esc(s) {
         return String(s == null ? '' : s)
@@ -846,6 +853,11 @@
           return '<tr><td><span class="item-cell">' + iconHtml(s.item) + '<span>' + esc(nm) + '</span></span></td><td data-align="end">' + fmtNum(s.n) + '</td><td data-align="end"><strong>' + fmtNum(s.price) + ' 金</strong></td></tr>';
         }).join('');
 
+        const bagInfo = BAG_MAP.get(n.id);
+        const bagRows = bagInfo ? bagInfo.items.map(b =>
+          '<tr><td><span class="item-cell">' + iconHtml(b.id) + '<span>' + esc(b.disp) + ' <span class="badge">' + esc(b.catLabel) + '</span></span></span></td><td data-align="end">×' + fmtNum(b.qty) + '</td><td data-align="end">' + fmtNum(b.val) + ' 金</td></tr>'
+        ).join('') : '';
+
         const st = n.stats || {};
         dlgBody.innerHTML =
           '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px;font-size:0.92rem">' +
@@ -859,7 +871,11 @@
           '<h3 style="margin:12px 0 6px;font-size:0.98rem">個人商店貨架 (' + (n.shop || []).length + ' 件)</h3>' +
           ((n.shop || []).length
             ? '<table class="dlg-shop"><thead><tr><th>商品</th><th data-align="end">數量</th><th data-align="end">售價</th></tr></thead><tbody>' + shopRows + '</tbody></table>'
-            : '<p style="color:var(--muted);margin:4px 0">目前個人商店空空如也。</p>');
+            : '<p style="color:var(--muted);margin:4px 0">目前個人商店空空如也。</p>') +
+          '<h3 style="margin:16px 0 6px;font-size:0.98rem">背包物品 (' + (bagInfo ? (bagInfo.items.length + ' 種 / 合計 ' + fmtNum(bagInfo.totalQty) + ' 件 · 估值 ' + fmtNum(bagInfo.totalVal) + ' 金') : '尚未載入 npc_state.json') + ')</h3>' +
+          (bagInfo && bagInfo.items.length
+            ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>'
+            : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>');
         dlg.showModal();
       }
 
@@ -899,7 +915,8 @@
           if (st !== 'all' && n.state !== st) return false;
           if (q) {
             const wName = (itemDef(n.weapon && n.weapon.id) || {}).name || '';
-            const blob = (n.name + ' ' + (CLS_ZH[n.cls] || '') + ' ' + wName + ' ' + (n.shout || n.talk || '')).toLowerCase();
+            const bagBlob = (BAG_MAP.get(n.id) && BAG_MAP.get(n.id).searchBlob) || '';
+            const blob = (n.name + ' ' + (CLS_ZH[n.cls] || '') + ' ' + wName + ' ' + (n.shout || n.talk || '') + ' ' + bagBlob).toLowerCase();
             if (!blob.includes(q)) return false;
           }
           return true;
@@ -911,12 +928,15 @@
           const wd = itemDef(w.id);
           const wTxt = (w.ench > 0 ? '+' + w.ench + ' ' : '') + ((wd && wd.name) || '空手');
           const shopCnt = (n.shop || []).length;
+          const bagInfo = BAG_MAP.get(n.id);
+          const bagTypes = bagInfo ? bagInfo.items.length : 0;
           return '<tr>' +
             '<th scope="row" data-value="' + esc(n.name) + '"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button></th>' +
             '<td data-value="' + esc(CLS_ZH[n.cls] || n.cls) + '">' + esc(CLS_ZH[n.cls] || n.cls) + ' <span class="badge ' + esc(n.tier) + '">' + esc(TIER_ZH[n.tier] || n.tier) + '</span></td>' +
             '<td data-align="end" data-value="' + n.lv + '"><strong>Lv.' + n.lv + '</strong></td>' +
             '<td data-align="end" data-value="' + n.gold + '">' + fmtNum(n.gold) + '</td>' +
             '<td data-align="end" data-value="' + shopCnt + '">' + shopCnt + ' 件</td>' +
+            '<td data-align="end" data-value="' + bagTypes + '">' + (bagInfo ? (bagTypes + ' 種') : '-') + '</td>' +
             '<td><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</td>' +
             '</tr>';
         }).join('');
@@ -940,6 +960,7 @@
           '<td><span class="badge">' + esc(m.catLabel) + '</span></td>' +
           '<td data-align="end" data-value="' + m.price + '"><strong style="color:var(--accent)">' + fmtNum(m.price) + '</strong></td>' +
           '<td data-align="end" data-value="' + m.supply + '">' + (m.supply > 0 ? '<strong style="color:var(--ok)">' + m.supply + ' 件</strong>' : '<span style="color:var(--muted)">0</span>') + '</td>' +
+          '<td data-align="end" data-value="' + m.bagSupply + '">' + (m.bagSupply > 0 ? fmtNum(m.bagSupply) + ' 個' : '<span style="color:var(--muted)">0</span>') + '</td>' +
           '</tr>'
         ).join('');
       }
@@ -959,9 +980,19 @@
         btn.disabled = true;
         btn.textContent = '讀取中…';
         try {
-          const resp = await fetch('world_state.json?v=' + Date.now(), { cache: 'no-store' });
-          if (!resp.ok) throw new Error('HTTP ' + resp.status);
-          WORLD = await resp.json();
+          const ts = Date.now();
+          const [wRes, sRes] = await Promise.allSettled([
+            fetch('world_state.json?v=' + ts, { cache: 'no-store' }),
+            fetch('sim/npc_state.json?v=' + ts, { cache: 'no-store' }),
+          ]);
+          if (wRes.status !== 'fulfilled' || !wRes.value.ok) {
+            throw new Error('world_state.json 讀取失敗');
+          }
+          WORLD = await wRes.value.json();
+          let rawState = null;
+          if (sRes.status === 'fulfilled' && sRes.value.ok) {
+            try { rawState = await sRes.value.json(); } catch (e) { }
+          }
 
           document.getElementById('mVer').textContent = WORLD.version || '-';
           document.getElementById('mTick').textContent = fmtNum(WORLD.tick) + ' 小時';
@@ -1018,6 +1049,40 @@
           }
           ALL_SHOPS.sort((a, b) => b.price - a.price);
 
+          // Build Bag maps from sim/npc_state.json
+          BAG_MAP = new Map();
+          BAG_SUPPLY = new Map();
+          if (rawState && Array.isArray(rawState.npcs)) {
+            for (const rn of rawState.npcs) {
+              const items = [];
+              let totalQty = 0;
+              let totalVal = 0;
+              const names = [];
+              for (const [bKey, qty] of Object.entries(rn.bag || {})) {
+                if (!qty || qty <= 0) continue;
+                const [idS, eS, affK] = bKey.split(':');
+                const id = Number(idS);
+                const ench = Number(eS || 0);
+                if (!id || id === 40308) continue;
+                const d = itemDef(id);
+                const c = catOf(d);
+                const affObj = affK ? { k: affK, name: AFFIX_ZH[affK] || affK } : null;
+                const disp = dispName(id, ench, affObj);
+                const mk = id + '_' + ench;
+                const unitRef = mref[mk] || mref[String(id)] || 0;
+                const val = unitRef * qty;
+                totalQty += qty;
+                totalVal += val;
+                names.push(disp);
+                BAG_SUPPLY.set(mk, (BAG_SUPPLY.get(mk) || 0) + qty);
+                if (ench === 0) BAG_SUPPLY.set(String(id), (BAG_SUPPLY.get(String(id)) || 0) + qty);
+                items.push({ id, ench, qty, val, disp, catLabel: c.label });
+              }
+              items.sort((a, b) => b.val - a.val || b.qty - a.qty);
+              BAG_MAP.set(rn.id, { items, totalQty, totalVal, searchBlob: names.join(' ') });
+            }
+          }
+
           // Build MarketRef list
           ALL_MKT = [];
           for (const k of Object.keys(mref)) {
@@ -1029,6 +1094,7 @@
             const c = catOf(d);
             const disp = dispName(id, ench, null);
             const sup = SUPPLY_MAP.get(k) || 0;
+            const bsup = BAG_SUPPLY.get(k) || 0;
             ALL_MKT.push({
               key: k,
               id,
@@ -1038,6 +1104,7 @@
               catLabel: c.label,
               price: mref[k],
               supply: sup,
+              bagSupply: bsup,
               searchText: (disp + ' ' + id + ' ' + c.label).toLowerCase(),
             });
           }
