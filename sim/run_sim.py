@@ -232,6 +232,11 @@ class GameDatabase:
         self.recipes: list[dict[str, Any]] = []
         self.recipes_by_out: dict[int, list[dict[str, Any]]] = {}
         self.item_fx: dict[int, dict[str, float]] = {}
+        self.no_drop: set[int] = set(NO_DROP)
+        self.no_sell: set[int] = set(NO_SELL)
+        self.matk: dict[int, float] = dict(MATK)
+        self.chest_mats: list[int] = list(CHEST_MATS)
+        self.box_pool: list[int] = []
         self.shop_anchor: dict[int, int] = {}
         self.market_base: dict[int, int] = {}
 
@@ -334,11 +339,47 @@ class GameDatabase:
         self.monsters = data_obj.get("monsters", [])
         self.monsters_by_id = {int(m["id"]): m for m in self.monsters}
 
-        # 5. game.js (價格錨點 + ITEMFX 特效 + 關卡池)
+        # 5. game.js (動態抽取掉落倍率、禁掉品、寶箱池、ITEMFX 特效、商店價格與關卡池)
+        self._parse_game_constants(game_txt)
         self._parse_item_fx(game_txt)
         self._parse_shop_anchors(game_txt)
         self._parse_stages(game_txt)
         self._compute_all_base_prices()
+
+        # 曼孟隨機裝備箱獎池（以 GEARCATS 與有效裝備動態建構，未來加新裝自動進池）
+        dyn_box = [iid for iid in self.gear_prices if self.items.get(iid, {}).get("kind") in ("weapon", "armor") and iid != 172]
+        self.box_pool = dyn_box or [x for x in (180, 169, 125, 29, 47, 52, 102, 148, 20011, 20033, 20063, 20154, 20210, 20264) if x in self.items]
+
+    def _parse_game_constants(self, game_txt: str) -> None:
+        m_nd = re.search(r"NO_DROP\s*=\s*new Set\(\[([^\]]+)\]\)", game_txt)
+        if m_nd:
+            ids = {int(x) for x in re.findall(r"\d+", m_nd.group(1))}
+            if ids:
+                self.no_drop = ids
+        m_ns = re.search(r"const NOSELL\s*=\s*new Set\(\[([^\]]+)\]\)", game_txt)
+        if m_ns:
+            ids = {int(x) for x in re.findall(r"\d+", m_ns.group(1))}
+            if ids:
+                self.no_sell = ids
+        m_cm = re.search(r"const CHEST_MATS\s*=\s*\[([^\]]+)\]", game_txt)
+        if m_cm:
+            arr = [int(x) for x in re.findall(r"\d+", m_cm.group(1))]
+            if arr:
+                self.chest_mats = arr
+        m_mk = re.search(r"const MATK\s*=\s*\{([^}]+)\}", game_txt)
+        if m_mk:
+            parsed: dict[int, float] = {}
+            for k_s, v_s in re.findall(r"(\d+)\s*:\s*([0-9.\s/]+)", m_mk.group(1)):
+                v_s = v_s.strip()
+                if "/" in v_s:
+                    parts = v_s.split("/", 1)
+                    denom = float(parts[1].strip())
+                    if denom > 0:
+                        parsed[int(k_s)] = float(parts[0].strip()) / denom
+                else:
+                    parsed[int(k_s)] = float(v_s)
+            if parsed:
+                self.matk = parsed
 
     def _parse_item_fx(self, game_txt: str) -> None:
         m_fx = re.search(r"const ITEMFX\s*=\s*\{(.*?)\n\s*\};", game_txt, re.S)
@@ -372,7 +413,16 @@ class GameDatabase:
                 continue
             by_name_all.setdefault(m.get("name", ""), []).append(m)
 
-        gl_pool_d = ["夏洛伯", "骷髏斧手", "骷髏弓箭手", "楊果里恩", "骷髏槍兵", "食屍鬼", "長者", "食人妖精"]
+        # 動態蒐集所有怪物名稱陣列常數 (如 GL_POOL_D 等) 與首領變數對應 (BX(id) / monsters.find(id))
+        named_pools: dict[str, list[str]] = {
+            "GL_POOL_D": ["夏洛伯", "骷髏斧手", "骷髏弓箭手", "楊果里恩", "骷髏槍兵", "食屍鬼", "長者", "食人妖精"],
+        }
+        for pm in re.finditer(r"const ([A-Z0-9_]+)\s*=\s*\[([^\]]+)\]", game_txt):
+            vn, raw_arr = pm.group(1), pm.group(2)
+            strs = re.findall(r"['\"]([^'\"]+)['\"]", raw_arr)
+            if strs and any(s in by_name_all for s in strs):
+                named_pools[vn] = strs
+
         named_boss_map = {
             "BOSS": 45600,
             "BAPH": 45573,
@@ -381,13 +431,15 @@ class GameDatabase:
             "DKNIGHT": 45601,
             "MAGEB": 71020,
         }
+        for bm in re.finditer(r"const ([A-Z0-9_]+)\s*=\s*(?:BX\((\d+)\)|DATA\.monsters\.find\([^=]+===\s*(\d+)\))", game_txt):
+            named_boss_map[bm.group(1)] = int(bm.group(2) or bm.group(3))
 
         m_st = re.search(r"const STAGES\s*=\s*\[(.*?)\n\s*\];", game_txt, re.S)
         if not m_st:
             return
         for line in m_st.group(1).splitlines():
             mid_m = re.search(r"mapId:\s*(\d+)", line)
-            nm_m = re.search(r"name:\s*'([^']+)'", line)
+            nm_m = re.search(r"name:\s*['\"]([^'\"]+)['\"]", line)
             if not mid_m or not nm_m:
                 continue
             mid = int(mid_m.group(1))
@@ -396,23 +448,28 @@ class GameDatabase:
             if mid in (252, 253, 254, 2005, 610) or "nopool: 1" in line:
                 continue
 
+            rec_lv = self.rec.get(mid, 10)
             pool_ids: list[int] = []
             ids_m = re.search(r"byIds\(\[([^\]]+)\]\)", line)
             names_m = re.search(r"byNamesX?\(\[([^\]]+)\]\)", line)
             if ids_m:
                 pool_ids = [int(x.strip()) for x in ids_m.group(1).split(",") if x.strip().isdigit()]
             elif names_m:
-                raw_names = re.findall(r"'([^']+)'", names_m.group(1))
+                raw_names = re.findall(r"['\"]([^'\"]+)['\"]", names_m.group(1))
                 for rn in raw_names:
                     for mon in by_name_all.get(rn, []):
                         pool_ids.append(int(mon["id"]))
-            elif "GL_POOL_D" in line:
-                for rn in gl_pool_d:
-                    for mon in by_name_all.get(rn, []):
-                        pool_ids.append(int(mon["id"]))
             else:
-                # 說話之島 (MON)：依 lvl <= 18 普通怪
-                pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and m.get("lvl", 1) <= 18]
+                matched_pool = next((vn for vn in named_pools if re.search(r"\b" + re.escape(vn) + r"\b", line)), None)
+                if matched_pool:
+                    for rn in named_pools[matched_pool]:
+                        for mon in by_name_all.get(rn, []):
+                            pool_ids.append(int(mon["id"]))
+                elif re.search(r"\bMON\b", line):
+                    pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and m.get("lvl", 1) <= 18]
+                else:
+                    # 未來新增關卡若採用其他寫法，自動依推薦等級 recLv 挑選附近一般怪進池
+                    pool_ids = [int(m["id"]) for m in self.monsters if not m.get("boss") and not m.get("gi") and abs(int(m.get("lvl", 1)) - rec_lv) <= 8]
 
             pool_ids = [pid for pid in pool_ids if pid in self.monsters_by_id]
             if not pool_ids:
@@ -420,14 +477,16 @@ class GameDatabase:
 
             boss_id = None
             bx_m = re.search(r"boss:\s*BX\((\d+)\)", line)
+            bi_m = re.search(r"boss:\s*(\d+)\b", line)
             if bx_m:
                 boss_id = int(bx_m.group(1))
+            elif bi_m:
+                boss_id = int(bi_m.group(1))
             else:
-                bn_m = re.search(r"boss:\s*([A-Z]+)", line)
+                bn_m = re.search(r"boss:\s*([A-Z0-9_]+)", line)
                 if bn_m and bn_m.group(1) in named_boss_map:
                     boss_id = named_boss_map[bn_m.group(1)]
 
-            rec_lv = self.rec.get(mid, 10)
             self.stages.append(
                 {
                     "mapId": mid,
@@ -451,9 +510,9 @@ class GameDatabase:
             is_boss = bool(m.get("boss"))
             for dr in m.get("drops", []):
                 iid = int(dr["item"])
-                if iid == GOLD_ID or iid in NO_DROP:
+                if iid == GOLD_ID or iid in self.no_drop:
                     continue
-                eff_ch = max(1.0, float(dr.get("chance", 10000)) * MATK.get(iid, 1.0))
+                eff_ch = max(1.0, float(dr.get("chance", 10000)) * self.matk.get(iid, 1.0))
                 sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, eff_ch, in_stage))
 
         recipe_demand: dict[int, int] = {}
@@ -624,7 +683,7 @@ class GameDatabase:
                 norm_srcs = [s for s in st_srcs if not s[2]]
                 src_cnt = max(1, len(st_srcs))
                 min_lvl = min((s[0] for s in st_srcs), default=30)
-                in_chest = iid in CHEST_MATS
+                in_chest = iid in self.chest_mats
                 demand = recipe_demand.get(iid, 0)
 
                 base_df = calc_drop_floor(iid, scale=0.075, cap=650_000)
@@ -656,7 +715,7 @@ class GameDatabase:
                 p = min(950_000 if "高品質" in nm else 360_000 if "品質" in nm else 90_000, max(tier_floor, raw_p))
             elif typ == "material":
                 df = calc_drop_floor(iid, scale=0.05, cap=380_000)
-                matk = MATK.get(iid, 1.0)
+                matk = self.matk.get(iid, 1.0)
                 demand_bonus = 0 if matk >= 2.0 else min(8_000, recipe_demand.get(iid, 0) * 180)
                 if "奧里哈魯根" in nm or "金屬板" in nm:
                     floor = 18_000
@@ -679,7 +738,7 @@ class GameDatabase:
         for _pass in range(4):
             for rec in self.recipes:
                 oid = rec["out"]
-                if oid not in self.items or oid in NO_SELL or oid in (40068, 40494):
+                if oid not in self.items or oid in self.no_sell or oid in (40068, 40494):
                     continue
                 in_cost = sum(self.market_base.get(in_id, 2_000) * cnt for in_id, cnt in rec["inputs"])
                 total_cost = in_cost + rec["gold"] + rec["coin"] * coin_val
@@ -961,6 +1020,10 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
     next_listing_seq = state.setdefault("nextSeq", 1000)
 
     for npc in npcs:
+        # 清理若從舊資料集升級時已移除的道具編號，確保改版不相容不崩潰
+        for sl in list(npc.get("eq", {}).keys()):
+            if npc["eq"][sl].get("id") not in db.items:
+                del npc["eq"][sl]
         npc["ageTicks"] = npc.get("ageTicks", 0) + 1
         tier = npc["tier"]
         cls = npc["cls"]
@@ -1022,9 +1085,9 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                     if iid == GOLD_ID:
                         run_gold += int(rng.randint(int(dr.get("min", 25)), int(dr.get("max", 90))) * 4.5 * diff_gold_mult)
                         continue
-                    if iid in NO_DROP or iid not in db.items:
+                    if iid in db.no_drop or iid not in db.items:
                         continue
-                    ch = (int(dr.get("chance", 10000)) * MATK.get(iid, 1.0)) / 1_000_000.0
+                    ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0)) / 1_000_000.0
                     # 模擬整場約數千隻怪的縮放抽樣：高機率材料常態掉落，極稀有料 (如食人巨魔的血) 維持罕見
                     eff_roll = min(0.28, ch * 3.0)
                     if rng.random() < eff_roll:
@@ -1045,17 +1108,17 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                 bmon = db.monsters_by_id[st["bossId"]]
                 run_gold += int(rng.randint(15000, 48000) * diff_gold_mult)
                 # 開啟首領寶箱/特殊寶箱（依 game.js CHEST_MATS 產出製作材料與祝武/防）
-                if rng.random() < 0.45:
-                    mat_id = rng.choice(CHEST_MATS)
+                if rng.random() < 0.45 and db.chest_mats:
+                    mat_id = rng.choice(db.chest_mats)
                     if mat_id in db.items:
                         self_bag_add(npc, mat_id, 0, 1, None)
                 if rng.random() < 0.015:
                     self_bag_add(npc, 84072, 0, 1, None)  # 純白的萬能藥
                 for dr in bmon.get("drops", []):
                     iid = int(dr["item"])
-                    if iid == GOLD_ID or iid in NO_DROP or iid not in db.items:
+                    if iid == GOLD_ID or iid in db.no_drop or iid not in db.items:
                         continue
-                    ch = (int(dr.get("chance", 10000)) * MATK.get(iid, 1.0)) / 1_000_000.0
+                    ch = (int(dr.get("chance", 10000)) * db.matk.get(iid, 1.0)) / 1_000_000.0
                     if rng.random() < min(0.38, ch * 1.1):
                         it = db.items[iid]
                         aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.18) else None
@@ -1072,9 +1135,8 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         if npc["gold"] > sink_cap:
             spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
             npc["gold"] -= spend
-            if spend >= 1_000_000:
-                box_pool = [180, 169, 125, 29, 47, 52, 102, 148, 20011, 20033, 20063, 20154, 20210, 20264]
-                bi = rng.choice(box_pool)
+            if spend >= 1_000_000 and db.box_pool:
+                bi = rng.choice(db.box_pool)
                 be = 4 if rng.random() < 0.05 else 3 if rng.random() < 0.15 else 2 if rng.random() < 0.30 else 0
                 if bi in db.items:
                     self_bag_add(npc, bi, be, 1, None)
@@ -1370,7 +1432,7 @@ def restock_npc_shop(
         iid_s, ench_s, aff_k = key.split(":")
         iid, ench = int(iid_s), int(ench_s)
         it = db.items.get(iid)
-        if not it or iid in NO_SELL or iid in NO_DROP:
+        if not it or iid in db.no_sell or iid in db.no_drop:
             bag.pop(key, None)
             continue
 
