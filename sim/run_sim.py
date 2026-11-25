@@ -9,10 +9,10 @@
    - items.js / items2.js / items3.js / itemuse.js (ITEMS / GEARCATS / ITEMUSE / STARTW)
    - game.js (STAGES / ENCH / enchRate / SHOPSELL / BUYP / VNPC 商店價格)
 2. 固定維護 70 位模擬 NPC（7 職業各 10 位），依真實生態比例分 4 類：
-   - whale (15): 重課肝帝 70~100 場/天
-   - regular (30): 一般玩家 25~50 場/天
-   - casual (15): 輕度新手 10~20 場/天（急售便宜貨 0.65~0.85×）
-   - scalper (10): 奸商倒爺 15~30 場/天（低掃 <0.80×、高賣 1.15~1.35×）
+   - whale (5): 重課肝帝 35~50 場/天
+   - regular (35): 一般冒險者 12~25 場/天
+   - casual (20): 新手探險家 5~10 場/天（急售便宜貨 0.65~0.85×）
+   - scalper (10): 奇岩商人 8~15 場/天（低掃 <0.80×、高賣 1.15~1.35×）
 3. 具備完整防通膨與資源回收機制：
    - 依真實 enchRate() 衝裝（失敗爆裝消耗裝備與卷軸）
    - 藥水/傳捲消耗、拍賣交易 10% 手續費銷毀
@@ -46,7 +46,7 @@ CLS_ZH = {
     "dk": "龍騎士",
     "ill": "幻術師",
 }
-TIER_COUNTS = {"whale": 15, "regular": 30, "casual": 15, "scalper": 10}
+TIER_COUNTS = {"whale": 5, "regular": 35, "casual": 20, "scalper": 10}
 TIER_ZH = {
     "whale": "重課肝帝",
     "regular": "一般冒險者",
@@ -54,10 +54,10 @@ TIER_ZH = {
     "scalper": "奇岩商人",
 }
 TIER_RUNS_PER_DAY = {
-    "whale": (70, 100),
-    "regular": (25, 50),
-    "casual": (10, 20),
-    "scalper": (15, 30),
+    "whale": (35, 50),
+    "regular": (12, 25),
+    "casual": (5, 10),
+    "scalper": (8, 15),
 }
 TIER_SELL_MULT = {
     "whale": (1.00, 1.10),
@@ -1030,7 +1030,7 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         r_min, r_max = TIER_RUNS_PER_DAY[tier]
         expected_runs = rng.uniform(r_min, r_max) / 24.0
         n_runs = int(expected_runs) + (1 if rng.random() < (expected_runs % 1.0) else 0)
-        if n_runs == 0 and npc["ageTicks"] % 3 == 0:
+        if n_runs == 0 and npc["ageTicks"] % 8 == 0:
             n_runs = 1
 
         # 記錄最近發生的精彩事蹟
