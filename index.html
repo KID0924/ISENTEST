@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>奇岩廣場 70-NPC 生態與物價即時看板 · ISENTEST</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+
+      --bg-dark: #0e1118;
+      --surface-dark: #161b26;
+      --surface-2-dark: #1d2433;
+      --border-dark: #2c364d;
+      --text-dark: #eaeef7;
+      --muted-dark: #9aa7c0;
+      --accent-dark: #e6b84c;
+      --accent-ink-dark: #161207;
+      --ok-dark: #5de08d;
+      --warn-dark: #ff8c69;
+      --link-dark: #7db7ff;
+
+      --bg-light: #f6f7fb;
+      --surface-light: #ffffff;
+      --surface-2-light: #eef1f7;
+      --border-light: #d5dce8;
+      --text-light: #171d29;
+      --muted-light: #56637a;
+      --accent-light: #9a6700;
+      --accent-ink-light: #ffffff;
+      --ok-light: #137333;
+      --warn-light: #b33818;
+      --link-light: #0d5bd9;
+
+      --bg: var(--bg-dark);
+      --surface: var(--surface-dark);
+      --surface-2: var(--surface-2-dark);
+      --border: var(--border-dark);
+      --text: var(--text-dark);
+      --muted: var(--muted-dark);
+      --accent: var(--accent-dark);
+      --accent-ink: var(--accent-ink-dark);
+      --ok: var(--ok-dark);
+      --warn: var(--warn-dark);
+      --link: var(--link-dark);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: var(--bg-light);
+        --surface: var(--surface-light);
+        --surface-2: var(--surface-2-light);
+        --border: var(--border-light);
+        --text: var(--text-light);
+        --muted: var(--muted-light);
+        --accent: var(--accent-light);
+        --accent-ink: var(--accent-ink-light);
+        --ok: var(--ok-light);
+        --warn: var(--warn-light);
+        --link: var(--link-light);
+      }
+    }
+
+    @supports (color: light-dark(white, black)) {
+      :root {
+        --bg: light-dark(var(--bg-light), var(--bg-dark));
+        --surface: light-dark(var(--surface-light), var(--surface-dark));
+        --surface-2: light-dark(var(--surface-2-light), var(--surface-2-dark));
+        --border: light-dark(var(--border-light), var(--border-dark));
+        --text: light-dark(var(--text-light), var(--text-dark));
+        --muted: light-dark(var(--muted-light), var(--muted-dark));
+        --accent: light-dark(var(--accent-light), var(--accent-dark));
+        --accent-ink: light-dark(var(--accent-ink-light), var(--accent-ink-dark));
+        --ok: light-dark(var(--ok-light), var(--ok-dark));
+        --warn: light-dark(var(--warn-light), var(--warn-dark));
+        --link: light-dark(var(--link-light), var(--link-dark));
+        accent-color: var(--accent);
+        scrollbar-color: var(--border) var(--bg);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-inline-size: 1280px;
+      margin-inline: auto;
+      padding: clamp(12px, 2.5vw, 24px);
+    }
+
+    header.topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      align-items: center;
+      justify-content: space-between;
+      padding-block-end: 16px;
+      border-block-end: 1px solid var(--border);
+      margin-block-end: 18px;
+    }
+
+    .title-group h1 {
+      margin: 0 0 4px;
+      font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      min-block-size: 38px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+    }
+    .btn:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+      margin-block-end: 16px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .kpi-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .kpi-val {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-block: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .ticker-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-block-end: 18px;
+    }
+    .ticker-box summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      list-style-position: inside;
+    }
+    .ticker-list {
+      margin: 10px 0 0;
+      padding-inline-start: 18px;
+      display: grid;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+
+    /* Tabs */
+    .tablist {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scroll-snap-type: inline proximity;
+      border-block-end: 1px solid var(--border);
+      margin-block-end: 14px;
+      scrollbar-width: thin;
+    }
+    .tablist button[role="tab"] {
+      flex: none;
+      scroll-snap-align: start;
+      position: relative;
+      padding: 10px 16px;
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tablist button[role="tab"][aria-selected="true"] {
+      color: var(--accent);
+    }
+    .tablist button[role="tab"][aria-selected="true"]::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      border-block-end: 3px solid var(--accent);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-block-end: 12px;
+    }
+    .controls input[type="search"],
+    .controls select {
+      min-block-size: 38px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.92rem;
+    }
+    .controls input[type="search"] {
+      flex: 1 1 220px;
+      max-inline-size: 360px;
+    }
+    .count-note {
+      margin-inline-start: auto;
+      font-size: 0.86rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Responsive + Sortable Table */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(640px, 72vh);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      container-type: inline-size;
+    }
+    .table-wrapper table {
+      inline-size: 100%;
+      min-inline-size: 680px;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.92rem;
+    }
+    caption.sr-only-caption {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .sr-status {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 2;
+      background: var(--surface-2);
+    }
+    th, td {
+      padding: 9px 12px;
+      border-block-end: 1px solid var(--border);
+      text-align: start;
+      vertical-align: middle;
+    }
+    th[data-align="end"], td[data-align="end"] {
+      text-align: end;
+      font-variant-numeric: tabular-nums;
+    }
+    th {
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    th:has(> button) {
+      padding: 0;
+    }
+    th > button {
+      inline-size: 100%;
+      min-block-size: 40px;
+      padding: 8px 12px;
+      background: transparent;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-align: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: space-between;
+    }
+    th[data-align="end"] > button {
+      justify-content: flex-end;
+    }
+    .sort-ind::after {
+      content: "↕";
+      opacity: 0.35;
+      font-size: 0.8em;
+    }
+    th[aria-sort="ascending"] .sort-ind::after {
+      content: "▲";
+      opacity: 1;
+      color: var(--accent);
+    }
+    th[aria-sort="descending"] .sort-ind::after {
+      content: "▼";
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 600;
+    }
+    tbody tr:hover td,
+    tbody tr:hover th {
+      background: var(--surface-2);
+    }
+
+    .item-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .item-icon {
+      width: 24px;
+      height: 24px;
+      image-rendering: pixelated;
+      flex: none;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.22);
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .badge.whale { color: var(--accent); border-color: var(--accent); }
+    .badge.scalper { color: var(--warn); border-color: var(--warn); }
+    .badge.regular { color: var(--link); border-color: var(--link); }
+    .badge.village { color: var(--ok); border-color: var(--ok); }
+    .affix { color: var(--ok); font-size: 0.8rem; }
+    .link-btn {
+      background: none;
+      border: 0;
+      padding: 2px 0;
+      color: var(--link);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* Stacked Mobile Card Table */
+    @container (width < 640px) {
+      .table-wrapper table {
+        min-inline-size: 0;
+      }
+      .table-wrapper table,
+      .table-wrapper thead,
+      .table-wrapper tbody,
+      .table-wrapper tr,
+      .table-wrapper th,
+      .table-wrapper td {
+        display: block;
+      }
+      .table-wrapper thead {
+        display: none;
+      }
+      .table-wrapper tr {
+        margin: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .table-wrapper tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        background: var(--surface-2);
+        border-block-end: 1px solid var(--border);
+      }
+      .table-wrapper td {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: end;
+      }
+      .table-wrapper td::before {
+        color: var(--muted);
+        font-weight: 600;
+        text-align: start;
+      }
+      .table-wrapper td:nth-child(2)::before { content: var(--label-2) ": "; }
+      .table-wrapper td:nth-child(3)::before { content: var(--label-3) ": "; }
+      .table-wrapper td:nth-child(4)::before { content: var(--label-4) ": "; }
+      .table-wrapper td:nth-child(5)::before { content: var(--label-5) ": "; }
+      .table-wrapper td:nth-child(6)::before { content: var(--label-6) ": "; }
+    }
+
+    /* Modal Dialog */
+    dialog#npcDlg {
+      max-inline-size: min(760px, 94vw);
+      inline-size: 100%;
+      max-block-size: 88vh;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+    }
+    dialog#npcDlg::backdrop {
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(2px);
+    }
+    .dlg-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-block-end: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .dlg-hdr h2 {
+      margin: 0;
+      font-size: 1.12rem;
+      color: var(--accent);
+    }
+    .dlg-body {
+      padding: 16px 18px;
+      overflow-y: auto;
+      max-block-size: calc(88vh - 68px);
+    }
+    .eq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+      gap: 8px;
+      margin-block: 10px 16px;
+    }
+    .eq-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+      font-size: 0.88rem;
+    }
+    .dlg-shop {
+      inline-size: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .dlg-shop th, .dlg-shop td {
+      padding: 7px 8px;
+      border-block-end: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="title-group">
+        <h1>奇岩廣場 70-NPC 生態與物價即時看板</h1>
+        <div class="meta-row">
+          <span>版本：<strong id="mVer">載入中…</strong></span>
+          <span>虛擬時數：<strong id="mTick">-</strong></span>
+          <span>最後更新：<strong id="mTime">-</strong></span>
+          <span>排程：每 4 小時自動推進</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btnReload">立即重新抓取</button>
+        <a class="btn" href="world_state.json" target="_blank" rel="noopener">查看原始 JSON</a>
+      </div>
+    </header>
+
+    <section class="kpi-grid" aria-label="世界摘要數據">
+      <div class="kpi"><div class="kpi-label">模擬玩家總數</div><div class="kpi-val" id="kTotal">-</div><div class="kpi-sub" id="kOnline">-</div></div>
+      <div class="kpi"><div class="kpi-label">全服平均等級</div><div class="kpi-val" id="kLv">-</div><div class="kpi-sub" id="kLvRange">-</div></div>
+      <div class="kpi"><div class="kpi-label">人均持有金幣</div><div class="kpi-val" id="kGold">-</div><div class="kpi-sub" id="kGoldMax">-</div></div>
+      <div class="kpi"><div class="kpi-label">個人商店架上貨件</div><div class="kpi-val" id="kShop">-</div><div class="kpi-sub" id="kSellers">-</div></div>
+      <div class="kpi"><div class="kpi-label">累計滿級退坑替換</div><div class="kpi-val" id="kRetired">-</div><div class="kpi-sub">退坑後自動補進 Lv.1 新角</div></div>
+      <div class="kpi"><div class="kpi-label">行情表收錄項目</div><div class="kpi-val" id="kMarket">-</div><div class="kpi-sub">含材料／寶石／捲軸／法書／裝備</div></div>
+    </section>
+
+    <details class="ticker-box" open>
+      <summary>奇岩世界近期快報（最近 10 則）</summary>
+      <ul class="ticker-list" id="tickerList"></ul>
+    </details>
+
+    <div class="tablist" role="tablist" aria-label="資料分頁">
+      <button type="button" role="tab" id="tab-shops" aria-selected="true">個人商店貨架 (<span id="cShops">0</span>)</button>
+      <button type="button" role="tab" id="tab-npcs" aria-selected="false">70 位冒險者 (<span id="cNpcs">70</span>)</button>
+      <button type="button" role="tab" id="tab-market" aria-selected="false">全服行情基準 (<span id="cMarket">0</span>)</button>
+    </div>
+
+    <div id="sortStatus" class="sr-status" role="status"></div>
+
+    <!-- Panel 1: Shops -->
+    <section role="tabpanel" id="panel-shops" aria-labelledby="tab-shops">
+      <div class="controls">
+        <input type="search" id="qShop" placeholder="搜尋商品名稱、詞綴或賣家…" aria-label="搜尋個人商店商品">
+        <select id="fShopCat" aria-label="篩選商品類型">
+          <option value="all">全部商品類型</option>
+          <option value="weapon">武器</option>
+          <option value="acc">稀有飾品（戒/鍊/耳/臂）</option>
+          <option value="armor">防具</option>
+          <option value="material">材料與寶石</option>
+          <option value="scroll">捲軸與魔法書</option>
+          <option value="consumable">藥水／箭／其他</option>
+        </select>
+        <span class="count-note" id="nShop">顯示 0 筆</span>
+      </div>
+      <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-shops">
+        <table id="tblShops" style="--label-1:'商品名稱';--label-2:'分類';--label-3:'數量';--label-4:'總售價';--label-5:'行情參考';--label-6:'賣家';">
+          <caption id="cap-shops" class="sr-only-caption">個人商店貨架總覽</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblShops" command="--sort"><span>商品名稱</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblShops" command="--sort"><span>分類</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblShops" command="--sort"><span>數量</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end" aria-sort="descending"><button type="button" commandfor="tblShops" command="--sort"><span>總售價 (金幣)</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblShops" command="--sort"><span>基準行情</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblShops" command="--sort"><span>賣家（點開看詳情）</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+            </tr>
+          </thead>
+          <tbody id="tbShops"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 2: NPCs -->
+    <section role="tabpanel" id="panel-npcs" aria-labelledby="tab-npcs" hidden>
+      <div class="controls">
+        <input type="search" id="qNpc" placeholder="搜尋角色名稱、主手武器或喊話…" aria-label="搜尋冒險者">
+        <select id="fNpcTier" aria-label="篩選玩家類型">
+          <option value="all">全部生態身分</option>
+          <option value="whale">重課肝帝</option>
+          <option value="regular">一般冒險者</option>
+          <option value="scalper">奇岩商人</option>
+          <option value="casual">新手探險家</option>
+        </select>
+        <select id="fNpcState" aria-label="篩選所在狀態">
+          <option value="all">全部狀態</option>
+          <option value="village">奇岩村擺攤/逛街</option>
+          <option value="battle">外出練功打寶</option>
+        </select>
+        <span class="count-note" id="nNpc">顯示 0 人</span>
+      </div>
+      <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-npcs">
+        <table id="tblNpcs" style="--label-1:'冒險者';--label-2:'職業 / 身分';--label-3:'等級';--label-4:'持有金幣';--label-5:'貨架件數';--label-6:'狀態 / 目前武器';">
+          <caption id="cap-npcs" class="sr-only-caption">70 位冒險者清單</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblNpcs" command="--sort"><span>冒險者</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblNpcs" command="--sort"><span>職業 / 身分</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end" aria-sort="descending"><button type="button" commandfor="tblNpcs" command="--sort"><span>等級</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblNpcs" command="--sort"><span>持有金幣</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblNpcs" command="--sort"><span>貨架</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblNpcs" command="--sort"><span>狀態 / 主武</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+            </tr>
+          </thead>
+          <tbody id="tbNpcs"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 3: MarketRef -->
+    <section role="tabpanel" id="panel-market" aria-labelledby="tab-market" hidden>
+      <div class="controls">
+        <input type="search" id="qMarket" placeholder="搜尋物品名稱或編號 ID…" aria-label="搜尋全服行情">
+        <select id="fMktCat" aria-label="篩選行情類別">
+          <option value="all">全部類別</option>
+          <option value="material">材料與寶石</option>
+          <option value="scroll">捲軸與魔法書</option>
+          <option value="acc">飾品（戒/鍊/耳/臂）</option>
+          <option value="weapon">武器</option>
+          <option value="armor">防具</option>
+          <option value="potion">藥水／箭／其他</option>
+        </select>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;cursor:pointer;">
+          <input type="checkbox" id="chkMktStock"> 只看目前有貨上架
+        </label>
+        <span class="count-note" id="nMkt">顯示 0 項</span>
+      </div>
+      <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-mkt">
+        <table id="tblMarket" style="--label-1:'物品';--label-2:'編號 / 強化';--label-3:'類別';--label-4:'基準行情 (金幣)';--label-5:'目前貨架存量';">
+          <caption id="cap-mkt" class="sr-only-caption">全服行情基準表</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblMarket" command="--sort"><span>物品</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblMarket" command="--sort"><span>編號 / 強化</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblMarket" command="--sort"><span>類別</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end" aria-sort="descending"><button type="button" commandfor="tblMarket" command="--sort"><span>基準行情 (金幣)</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblMarket" command="--sort"><span>目前上架件數</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+            </tr>
+          </thead>
+          <tbody id="tbMarket"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="npcDlg" closedby="any" aria-labelledby="npcDlgTitle">
+    <div class="dlg-hdr">
+      <h2 id="npcDlgTitle">冒險者詳情</h2>
+      <button type="button" class="btn" id="btnDlgClose">關閉</button>
+    </div>
+    <div class="dlg-body" id="npcDlgBody"></div>
+  </dialog>
+
+  <script src="sim/data/items.js"></script>
+  <script src="sim/data/items2.js"></script>
+  <script src="sim/data/items3.js"></script>
+  <script src="sim/data/craftdb.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      // 合併 CRAFTDB 道具與少數 game.js 內嵌補給品名稱
+      const ITEM_DB = (typeof ITEMS !== 'undefined') ? ITEMS : {};
+      if (window.CRAFTDB && window.CRAFTDB.addItems) {
+        for (const k of Object.keys(window.CRAFTDB.addItems)) {
+          if (!ITEM_DB[k]) ITEM_DB[k] = window.CRAFTDB.addItems[k];
+        }
+      }
+      const EXTRA_NAMES = {
+        24: { name: '短劍', kind: 'weapon', type: 'sword' },
+        31: { name: '長劍', kind: 'weapon', type: 'sword' },
+        96: { name: '矛', kind: 'weapon', type: 'singlespear' },
+        40014: { name: '勇敢藥水', kind: 'etc', type: 'potion' },
+        40079: { name: '傳送回家的卷軸', kind: 'etc', type: 'scroll' },
+        40405: { name: '皮革', kind: 'etc', type: 'material' },
+        40455: { name: '藍色布料', kind: 'etc', type: 'material' },
+        40456: { name: '紅色布料', kind: 'etc', type: 'material' },
+        40457: { name: '白色布料', kind: 'etc', type: 'material' },
+        40745: { name: '黃金箭', kind: 'etc', type: 'arrow' },
+        40746: { name: '米索莉箭', kind: 'etc', type: 'arrow' },
+        49100: { name: '倖存者金幣', kind: 'etc', type: 'coin' },
+        90074: { name: '必成功對盔甲施法的卷軸', kind: 'etc', type: 'scroll' },
+        90087: { name: '必成功對武器施法的卷軸', kind: 'etc', type: 'scroll' },
+      };
+      for (const k of Object.keys(EXTRA_NAMES)) {
+        if (!ITEM_DB[k]) ITEM_DB[k] = Object.assign({ id: +k }, EXTRA_NAMES[k]);
+      }
+
+      const CLS_ZH = { royal: '王族', knight: '騎士', elf: '妖精', mage: '法師', darkelf: '黑暗妖精', dk: '龍騎士', ill: '幻術師' };
+      const TIER_ZH = { whale: '重課肝帝', regular: '一般冒險者', casual: '新手探險家', scalper: '奇岩商人' };
+      const SLOT_ZH = { weapon: '武器', helm: '頭盔', armor: '盔甲', shield: '盾牌', cloak: '斗篷', glove: '手套', boots: '長靴', pants: '脛甲', belt: '皮帶', ring: '戒指', ring1: '戒指1', ring2: '戒指2', amulet: '項鍊', earring: '耳環', guarder: '臂甲' };
+      const collator = new Intl.Collator('zh-Hant', { numeric: true, sensitivity: 'base' });
+      const fmtNum = (n) => Number(n || 0).toLocaleString('zh-Hant');
+
+      let WORLD = null;
+      let ALL_SHOPS = [];
+      let ALL_MKT = [];
+      let SUPPLY_MAP = new Map();
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function itemDef(id) {
+        return ITEM_DB[id] || ITEM_DB[String(id)] || null;
+      }
+
+      function catOf(d) {
+        if (!d) return { key: 'potion', label: '其他' };
+        if (d.kind === 'weapon') return { key: 'weapon', label: '武器' };
+        if (d.kind === 'armor') {
+          const sl = d.slot || d.type;
+          if (['ring', 'amulet', 'earring', 'belt', 'guarder'].includes(sl)) return { key: 'acc', label: '稀有飾品' };
+          return { key: 'armor', label: '防具' };
+        }
+        if (d.type === 'scroll') return { key: 'scroll', label: '卷軸' };
+        if (d.type === 'spellbook') return { key: 'scroll', label: '魔法書/水晶' };
+        if (d.type === 'gem') return { key: 'material', label: '寶石' };
+        if (d.type === 'material' || d.id === 80019 || d.id === 84072) return { key: 'material', label: '材料' };
+        if (d.type === 'potion') return { key: 'potion', label: '藥水' };
+        if (d.type === 'arrow') return { key: 'potion', label: '箭矢' };
+        return { key: 'potion', label: '其他' };
+      }
+
+      function dispName(id, ench, aff) {
+        const d = itemDef(id);
+        const nm = (d && d.name) ? d.name : ('道具 #' + id);
+        return (ench > 0 ? '+' + ench + ' ' : '') + nm + (aff ? ' [' + aff.name + ']' : '');
+      }
+
+      function iconHtml(id, alt) {
+        return '<img class="item-icon" src="assets/icons/' + Number(id) + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
+      }
+
+      // Tabs
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+      const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+      function selectTab(tab) {
+        const targetId = tab.id.replace('tab-', 'panel-');
+        for (const t of tabs) t.setAttribute('aria-selected', String(t === tab));
+        for (const p of panels) {
+          const active = p.id === targetId;
+          p.hidden = !active;
+          if (active) p.setAttribute('tabindex', '0');
+          else p.removeAttribute('tabindex');
+        }
+        tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+      for (const tab of tabs) {
+        tab.addEventListener('click', () => selectTab(tab));
+        tab.addEventListener('keydown', (e) => {
+          const idx = tabs.indexOf(tab);
+          if (e.key === 'ArrowRight') { const next = tabs[(idx + 1) % tabs.length]; next.focus(); selectTab(next); }
+          else if (e.key === 'ArrowLeft') { const prev = tabs[(idx - 1 + tabs.length) % tabs.length]; prev.focus(); selectTab(prev); }
+        });
+      }
+
+      // Sortable Tables (Invoker commands + Fallback click listener)
+      const sortStatus = document.getElementById('sortStatus');
+      function sortTableByButton(table, button) {
+        const th = button.closest('th');
+        if (!th || !table.tBodies.length) return;
+        const tbody = table.tBodies[0];
+        const cur = th.getAttribute('aria-sort');
+        const dir = cur === 'ascending' ? 'descending' : 'ascending';
+        for (const h of table.tHead.rows[0].cells) h.removeAttribute('aria-sort');
+        th.setAttribute('aria-sort', dir);
+
+        const idx = th.cellIndex;
+        const type = th.dataset.type || 'text';
+        const factor = dir === 'ascending' ? 1 : -1;
+        const rows = Array.from(tbody.rows);
+        const keyed = rows.map(r => {
+          const cell = r.cells[idx];
+          const raw = cell ? (cell.dataset.value ?? cell.textContent.trim()) : '';
+          return { r, val: type === 'number' ? Number(raw) : raw };
+        });
+        keyed.sort((a, b) => factor * (type === 'number' ? (a.val - b.val) : collator.compare(a.val, b.val)));
+        for (const item of keyed) {
+          if (typeof tbody.moveBefore === 'function') tbody.moveBefore(item.r, null);
+          else tbody.appendChild(item.r);
+        }
+        sortStatus.textContent = '已依「' + button.textContent.trim() + '」' + (dir === 'ascending' ? '遞增' : '遞減') + '排序，共 ' + rows.length + ' 筆';
+      }
+
+      for (const tbl of document.querySelectorAll('table')) {
+        tbl.addEventListener('command', (e) => {
+          if (e.command === '--sort' && e.source) sortTableByButton(tbl, e.source);
+        });
+        if (!('commandForElement' in HTMLButtonElement.prototype)) {
+          for (const btn of tbl.tHead.querySelectorAll('button[command="--sort"]')) {
+            btn.addEventListener('click', () => sortTableByButton(tbl, btn));
+          }
+        }
+      }
+
+      // Dialog (Light dismiss + Safari fallback)
+      const dlg = document.getElementById('npcDlg');
+      const dlgTitle = document.getElementById('npcDlgTitle');
+      const dlgBody = document.getElementById('npcDlgBody');
+      document.getElementById('btnDlgClose').addEventListener('click', () => dlg.close());
+      if (!('closedBy' in HTMLDialogElement.prototype)) {
+        dlg.addEventListener('click', (event) => {
+          if (event.target !== dlg) return;
+          const r = dlg.getBoundingClientRect();
+          const inside = r.top <= event.clientY && event.clientY <= r.top + r.height && r.left <= event.clientX && event.clientX <= r.left + r.width;
+          if (!inside) dlg.close();
+        });
+      }
+
+      function openNpcModal(npcId) {
+        if (!WORLD) return;
+        const n = WORLD.npcs.find(x => x.id === npcId);
+        if (!n) return;
+        dlgTitle.textContent = n.name + ' · Lv.' + n.lv + ' ' + (CLS_ZH[n.cls] || n.cls) + '（' + (TIER_ZH[n.tier] || n.tier) + '）';
+        const eqHtml = (n.eq || []).map(e => {
+          const sl = SLOT_ZH[e.eq] || e.eq;
+          const d = itemDef(e.id);
+          return '<div class="eq-card">' + iconHtml(e.id) + '<div><div style="color:var(--muted);font-size:0.76rem">' + esc(sl) + '</div><div>' + esc((e.ench > 0 ? '+' + e.ench + ' ' : '') + ((d && d.name) || '#' + e.id)) + (e.aff ? ' <span class="affix">[' + esc(e.aff.name) + ']</span>' : '') + '</div></div></div>';
+        }).join('');
+
+        const shopRows = (n.shop || []).map(s => {
+          const d = itemDef(s.item);
+          const nm = (s.ench > 0 ? '+' + s.ench + ' ' : '') + ((d && d.name) || '#' + s.item) + (s.aff ? ' [' + s.aff.name + ']' : '');
+          return '<tr><td><span class="item-cell">' + iconHtml(s.item) + '<span>' + esc(nm) + '</span></span></td><td data-align="end">' + fmtNum(s.n) + '</td><td data-align="end"><strong>' + fmtNum(s.price) + ' 金</strong></td></tr>';
+        }).join('');
+
+        const st = n.stats || {};
+        dlgBody.innerHTML =
+          '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px;font-size:0.92rem">' +
+          '<span>狀態：<strong>' + (n.state === 'village' ? '奇岩村擺攤' : '練功打寶中') + '</strong></span>' +
+          '<span>持有金幣：<strong style="color:var(--accent)">' + fmtNum(n.gold) + '</strong></span>' +
+          '<span>力' + (st.str || 0) + ' 敏' + (st.dex || 0) + ' 體' + (st.con || 0) + ' 精' + (st.wis || 0) + ' 魅' + (st.cha || 0) + ' 智' + (st.int || 0) + '</span>' +
+          '</div>' +
+          (n.shout || n.talk ? '<p style="margin:6px 0 12px;padding:8px 12px;border-radius:8px;background:var(--surface-2);font-size:0.9rem">💬「' + esc(n.shout || n.talk) + '」</p>' : '') +
+          '<h3 style="margin:12px 0 6px;font-size:0.98rem">身上穿戴裝備 (' + (n.eq || []).length + ' 件)</h3>' +
+          '<div class="eq-grid">' + (eqHtml || '<span style="color:var(--muted)">無穿戴裝備</span>') + '</div>' +
+          '<h3 style="margin:12px 0 6px;font-size:0.98rem">個人商店貨架 (' + (n.shop || []).length + ' 件)</h3>' +
+          ((n.shop || []).length
+            ? '<table class="dlg-shop"><thead><tr><th>商品</th><th data-align="end">數量</th><th data-align="end">售價</th></tr></thead><tbody>' + shopRows + '</tbody></table>'
+            : '<p style="color:var(--muted);margin:4px 0">目前個人商店空空如也。</p>');
+        dlg.showModal();
+      }
+
+      // Render functions
+      function renderShops() {
+        const q = document.getElementById('qShop').value.trim().toLowerCase();
+        const cat = document.getElementById('fShopCat').value;
+        const rows = ALL_SHOPS.filter(r => {
+          if (cat !== 'all') {
+            if (cat === 'consumable') { if (r.catKey !== 'potion') return false; }
+            else if (r.catKey !== cat) return false;
+          }
+          if (q && !r.searchText.includes(q)) return false;
+          return true;
+        });
+        document.getElementById('nShop').textContent = '顯示 ' + fmtNum(rows.length) + ' / ' + fmtNum(ALL_SHOPS.length) + ' 筆';
+        const tb = document.getElementById('tbShops');
+        tb.innerHTML = rows.map(r =>
+          '<tr>' +
+          '<th scope="row" data-value="' + esc(r.name) + '"><span class="item-cell">' + iconHtml(r.item) + '<span>' + esc(r.name) + (r.aff ? ' <span class="affix">[' + esc(r.aff.name) + ']</span>' : '') + '</span></span></th>' +
+          '<td><span class="badge">' + esc(r.catLabel) + '</span></td>' +
+          '<td data-align="end" data-value="' + r.n + '">' + fmtNum(r.n) + '</td>' +
+          '<td data-align="end" data-value="' + r.price + '"><strong style="color:var(--accent)">' + fmtNum(r.price) + '</strong></td>' +
+          '<td data-align="end" data-value="' + r.refTotal + '">' + fmtNum(r.refTotal) + '</td>' +
+          '<td data-value="' + esc(r.sellerName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.sellerId) + '">' + esc(r.sellerName) + '</button> <span class="badge ' + esc(r.tier) + '">' + esc(TIER_ZH[r.tier] || '') + '</span></td>' +
+          '</tr>'
+        ).join('');
+      }
+
+      function renderNpcs() {
+        if (!WORLD) return;
+        const q = document.getElementById('qNpc').value.trim().toLowerCase();
+        const tier = document.getElementById('fNpcTier').value;
+        const st = document.getElementById('fNpcState').value;
+        const list = WORLD.npcs.filter(n => {
+          if (tier !== 'all' && n.tier !== tier) return false;
+          if (st !== 'all' && n.state !== st) return false;
+          if (q) {
+            const wName = (itemDef(n.weapon && n.weapon.id) || {}).name || '';
+            const blob = (n.name + ' ' + (CLS_ZH[n.cls] || '') + ' ' + wName + ' ' + (n.shout || n.talk || '')).toLowerCase();
+            if (!blob.includes(q)) return false;
+          }
+          return true;
+        }).slice().sort((a, b) => b.lv - a.lv || b.gold - a.gold);
+
+        document.getElementById('nNpc').textContent = '顯示 ' + list.length + ' / ' + WORLD.npcs.length + ' 人';
+        document.getElementById('tbNpcs').innerHTML = list.map(n => {
+          const w = n.weapon || {};
+          const wd = itemDef(w.id);
+          const wTxt = (w.ench > 0 ? '+' + w.ench + ' ' : '') + ((wd && wd.name) || '空手');
+          const shopCnt = (n.shop || []).length;
+          return '<tr>' +
+            '<th scope="row" data-value="' + esc(n.name) + '"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button></th>' +
+            '<td data-value="' + esc(CLS_ZH[n.cls] || n.cls) + '">' + esc(CLS_ZH[n.cls] || n.cls) + ' <span class="badge ' + esc(n.tier) + '">' + esc(TIER_ZH[n.tier] || n.tier) + '</span></td>' +
+            '<td data-align="end" data-value="' + n.lv + '"><strong>Lv.' + n.lv + '</strong></td>' +
+            '<td data-align="end" data-value="' + n.gold + '">' + fmtNum(n.gold) + '</td>' +
+            '<td data-align="end" data-value="' + shopCnt + '">' + shopCnt + ' 件</td>' +
+            '<td><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      function renderMarket() {
+        const q = document.getElementById('qMarket').value.trim().toLowerCase();
+        const cat = document.getElementById('fMktCat').value;
+        const onlyStock = document.getElementById('chkMktStock').checked;
+        const rows = ALL_MKT.filter(m => {
+          if (cat !== 'all' && m.catKey !== cat) return false;
+          if (onlyStock && m.supply <= 0) return false;
+          if (q && !m.searchText.includes(q)) return false;
+          return true;
+        });
+        document.getElementById('nMkt').textContent = '顯示 ' + fmtNum(rows.length) + ' / ' + fmtNum(ALL_MKT.length) + ' 項';
+        document.getElementById('tbMarket').innerHTML = rows.map(m =>
+          '<tr>' +
+          '<th scope="row" data-value="' + esc(m.disp) + '"><span class="item-cell">' + iconHtml(m.id) + '<span>' + esc(m.disp) + '</span></span></th>' +
+          '<td data-value="' + esc(m.key) + '"><code>' + m.id + '</code>' + (m.ench > 0 ? ' <span class="badge">+' + m.ench + '</span>' : '') + '</td>' +
+          '<td><span class="badge">' + esc(m.catLabel) + '</span></td>' +
+          '<td data-align="end" data-value="' + m.price + '"><strong style="color:var(--accent)">' + fmtNum(m.price) + '</strong></td>' +
+          '<td data-align="end" data-value="' + m.supply + '">' + (m.supply > 0 ? '<strong style="color:var(--ok)">' + m.supply + ' 件</strong>' : '<span style="color:var(--muted)">0</span>') + '</td>' +
+          '</tr>'
+        ).join('');
+      }
+
+      // Click delegation for NPC buttons
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-npc]');
+        if (btn) openNpcModal(btn.dataset.npc);
+      });
+
+      for (const id of ['qShop', 'fShopCat']) document.getElementById(id).addEventListener('input', renderShops);
+      for (const id of ['qNpc', 'fNpcTier', 'fNpcState']) document.getElementById(id).addEventListener('input', renderNpcs);
+      for (const id of ['qMarket', 'fMktCat', 'chkMktStock']) document.getElementById(id).addEventListener('input', renderMarket);
+
+      async function loadWorld() {
+        const btn = document.getElementById('btnReload');
+        btn.disabled = true;
+        btn.textContent = '讀取中…';
+        try {
+          const resp = await fetch('world_state.json?v=' + Date.now(), { cache: 'no-store' });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          WORLD = await resp.json();
+
+          document.getElementById('mVer').textContent = WORLD.version || '-';
+          document.getElementById('mTick').textContent = fmtNum(WORLD.tick) + ' 小時';
+          document.getElementById('mTime').textContent = WORLD.updatedAt ? new Date(WORLD.updatedAt).toLocaleString('zh-Hant') : '-';
+
+          const npcs = WORLD.npcs || [];
+          const st = WORLD.stats || {};
+          const lvs = npcs.map(n => n.lv);
+          const golds = npcs.map(n => n.gold);
+          const sellers = npcs.filter(n => (n.shop || []).length > 0).length;
+
+          document.getElementById('kTotal').textContent = fmtNum(st.totalNpcs || npcs.length) + ' 人';
+          document.getElementById('kOnline').textContent = '村莊 ' + (st.onlineVillage | 0) + ' ／ 打寶 ' + (st.onlineBattle | 0);
+          document.getElementById('kLv').textContent = 'Lv.' + (st.avgLv || '-');
+          document.getElementById('kLvRange').textContent = lvs.length ? ('分布 Lv.' + Math.min(...lvs) + ' ~ Lv.' + Math.max(...lvs)) : '-';
+          const avgGold = golds.length ? Math.round(golds.reduce((a, b) => a + b, 0) / golds.length) : 0;
+          document.getElementById('kGold').textContent = fmtNum(avgGold);
+          document.getElementById('kGoldMax').textContent = golds.length ? ('最高 ' + fmtNum(Math.max(...golds))) : '-';
+          document.getElementById('kShop').textContent = fmtNum(st.totalListings || 0) + ' 件';
+          document.getElementById('kSellers').textContent = sellers + ' 位 NPC 正在擺攤';
+          document.getElementById('kRetired').textContent = fmtNum(st.retiredCount || 0) + ' 人';
+
+          // Ticker
+          document.getElementById('tickerList').innerHTML = (WORLD.ticker || []).map(t => '<li>' + esc(t) + '</li>').join('');
+
+          // Build Shop & Supply maps
+          ALL_SHOPS = [];
+          SUPPLY_MAP = new Map();
+          const mref = WORLD.marketRef || {};
+          for (const n of npcs) {
+            for (const s of (n.shop || [])) {
+              const d = itemDef(s.item);
+              const c = catOf(d);
+              const mk = s.item + '_' + (s.ench || 0);
+              SUPPLY_MAP.set(mk, (SUPPLY_MAP.get(mk) || 0) + (s.n || 1));
+              if ((s.ench || 0) === 0) SUPPLY_MAP.set(String(s.item), (SUPPLY_MAP.get(String(s.item)) || 0) + (s.n || 1));
+              const refUnit = mref[mk] || mref[String(s.item)] || 0;
+              const nm = dispName(s.item, s.ench || 0, null);
+              ALL_SHOPS.push({
+                item: s.item,
+                name: nm,
+                aff: s.aff || null,
+                catKey: c.key,
+                catLabel: c.label,
+                n: s.n || 1,
+                price: s.price || 0,
+                refTotal: refUnit * (s.n || 1),
+                sellerId: n.id,
+                sellerName: n.name,
+                tier: n.tier,
+                searchText: (nm + ' ' + n.name + ' ' + (s.aff ? s.aff.name : '') + ' ' + s.item).toLowerCase(),
+              });
+            }
+          }
+          ALL_SHOPS.sort((a, b) => b.price - a.price);
+
+          // Build MarketRef list
+          ALL_MKT = [];
+          for (const k of Object.keys(mref)) {
+            const parts = k.split('_');
+            const id = Number(parts[0]);
+            const ench = parts.length > 1 ? Number(parts[1]) : 0;
+            if (!id || id === 40308) continue;
+            const d = itemDef(id);
+            const c = catOf(d);
+            const disp = dispName(id, ench, null);
+            const sup = SUPPLY_MAP.get(k) || 0;
+            ALL_MKT.push({
+              key: k,
+              id,
+              ench,
+              disp,
+              catKey: c.key,
+              catLabel: c.label,
+              price: mref[k],
+              supply: sup,
+              searchText: (disp + ' ' + id + ' ' + c.label).toLowerCase(),
+            });
+          }
+          ALL_MKT.sort((a, b) => b.price - a.price);
+
+          document.getElementById('kMarket').textContent = fmtNum(ALL_MKT.length) + ' 項';
+          document.getElementById('cShops').textContent = fmtNum(ALL_SHOPS.length);
+          document.getElementById('cNpcs').textContent = fmtNum(npcs.length);
+          document.getElementById('cMarket').textContent = fmtNum(ALL_MKT.length);
+
+          renderShops();
+          renderNpcs();
+          renderMarket();
+        } catch (err) {
+          document.getElementById('mVer').textContent = '載入失敗：' + err.message;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '立即重新抓取';
+        }
+      }
+
+      document.getElementById('btnReload').addEventListener('click', loadWorld);
+      loadWorld();
+    })();
+  </script>
+</body>
+</html>
