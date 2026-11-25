@@ -228,8 +228,10 @@ class GameDatabase:
         self.bxp: dict[int, int] = {}
         self.rec: dict[int, int] = {}
         self.stages: list[dict[str, Any]] = []
+        self.stage_mobs: set[int] = set()
         self.recipes: list[dict[str, Any]] = []
         self.recipes_by_out: dict[int, list[dict[str, Any]]] = {}
+        self.item_fx: dict[int, dict[str, float]] = {}
         self.shop_anchor: dict[int, int] = {}
         self.market_base: dict[int, int] = {}
 
@@ -332,10 +334,23 @@ class GameDatabase:
         self.monsters = data_obj.get("monsters", [])
         self.monsters_by_id = {int(m["id"]): m for m in self.monsters}
 
-        # 5. game.js (價格錨點 + 關卡池)
+        # 5. game.js (價格錨點 + ITEMFX 特效 + 關卡池)
+        self._parse_item_fx(game_txt)
         self._parse_shop_anchors(game_txt)
         self._parse_stages(game_txt)
         self._compute_all_base_prices()
+
+    def _parse_item_fx(self, game_txt: str) -> None:
+        m_fx = re.search(r"const ITEMFX\s*=\s*\{(.*?)\n\s*\};", game_txt, re.S)
+        if not m_fx:
+            return
+        body = re.sub(r"/\*.*?\*/", "", m_fx.group(1))
+        for iid_s, kv_s in re.findall(r"(\d+)\s*:\s*\{([^}]+)\}", body):
+            fx: dict[str, float] = {}
+            for k, v in re.findall(r"([A-Za-z_]+)\s*:\s*([0-9.+-]+)", kv_s):
+                fx[k] = float(v)
+            if fx:
+                self.item_fx[int(iid_s)] = fx
 
     def _parse_shop_anchors(self, game_txt: str) -> None:
         # 只錨定真正可在村莊 NPC 商店用金幣購買的清單（SHOPSELL 與 VNPC shop；不用 BUYP 以免誤壓祝捲/寶石/法書市價）
@@ -423,11 +438,14 @@ class GameDatabase:
                 }
             )
         self.stages.sort(key=lambda s: (s["recLv"], s["mapId"]))
+        self.stage_mobs = {pid for s in self.stages for pid in s["pool"]} | {s["bossId"] for s in self.stages if s["bossId"]}
 
     def _compute_all_base_prices(self) -> None:
-        # 蒐集每個道具的所有掉落來源，同時計入 game.js 的 MATK 掉率修正與配方需求度
-        sources_by_item: dict[int, list[tuple[int, int, bool, float]]] = {}
+        # 蒐集每個道具的所有掉落來源，同時區分是否在主線 43 張地圖內可刷到
+        sources_by_item: dict[int, list[tuple[int, int, bool, float, bool]]] = {}
         for m in self.monsters:
+            mid = int(m["id"])
+            in_stage = mid in self.stage_mobs
             lvl = max(1, int(m.get("lvl", 1)))
             hp = max(1, int(m.get("hp", 1)))
             is_boss = bool(m.get("boss"))
@@ -436,7 +454,7 @@ class GameDatabase:
                 if iid == GOLD_ID or iid in NO_DROP:
                     continue
                 eff_ch = max(1.0, float(dr.get("chance", 10000)) * MATK.get(iid, 1.0))
-                sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, eff_ch))
+                sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, eff_ch, in_stage))
 
         recipe_demand: dict[int, int] = {}
         for rec in self.recipes:
@@ -444,12 +462,14 @@ class GameDatabase:
                 recipe_demand[in_id] = recipe_demand.get(in_id, 0) + cnt
 
         def calc_drop_floor(iid: int, scale: float = 0.36, cap: int = 22_000_000) -> int:
-            srcs = sources_by_item.get(iid, [])
-            if not srcs:
+            all_srcs = sources_by_item.get(iid, [])
+            if not all_srcs:
                 return 0
+            # 若主線地圖中有此怪，優先用主線真實來源估算（避免把無關絕版/高圖拉進來）
+            srcs = [s for s in all_srcs if s[4]] or all_srcs
             best_val = None
             all_boss = all(s[2] for s in srcs)
-            for lvl, hp, is_boss, eff_ch in srcs:
+            for lvl, hp, is_boss, eff_ch, _ in srcs:
                 toughness = lvl * 1400 + (hp ** 0.52) * 1050 + (180000 if is_boss else 0)
                 scarcity = min(190.0, (1_000_000.0 / eff_ch) ** 0.62)
                 val = toughness * scarcity * scale
@@ -459,6 +479,17 @@ class GameDatabase:
             if all_boss:
                 res = int(res * 1.35)
             return min(cap, res)
+
+        FX_VALUE = {
+            "leech": 650_000,   # 1% 吸血
+            "drain": 720_000,   # 1% 護盾吸收
+            "exp": 450_000,     # 經驗加成
+            "dr": 420_000,      # 受傷減免
+            "spd": 380_000,     # 移速加成
+            "hpTR": 320_000,    # 每秒回血
+            "mpTR": 320_000,    # 每秒回盾
+            "mag": 220_000,     # 拾取範圍
+        }
 
         # 第一階段：武器、防具、消耗品、掉落材料、寶石、魔法書初估底價
         for iid, it in self.items.items():
@@ -471,6 +502,13 @@ class GameDatabase:
             if kind in ("weapon", "armor"):
                 add = it.get("add") or {}
                 stat_score = sum(abs(v) for k, v in add.items() if k != "hp") * 85000 + abs(add.get("hp", 0)) * 4500
+                fx_score = 0
+                for fk, fv in self.item_fx.get(iid, {}).items():
+                    unit_fx = FX_VALUE.get(fk, 180_000)
+                    # leech/drain/exp 等百分比以 .01/.03 為基準，hpTR/dr/mpTR 以 1 為基準
+                    mult = (fv / 0.01) if fv < 0.5 else fv
+                    fx_score += int(unit_fx * max(0.8, min(2.0, mult)))
+
                 power = (
                     it.get("dmgS", 0) * 4500
                     + it.get("dmgL", 0) * 3200
@@ -482,6 +520,7 @@ class GameDatabase:
                     + it.get("bowHit", 0) * 16500
                     + it.get("bowDmg", 0) * 38000
                     + stat_score
+                    + fx_score
                     + (100000 if it.get("minlvl", 0) >= 30 else 0)
                 )
                 drop_floor = calc_drop_floor(iid, scale=0.36, cap=22_000_000)
@@ -491,14 +530,21 @@ class GameDatabase:
                 elif slot == "guarder":
                     acc_floor = 3_800_000
 
-                gp = self.gear_prices.get(iid, 0) * 2
+                # 若有多隻主線低/中階小怪都能掉 (如巨斧 14 隻怪各 1%)，不要被目錄標價×2硬拉太高；無野怪掉落品保留目錄價 2.0x 保底
+                srcs = [s for s in sources_by_item.get(iid, []) if s[4]]
+                easy_mob_drop = sum(1 for lvl, _, is_boss, eff_ch, _ in srcs if not is_boss and lvl <= 35 and eff_ch >= 8000) >= 2
+                gp_raw = self.gear_prices.get(iid, 0)
+                gp = gp_raw if easy_mob_drop else gp_raw * 2
+
                 if iid == 172:
                     p = 50
                 else:
                     p = max(3500, gp, int(power), drop_floor, acc_floor)
                 if iid in (20172, 20177, 20181):  # 屬性手套
                     p = max(p, 950_000)
-                elif iid == 20187:  # 力量手套（0.04% 怪手 / 食人巨魔血核心製作）
+                elif iid == 126:  # 瑪那魔杖（無野怪掉落 + 1% 吸盾續航神器）
+                    p = max(p, 1_550_000)
+                elif iid == 20187:  # 力量手套（0.04% 怪手 / 食人巨魔血核心製作 + exp+2%）
                     p = max(p, 2_800_000)
                 elif iid == 47:  # 沉默之劍
                     p = max(p, 1_650_000)
@@ -572,18 +618,47 @@ class GameDatabase:
                     p = 95_000
             elif typ == "scroll":
                 p = max(25_000, calc_drop_floor(iid, scale=0.12, cap=400_000)) if it.get("use") == "spell" else max(8_000, calc_drop_floor(iid, scale=0.08, cap=120_000))
-            elif typ in ("gem", "material"):
+            elif typ == "gem" or iid in (40044, 40045, 40048, 40049, 40052):
+                # 依主線地圖實際會掉落的怪物數量、最低怪等級、是否進首領寶箱與配方搶奪量，精算每顆寶石真實稀缺價
+                st_srcs = [s for s in sources_by_item.get(iid, []) if s[4]] or sources_by_item.get(iid, [])
+                norm_srcs = [s for s in st_srcs if not s[2]]
+                src_cnt = max(1, len(st_srcs))
+                min_lvl = min((s[0] for s in st_srcs), default=30)
+                in_chest = iid in CHEST_MATS
+                demand = recipe_demand.get(iid, 0)
+
+                base_df = calc_drop_floor(iid, scale=0.075, cap=650_000)
+                # 來源越少 (如高品藍主線僅3隻)、入門怪等級越高 (Lv.30+/40+)、且首領箱不會開出者，價格大幅拉開
+                scarcity_mul = 1.0
+                if src_cnt <= 3:
+                    scarcity_mul *= 2.05
+                elif src_cnt <= 6:
+                    scarcity_mul *= 1.72
+                elif src_cnt >= 13:
+                    scarcity_mul *= 0.65
+                if min_lvl >= 38:
+                    scarcity_mul *= 1.45
+                elif min_lvl >= 28:
+                    scarcity_mul *= 1.38
+                elif min_lvl <= 16 and len(norm_srcs) >= 4:
+                    scarcity_mul *= 0.68
+                if in_chest:
+                    scarcity_mul *= 0.72
+
+                if "高品質" in nm:
+                    tier_floor = 120_000
+                elif "品質" in nm:
+                    tier_floor = 32_000
+                else:
+                    tier_floor = 18_000
+                demand_add = demand * (14_000 if "高品質" in nm else 7_500 if "品質" in nm else 3_000)
+                raw_p = int((max(tier_floor, base_df) * scarcity_mul) + demand_add)
+                p = min(950_000 if "高品質" in nm else 360_000 if "品質" in nm else 90_000, max(tier_floor, raw_p))
+            elif typ == "material":
                 df = calc_drop_floor(iid, scale=0.05, cap=380_000)
-                # 僅極低倍率中/高級寶石保留適度需求權重，高產出基礎材料不再疊加大量配方灌水
                 matk = MATK.get(iid, 1.0)
                 demand_bonus = 0 if matk >= 2.0 else min(8_000, recipe_demand.get(iid, 0) * 180)
-                if "高品質" in nm:
-                    floor = 240_000
-                elif "品質" in nm:
-                    floor = 95_000
-                elif iid in (40044, 40045):
-                    floor = 32_000
-                elif "奧里哈魯根" in nm or "金屬板" in nm:
+                if "奧里哈魯根" in nm or "金屬板" in nm:
                     floor = 18_000
                 else:
                     floor = 3_500
@@ -617,9 +692,13 @@ class GameDatabase:
                     target_p = int(round((unit_cost * 1.06) / 10.0) * 10)
                     self.market_base[oid] = max(self.market_base.get(oid, 500), target_p)
                 elif kind in ("weapon", "armor"):
-                    target_p = int(round((unit_cost * 1.15) / 10.0) * 10)
-                    if target_p > self.market_base.get(oid, 0):
-                        self.market_base[oid] = target_p
+                    # 僅針對純製作或極稀有掉落裝備強制高於材料成本；一般普怪會大量掉落的裝 (如巨斧/戰斧) 不受過高配方成本綁架
+                    st_eq_srcs = [s for s in sources_by_item.get(oid, []) if s[4]]
+                    easy_eq = any(not is_b and lv <= 35 and ch >= 8000 for lv, _, is_b, ch, _ in st_eq_srcs)
+                    if not easy_eq:
+                        target_p = int(round((unit_cost * 1.15) / 10.0) * 10)
+                        if target_p > self.market_base.get(oid, 0):
+                            self.market_base[oid] = target_p
 
     def can_equip(self, cls: str, iid: int) -> bool:
         it = self.items.get(iid)
@@ -657,9 +736,13 @@ class GameDatabase:
                 base += add.get("sp", 0) * 5.0 + add.get("int", 0) * 2.5
             elif cls == "elf":
                 base += it.get("bowDmg", 0) * 1.8 + it.get("bowHit", 0) * 0.9
-            return base + ench * 2.1 + sum(add.values()) * 1.2
+            fx = self.item_fx.get(iid, {})
+            fx_pts = fx.get("leech", 0) * 450 + fx.get("drain", 0) * 500 + fx.get("exp", 0) * 120 + fx.get("spd", 0) * 100 + fx.get("hpTR", 0) * 2.5 + fx.get("mpTR", 0) * 2.5
+            return base + ench * 2.1 + sum(add.values()) * 1.2 + fx_pts
         if kind == "armor":
             ac_pts = abs(it.get("ac", 0)) + ench
+            fx = self.item_fx.get(iid, {})
+            fx_pts = fx.get("dr", 0) * 4.0 + fx.get("exp", 0) * 100 + fx.get("spd", 0) * 80 + fx.get("hpTR", 0) * 2.5 + fx.get("mpTR", 0) * 2.5
             return (
                 ac_pts * 2.0
                 + it.get("dr", 0) * 5.0
@@ -669,6 +752,7 @@ class GameDatabase:
                 + it.get("dmg", 0) * (3.0 if cls != "elf" else 0.5)
                 + add.get("hp", 0) * 0.08
                 + sum(v for k, v in add.items() if k != "hp") * 2.5
+                + fx_pts
             )
         return 0.0
 
