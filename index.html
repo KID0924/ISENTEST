@@ -635,6 +635,14 @@
           <option value="scroll">捲軸與魔法書</option>
           <option value="consumable">藥水／箭／其他</option>
         </select>
+        <select id="sShop" aria-label="個人商店排序方式">
+          <option value="3:descending">排序：總售價 高→低</option>
+          <option value="3:ascending">排序：總售價 低→高</option>
+          <option value="4:descending">排序：基準行情 高→低</option>
+          <option value="2:descending">排序：數量 多→少</option>
+          <option value="0:ascending">排序：商品名稱 A→Z</option>
+          <option value="5:ascending">排序：賣家名稱</option>
+        </select>
         <span class="count-note" id="nShop">顯示 0 筆</span>
       </div>
       <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-shops">
@@ -670,6 +678,14 @@
           <option value="all">全部狀態</option>
           <option value="village">奇岩村擺攤/逛街</option>
           <option value="battle">外出練功打寶</option>
+        </select>
+        <select id="sNpc" aria-label="冒險者排序方式">
+          <option value="2:descending">排序：等級 高→低</option>
+          <option value="2:ascending">排序：等級 低→高</option>
+          <option value="3:descending">排序：金幣 多→少</option>
+          <option value="4:descending">排序：貨架件數 多→少</option>
+          <option value="5:descending">排序：背包種數 多→少</option>
+          <option value="0:ascending">排序：角色名稱</option>
         </select>
         <span class="count-note" id="nNpc">顯示 0 人</span>
       </div>
@@ -708,6 +724,13 @@
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;cursor:pointer;">
           <input type="checkbox" id="chkMktStock"> 只看目前有貨上架
         </label>
+        <select id="sMarket" aria-label="行情表排序方式">
+          <option value="3:descending">排序：基準行情 高→低</option>
+          <option value="3:ascending">排序：基準行情 低→高</option>
+          <option value="4:descending">排序：架上件數 多→少</option>
+          <option value="5:descending">排序：全服背包存量 多→少</option>
+          <option value="0:ascending">排序：物品名稱</option>
+        </select>
         <span class="count-note" id="nMkt">顯示 0 項</span>
       </div>
       <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-mkt">
@@ -846,18 +869,16 @@
         });
       }
 
-      // Sortable Tables (Invoker commands + Fallback click listener)
+      // Sortable Tables (Invoker commands + Fallback click listener + Quick Select Sort)
       const sortStatus = document.getElementById('sortStatus');
-      function sortTableByButton(table, button) {
-        const th = button.closest('th');
+      const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket' };
+      function applyTableSort(table, idx, dir, announce) {
+        const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[idx];
         if (!th || !table.tBodies.length) return;
         const tbody = table.tBodies[0];
-        const cur = th.getAttribute('aria-sort');
-        const dir = cur === 'ascending' ? 'descending' : 'ascending';
         for (const h of table.tHead.rows[0].cells) h.removeAttribute('aria-sort');
         th.setAttribute('aria-sort', dir);
 
-        const idx = th.cellIndex;
         const type = th.dataset.type || 'text';
         const factor = dir === 'ascending' ? 1 : -1;
         const rows = Array.from(tbody.rows);
@@ -871,7 +892,32 @@
           if (typeof tbody.moveBefore === 'function') tbody.moveBefore(item.r, null);
           else tbody.appendChild(item.r);
         }
-        sortStatus.textContent = '已依「' + button.textContent.trim() + '」' + (dir === 'ascending' ? '遞增' : '遞減') + '排序，共 ' + rows.length + ' 筆';
+        const selId = TABLE_SORT_SELECT[table.id];
+        const selEl = selId && document.getElementById(selId);
+        if (selEl) {
+          const optVal = idx + ':' + dir;
+          if (Array.from(selEl.options).some(o => o.value === optVal)) selEl.value = optVal;
+        }
+        if (announce) {
+          sortStatus.textContent = '已依「' + th.textContent.trim() + '」' + (dir === 'ascending' ? '遞增' : '遞減') + '排序，共 ' + rows.length + ' 筆';
+        }
+      }
+      function sortTableByButton(table, button) {
+        const th = button.closest('th');
+        if (!th) return;
+        const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+        applyTableSort(table, th.cellIndex, dir, true);
+      }
+      function applyActiveSort(table) {
+        const selId = TABLE_SORT_SELECT[table.id];
+        const selEl = selId && document.getElementById(selId);
+        if (selEl && selEl.value.includes(':')) {
+          const [i, d] = selEl.value.split(':');
+          applyTableSort(table, Number(i), d, false);
+          return;
+        }
+        const activeTh = table.tHead && table.tHead.querySelector('th[aria-sort]');
+        if (activeTh) applyTableSort(table, activeTh.cellIndex, activeTh.getAttribute('aria-sort'), false);
       }
 
       for (const tbl of document.querySelectorAll('table')) {
@@ -883,6 +929,12 @@
             btn.addEventListener('click', () => sortTableByButton(tbl, btn));
           }
         }
+      }
+      for (const [tblId, selId] of Object.entries(TABLE_SORT_SELECT)) {
+        document.getElementById(selId).addEventListener('change', (e) => {
+          const [i, d] = e.target.value.split(':');
+          applyTableSort(document.getElementById(tblId), Number(i), d, true);
+        });
       }
 
       // Dialog (Light dismiss + Safari fallback)
@@ -966,6 +1018,7 @@
           '<td data-value="' + esc(r.sellerName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.sellerId) + '">' + esc(r.sellerName) + '</button> <span class="badge ' + esc(r.tier) + '">' + esc(TIER_ZH[r.tier] || '') + '</span></td>' +
           '</tr>'
         ).join('');
+        applyActiveSort(document.getElementById('tblShops'));
       }
 
       function renderNpcs() {
@@ -1003,6 +1056,7 @@
             '<td><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</td>' +
             '</tr>';
         }).join('');
+        applyActiveSort(document.getElementById('tblNpcs'));
       }
 
       function renderMarket() {
@@ -1026,6 +1080,7 @@
           '<td data-align="end" data-value="' + m.bagSupply + '">' + (m.bagSupply > 0 ? fmtNum(m.bagSupply) + ' 個' : '<span style="color:var(--muted)">0</span>') + '</td>' +
           '</tr>'
         ).join('');
+        applyActiveSort(document.getElementById('tblMarket'));
       }
 
       // Click delegation for NPC buttons
