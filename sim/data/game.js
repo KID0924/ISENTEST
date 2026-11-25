@@ -4669,13 +4669,14 @@ function hv(m,dt,d){
       talk: c.talk, shout: c.shout, say: '', sayT: 0, nextShoutT: rnd(5, 26), ctrX: ctr.x, ctrY: ctr.y
     });
   }
+  const isInspectOpen = () => !!(WINS && WINS.inspect && WINS.inspect.el && !WINS.inspect.el.classList.contains('hidden'));
   if (typeof window !== 'undefined') {
-    window.__onSimWorldUpdate = () => { if (village && !SRV() && P && !npcOpen) initVillageAlts(); };
+    window.__onSimWorldUpdate = () => { if (village && !SRV() && P && !npcOpen && !isInspectOpen()) initVillageAlts(); };
   }
   function updateVillageAlts(dt) {
     if (!village || SRV() || !VILLAGE_ALTS.length) return;
     const ctr = cellToXY(VILL.spawn[0], VILL.spawn[1]);
-    if (!npcOpen && window.SIM_WORLD && window.SIM_WORLD.ready) {
+    if (!npcOpen && !isInspectOpen() && window.SIM_WORLD && window.SIM_WORLD.ready) {
       _vilRotT -= dt;
       if (_vilRotT <= 0) {
         _vilRotT = 75;
@@ -4992,12 +4993,15 @@ function hv(m,dt,d){
       rows.push({
         icon: it.id,
         name: iname(it) + (qty > 1 ? ' ×' + qty : ''),
-        info: q.ok ? ('願出價 ' + q.offer.toLocaleString() + ' 金幣') : ('不收：' + q.reason),
+        info: q.ok ? ((q.demandLabel ? '[' + q.demandLabel + '] ' : '') + '出價 ' + q.offer.toLocaleString() + ' 金幣') : ('不收：' + q.reason),
         off: !q.ok,
+        _ok: q.ok ? 1 : 0,
+        _offer: q.ok ? (q.offer | 0) : 0,
         tip: tipOf(it),
         fn: q.ok ? () => openSimSellConfirm(v, it, qty, q) : null
       });
     }
+    rows.sort((a, b) => (b._ok - a._ok) || (b._offer - a._offer));
     if (!rows.length) rows.push({ name: '（背包沒有可兜售的物品）', off: 1 });
     listWin({
       id: 'simsell_' + v.simId,

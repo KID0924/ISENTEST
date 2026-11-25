@@ -106,8 +106,25 @@ SCROLL_ARMOR_NORMAL = 40074
 SCROLL_WEAPON_NORMAL = 40087
 SCROLL_ARMOR_BLESSED = 140074
 SCROLL_WEAPON_BLESSED = 140087
+SCROLL_ARMOR_PERFECT = 90074
+SCROLL_WEAPON_PERFECT = 90087
 SCROLL_GOLD_COIN = 49100
 GOLD_ID = 40308
+
+NO_DROP = {41246, 40056, 40005, 40126, 40119, 40319}
+NO_SELL = {172, 40743, 40319, 40308, 49100}
+MATK = {
+    40513: 1 / 3,
+    40499: 6.75,
+    40519: 12.0,
+    40507: 12.0,
+    40506: 9.0,
+    88: 7.5,
+    40515: 7.5,
+    40496: 6.75,
+    40494: 2.7,
+}
+CHEST_MATS = [40496, 40519, 40515, 40499, 40507, 40045, 40049, 88, 40048, 40509]
 
 AFFIX_POOL = [
     {"k": "atk", "name": "勇猛", "desc": "傷害 +3%"},
@@ -211,6 +228,8 @@ class GameDatabase:
         self.bxp: dict[int, int] = {}
         self.rec: dict[int, int] = {}
         self.stages: list[dict[str, Any]] = []
+        self.recipes: list[dict[str, Any]] = []
+        self.recipes_by_out: dict[int, list[dict[str, Any]]] = {}
         self.shop_anchor: dict[int, int] = {}
         self.market_base: dict[int, int] = {}
 
@@ -248,6 +267,55 @@ class GameDatabase:
             self.startw[str(k)] = int(v)
         self.startw.setdefault("elf", 172)
 
+        # 2b. game.js 內嵌補給道具 (皮革 / 勇敢藥水 / 黃金箭 / 米索莉箭 等) + craftdb.js (44件道具 + 112配方)
+        game_txt = self._read("game.js")
+        try:
+            inline_items = _extract_js_object(game_txt, "Object.assign(ITEMS, Object.fromEntries(Object.entries(")
+            for k, v in inline_items.items():
+                iid = int(k)
+                if iid not in self.items:
+                    self.items[iid] = v
+        except Exception:
+            pass
+        for iid, nm in [(90074, "必成功對盔甲施法的卷軸"), (90087, "必成功對武器施法的卷軸")]:
+            self.items.setdefault(iid, {"id": iid, "name": nm, "kind": "etc", "type": "scroll", "use": "zel" if iid == 90074 else "dai", "stack": 1})
+        self.items.setdefault(40079, {"id": 40079, "name": "傳送回家的卷軸", "kind": "etc", "type": "scroll", "use": "home", "stack": 1})
+
+        craft_path = self.data_dir / "craftdb.js"
+        if craft_path.exists():
+            try:
+                cdb = _extract_js_object(craft_path.read_text(encoding="utf-8"), "CRAFTDB=")
+            except Exception:
+                cdb = _extract_js_object(craft_path.read_text(encoding="utf-8"), "CRAFTDB =")
+            for k, v in (cdb.get("addItems") or {}).items():
+                iid = int(k)
+                if iid not in self.items:
+                    self.items[iid] = v
+            for k, v in (cdb.get("addUse") or {}).items():
+                iid = int(k)
+                if iid not in self.itemuse:
+                    self.itemuse[iid] = str(v)
+            for r in (cdb.get("recipes") or []):
+                oid = int(r["out"])
+                rec = {
+                    "out": oid,
+                    "outName": r.get("outName", ""),
+                    "cat": r.get("cat", "other"),
+                    "inputs": [(int(a), int(b)) for a, b in (r.get("inputs") or [])],
+                    "yield": max(1, int(r.get("yield", 1))),
+                    "gold": int(r.get("gold", 0)),
+                    "coin": int(r.get("coin", 0)),
+                    "via": r.get("via", ""),
+                }
+                self.recipes.append(rec)
+                self.recipes_by_out.setdefault(oid, []).append(rec)
+
+        # 與 game.js 保持一致：精靈餅乾/勇敢藥水標記為藥水類
+        if 40068 in self.items:
+            self.items[40068] = {**self.items[40068], "type": "potion", "use": "power"}
+        if 40014 in self.items:
+            self.items[40014] = {**self.items[40014], "type": "potion", "use": "power"}
+
         # 3. plevel.js
         pl_txt = self._read("plevel.js")
         self.expt = [int(x) for x in _extract_js_object(pl_txt, "const EXPT=")]
@@ -265,23 +333,16 @@ class GameDatabase:
         self.monsters_by_id = {int(m["id"]): m for m in self.monsters}
 
         # 5. game.js (價格錨點 + 關卡池)
-        game_txt = self._read("game.js")
         self._parse_shop_anchors(game_txt)
         self._parse_stages(game_txt)
         self._compute_all_base_prices()
 
     def _parse_shop_anchors(self, game_txt: str) -> None:
-        # SHOPSELL
+        # 只錨定真正可在村莊 NPC 商店用金幣購買的清單（SHOPSELL 與 VNPC shop；不用 BUYP 以免誤壓祝捲/寶石/法書市價）
         m_ss = re.search(r"const SHOPSELL\s*=\s*(\[\[.*?\]\]);", game_txt)
         if m_ss:
             for iid, pr in json.loads(m_ss.group(1)):
                 self.shop_anchor[int(iid)] = int(pr)
-        # BUYP
-        m_bp = re.search(r"const BUYP\s*=\s*\{([^}]+)\}", game_txt)
-        if m_bp:
-            for k, v in re.findall(r"(\d+)\s*:\s*(\d+)", m_bp.group(1)):
-                self.shop_anchor.setdefault(int(k), int(v) * 2)
-        # VNPC shops
         for sm in re.finditer(r"shop:\s*\[([^\n;]+)\]", game_txt):
             for iid_s, pr_s in re.findall(r"\[\s*(\d+)\s*,\s*(\d+)\s*\]", sm.group(1)):
                 iid, pr = int(iid_s), int(pr_s)
@@ -364,97 +425,166 @@ class GameDatabase:
         self.stages.sort(key=lambda s: (s["recLv"], s["mapId"]))
 
     def _compute_all_base_prices(self) -> None:
-        # 蒐集每個道具的所有非活動掉落來源（怪物等級、血量、首領與否、掉落率）
-        sources_by_item: dict[int, list[tuple[int, int, bool, int]]] = {}
+        # 蒐集每個道具的所有掉落來源，同時計入 game.js 的 MATK 掉率修正與配方需求度
+        sources_by_item: dict[int, list[tuple[int, int, bool, float]]] = {}
         for m in self.monsters:
             lvl = max(1, int(m.get("lvl", 1)))
             hp = max(1, int(m.get("hp", 1)))
             is_boss = bool(m.get("boss"))
             for dr in m.get("drops", []):
                 iid = int(dr["item"])
-                ch = max(1, int(dr.get("chance", 10000)))
-                sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, ch))
+                if iid == GOLD_ID or iid in NO_DROP:
+                    continue
+                eff_ch = max(1.0, float(dr.get("chance", 10000)) * MATK.get(iid, 1.0))
+                sources_by_item.setdefault(iid, []).append((lvl, hp, is_boss, eff_ch))
 
-        # 商店直接販賣中的道具集合（僅限消耗品、雜物與一般裝備才受商店售價錨定）
+        recipe_demand: dict[int, int] = {}
+        for rec in self.recipes:
+            for in_id, cnt in rec["inputs"]:
+                recipe_demand[in_id] = recipe_demand.get(in_id, 0) + cnt
+
+        def calc_drop_floor(iid: int, scale: float = 0.36, cap: int = 22_000_000) -> int:
+            srcs = sources_by_item.get(iid, [])
+            if not srcs:
+                return 0
+            best_val = None
+            all_boss = all(s[2] for s in srcs)
+            for lvl, hp, is_boss, eff_ch in srcs:
+                toughness = lvl * 1400 + (hp ** 0.52) * 1050 + (180000 if is_boss else 0)
+                scarcity = min(190.0, (1_000_000.0 / eff_ch) ** 0.62)
+                val = toughness * scarcity * scale
+                if best_val is None or val < best_val:
+                    best_val = val
+            res = int(best_val or 0)
+            if all_boss:
+                res = int(res * 1.35)
+            return min(cap, res)
+
+        # 第一階段：武器、防具、消耗品、掉落材料、寶石、魔法書初估底價
         for iid, it in self.items.items():
             kind = it.get("kind")
             typ = it.get("type")
             slot = it.get("slot") or typ
+            nm = it.get("name", "")
             if kind in ("weapon", "armor"):
                 add = it.get("add") or {}
-                # 1. 基礎能力評分估價（避免 hp+80 被過度放大，保留高階詞條價值）
-                stat_score = sum(abs(v) for k, v in add.items() if k != "hp") * 38000 + abs(add.get("hp", 0)) * 2200
+                stat_score = sum(abs(v) for k, v in add.items() if k != "hp") * 85000 + abs(add.get("hp", 0)) * 4500
                 power = (
-                    it.get("dmgS", 0) * 2000
-                    + it.get("dmgL", 0) * 1500
-                    + it.get("hit", 0) * 6500
-                    + it.get("dmg", 0) * 14000
-                    + abs(it.get("ac", 0)) * 6000
-                    + it.get("mdef", 0) * 3200
-                    + it.get("dr", 0) * 35000
-                    + it.get("bowHit", 0) * 7500
-                    + it.get("bowDmg", 0) * 18000
+                    it.get("dmgS", 0) * 4500
+                    + it.get("dmgL", 0) * 3200
+                    + it.get("hit", 0) * 14000
+                    + it.get("dmg", 0) * 32000
+                    + abs(it.get("ac", 0)) * 13500
+                    + it.get("mdef", 0) * 7500
+                    + it.get("dr", 0) * 75000
+                    + it.get("bowHit", 0) * 16500
+                    + it.get("bowDmg", 0) * 38000
                     + stat_score
-                    + (35000 if it.get("minlvl", 0) >= 30 else 0)
+                    + (100000 if it.get("minlvl", 0) >= 30 else 0)
                 )
-
-                # 2. 依掉寶率與怪物／首領強度推算取得難度底價
-                srcs = sources_by_item.get(iid, [])
-                drop_floor = 0
-                if srcs:
-                    best_source_val = None
-                    all_boss = all(s[2] for s in srcs)
-                    for lvl, hp, is_boss, ch in srcs:
-                        toughness = lvl * 1300 + (hp ** 0.55) * 950 + (160000 if is_boss else 0)
-                        scarcity = min(220.0, (1_000_000.0 / ch) ** 0.66)
-                        val = toughness * scarcity * 0.30
-                        if best_source_val is None or val < best_source_val:
-                            best_source_val = val
-                    drop_floor = int(best_source_val or 0)
-                    if all_boss:
-                        drop_floor = int(drop_floor * 1.45)
-
-                # 3. 飾品類（戒指／項鍊／耳環／皮帶／臂甲）屬於遊戲內稀有部位，保底百萬起跳
+                drop_floor = calc_drop_floor(iid, scale=0.36, cap=22_000_000)
                 acc_floor = 0
                 if slot in ("ring", "amulet", "earring", "belt"):
-                    acc_floor = 2_200_000 if (srcs or slot == "earring") else 1_800_000
+                    acc_floor = 5_500_000 if (iid in sources_by_item or slot == "earring") else 4_500_000
                 elif slot == "guarder":
-                    acc_floor = 1_650_000
+                    acc_floor = 3_800_000
 
-                # 4. 商店/曼孟目錄與特殊配方保底（忽略 BUYP 對稀有飾品/高階裝的低估，例如 20284 被標 3000）
-                gp = self.gear_prices.get(iid, 0)
+                gp = self.gear_prices.get(iid, 0) * 2
                 if iid == 172:
-                    p = 50  # 初始白弓
+                    p = 50
                 else:
-                    p = max(1200, gp, int(power), drop_floor, acc_floor)
-                # 微調特例：靈屬性手套 (水/地/火靈手套，僅能製作取得，加屬性與回魔)
-                if iid in (20172, 20177, 20181):
-                    p = max(p, 360000)
+                    p = max(3500, gp, int(power), drop_floor, acc_floor)
+                if iid in (20172, 20177, 20181):  # 屬性手套
+                    p = max(p, 950_000)
+                elif iid == 20187:  # 力量手套（0.04% 怪手 / 食人巨魔血核心製作）
+                    p = max(p, 2_800_000)
                 elif iid == 47:  # 沉默之劍
-                    p = max(p, 580000)
+                    p = max(p, 1_650_000)
                 elif iid in (20013, 20014, 20015):  # 魔法頭盔系列
-                    p = max(p, 160000)
+                    p = max(p, 420_000)
             elif iid in self.shop_anchor:
                 p = self.shop_anchor[iid]
-            elif iid in (140074,):
-                p = 260000
-            elif iid in (140087,):
-                p = 460000
+            elif iid == SCROLL_ARMOR_BLESSED:
+                p = 520_000
+            elif iid == SCROLL_WEAPON_BLESSED:
+                p = 950_000
+            elif iid == SCROLL_ARMOR_PERFECT:
+                p = 2_800_000
+            elif iid == SCROLL_WEAPON_PERFECT:
+                p = 4_800_000
             elif iid in (240074, 240087):
-                p = 32000
-            elif typ == "scroll":
-                p = 8000 if it.get("use") == "spell" else 1500
+                p = 85_000
+            elif iid == 40513:  # 食人巨魔的血 (MATK=1/3, 力量手套核心卡關材，目標 150~210萬)
+                p = min(2_100_000, max(1_550_000, int(calc_drop_floor(iid, scale=0.42))))
+            elif iid == 84072:  # 純白的萬能藥 (Boss 25% / 菁英 4% 額外掉落，目標 60~85萬，10個約700萬一瓶萬能藥)
+                p = 680_000
+            elif iid == 80019:  # 哈爾巴斯的執念 (Lv63+ 高階掉落，目標 8~16萬)
+                p = min(220_000, max(75_000, int(calc_drop_floor(iid, scale=0.14))))
+            elif iid == 40524:  # 黑色血痕 (目標 4~9萬)
+                p = min(120_000, max(42_000, int(calc_drop_floor(iid, scale=0.14))))
+            elif iid == 40318:  # 魔法寶石 (65張配方核心)
+                p = min(45_000, max(18_000, int(calc_drop_floor(iid, scale=0.09))))
+            elif iid == 40405:  # 皮革 (基礎做裝材料)
+                p = min(12_000, max(5_500, int(calc_drop_floor(iid, scale=0.06))))
+            elif iid in (40014, 40068):  # 勇敢藥水 / 精靈餅乾
+                p = 15_000
+            elif iid == 40746:
+                p = 120
+            elif iid == 40745:
+                p = 85
             elif typ == "spellbook":
-                p = 35000 if it.get("inv", 0) > 3000 else 12000
+                df = calc_drop_floor(iid, scale=0.22, cap=2_500_000)
+                p = max(65_000, df) if df > 0 else (480_000 if iid >= 49130 or iid in (40223, 40230, 40231, 40269) else 95_000)
+            elif typ == "scroll":
+                p = max(25_000, calc_drop_floor(iid, scale=0.12, cap=400_000)) if it.get("use") == "spell" else max(5_500, calc_drop_floor(iid, scale=0.08, cap=120_000))
             elif typ in ("gem", "material"):
-                p = 1800 if "高品質" in it.get("name", "") or "純粹" in it.get("name", "") else 450
-            elif iid == 84072:
-                p = 220000  # 純白的萬能藥
+                df = calc_drop_floor(iid, scale=0.06, cap=450_000)
+                demand_bonus = min(18_000, recipe_demand.get(iid, 0) * 350)
+                if "高品質" in nm:
+                    floor = 240_000
+                elif "品質" in nm:
+                    floor = 95_000
+                elif iid in (40044, 40045):
+                    floor = 32_000
+                elif "純粹" in nm or iid == 88:
+                    floor = 22_000
+                elif iid in (40499, 40506, 40507, 40515, 40519, 40496):
+                    floor = 7_500
+                else:
+                    floor = 4_500
+                p = max(floor + demand_bonus, df)
+            elif typ == "potion":
+                p = max(1_500, calc_drop_floor(iid, scale=0.04, cap=35_000))
+            elif typ == "food" or "煙火" in nm or "仙女棒" in nm or iid in (40001, 40002, 40003, 40005, 40315):
+                p = 90
             elif str(iid).startswith("81"):
-                p = 65000  # 靈魂石
+                p = 260_000
             else:
-                p = 250
+                df = calc_drop_floor(iid, scale=0.08, cap=250_000)
+                p = max(800, df)
             self.market_base[iid] = max(15, int(round(p / 10.0) * 10) if p >= 100 else int(p))
+
+        # 第二階段：沿 CRAFTDB 112 張配方做由下而上成本傳導（合成料與成品裝價格貼合真實成本，避免中間料過度滾雪球）
+        coin_val = 45_000
+        for _pass in range(4):
+            for rec in self.recipes:
+                oid = rec["out"]
+                if oid not in self.items or oid in NO_SELL or oid == 40068:
+                    continue
+                in_cost = sum(self.market_base.get(in_id, 5_000) * cnt for in_id, cnt in rec["inputs"])
+                total_cost = in_cost + rec["gold"] + rec["coin"] * coin_val
+                unit_cost = total_cost / max(1, rec["yield"])
+                it = self.items[oid]
+                kind = it.get("kind")
+                has_mob_drop = oid in sources_by_item
+                if not has_mob_drop and kind == "etc":
+                    # 純製作中間素材：加上合理工本溢價 (1.08x) 避免多層套疊過深而通膨
+                    target_p = int(round((unit_cost * 1.08) / 10.0) * 10)
+                    self.market_base[oid] = max(self.market_base.get(oid, 1000), target_p)
+                elif kind in ("weapon", "armor"):
+                    target_p = int(round((unit_cost * 1.15) / 10.0) * 10)
+                    if target_p > self.market_base.get(oid, 0):
+                        self.market_base[oid] = target_p
 
     def can_equip(self, cls: str, iid: int) -> bool:
         it = self.items.get(iid)
@@ -527,8 +657,9 @@ def calc_expected_price(db: GameDatabase, iid: int, ench: int, market: dict[str,
             val += scr_cost * 1.08
         else:
             p = max(0.05, ench_rate(kind, step_e, safe, blessed=(step_e >= ENCH_MAX - 1)))
-            # 加入 0.80 市場折現阻尼，使 +7/+8/+9 貴得有感但不會通膨到數億
-            val = (val + scr_cost) / (p ** 0.78)
+            # safe=0 的飾品若完全照連乘阻尼容易暴衝到數十億，改採溫和飾品溢價曲線
+            exp_damp = 0.42 if safe == 0 else 0.72
+            val = (val + scr_cost) / (p ** exp_damp)
     res = max(base, int(round(val / 10.0) * 10))
     market[key] = res
     return res
@@ -574,13 +705,13 @@ def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: Game
     start_w = db.startw.get(cls, 172)
     eq = {"weapon": {"id": start_w, "ench": 0, "n": 1}}
     if tier == "whale":
-        gold = rng.randint(180000, 420000)
+        gold = rng.randint(900_000, 2_200_000)
     elif tier == "scalper":
-        gold = rng.randint(250000, 520000)
+        gold = rng.randint(4_000_000, 8_000_000)
     elif tier == "regular":
-        gold = rng.randint(35000, 95000)
+        gold = rng.randint(220_000, 580_000)
     else:
-        gold = rng.randint(6000, 25000)
+        gold = rng.randint(35_000, 120_000)
 
     return {
         "id": f"npc_{idx:02d}",
@@ -728,14 +859,14 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
             pool = st["pool"]
             # 《天堂倖存者》每場擊殺數依戰力分層，拉開重課(速衝50)與一般/新手(緩慢成長)的等級跨度
             if tier == "whale":
-                power_factor = min(3.4, 0.90 + npc["lv"] * 0.06)
+                power_factor = min(3.8, 1.05 + npc["lv"] * 0.065)
             elif tier == "regular":
-                power_factor = min(2.0, 0.55 + npc["lv"] * 0.03)
+                power_factor = min(2.3, 0.65 + npc["lv"] * 0.035)
             elif tier == "scalper":
-                power_factor = min(1.6, 0.45 + npc["lv"] * 0.02)
+                power_factor = min(1.8, 0.55 + npc["lv"] * 0.025)
             else:
-                power_factor = min(1.1, 0.30 + npc["lv"] * 0.015)
-            kills = int(rng.randint(600, 1200) * power_factor)
+                power_factor = min(1.25, 0.35 + npc["lv"] * 0.018)
+            kills = int(rng.randint(1200, 2400) * power_factor)
             npc["kills"] = npc.get("kills", 0) + kills
 
             # 經驗值：從該地圖怪物池隨機抽取樣本估算平均 MEXP
@@ -761,26 +892,28 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                         npc["exp"] = 0
                         ticker.append(f"🎉【滿級賀電】{CLS_ZH[cls]}「{npc['name']}」在{st['name']}達成 Lv.50！")
 
-            # 掉寶與金幣（控制每場抽樣數量，避免捲軸與雜物氾濫）
-            drop_rolls = max(8, min(18, 7 + npc["lv"] // 4))
-            run_gold = rng.randint(800, 1800) + st["recLv"] * rng.randint(55, 110)
+            # 掉寶與實戰金幣產出（反映高圖大量清怪 + 困難/惡夢掉寶 + 戰利品自動折現）
+            drop_rolls = max(12, min(28, 10 + npc["lv"] // 3))
+            diff_gold_mult = 2.4 if tier == "whale" else 2.2 if tier == "scalper" else 1.7 if tier == "regular" else 1.2
+            run_gold = int((rng.randint(6000, 14000) + st["recLv"] * rng.randint(650, 1300)) * diff_gold_mult)
             for _r in range(drop_rolls):
                 mon = db.monsters_by_id[rng.choice(pool)]
                 for dr in mon.get("drops", []):
                     iid = int(dr["item"])
                     if iid == GOLD_ID:
-                        run_gold += rng.randint(int(dr.get("min", 10)), int(dr.get("max", 30))) * 2
+                        run_gold += int(rng.randint(int(dr.get("min", 25)), int(dr.get("max", 90))) * 4.5 * diff_gold_mult)
                         continue
-                    # 只保留前端 ITEMS 認識的道具，避免清單無圖/錯誤
-                    if iid not in db.items:
+                    if iid in NO_DROP or iid not in db.items:
                         continue
-                    ch = int(dr.get("chance", 10000)) / 1_000_000.0
-                    if rng.random() < min(0.22, ch * 2.2):
+                    ch = (int(dr.get("chance", 10000)) * MATK.get(iid, 1.0)) / 1_000_000.0
+                    # 模擬整場約數千隻怪的縮放抽樣：高機率材料常態掉落，極稀有料 (如食人巨魔的血) 維持罕見
+                    eff_roll = min(0.28, ch * 3.0)
+                    if rng.random() < eff_roll:
                         it = db.items[iid]
                         ench = 0
                         aff = None
                         if it.get("kind") in ("weapon", "armor"):
-                            if rng.random() < 0.08:
+                            if rng.random() < 0.09:
                                 ench = 1
                             if st["recLv"] >= 20 and rng.random() < 0.08:
                                 aff = rng.choice(AFFIX_POOL)
@@ -791,36 +924,46 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
 
             if boss_killed and st["bossId"]:
                 bmon = db.monsters_by_id[st["bossId"]]
-                run_gold += rng.randint(1000, 2600)
+                run_gold += int(rng.randint(15000, 48000) * diff_gold_mult)
+                # 開啟首領寶箱/特殊寶箱（依 game.js CHEST_MATS 產出製作材料與祝武/防）
+                if rng.random() < 0.45:
+                    mat_id = rng.choice(CHEST_MATS)
+                    if mat_id in db.items:
+                        self_bag_add(npc, mat_id, 0, 1, None)
+                if rng.random() < 0.015:
+                    self_bag_add(npc, 84072, 0, 1, None)  # 純白的萬能藥
                 for dr in bmon.get("drops", []):
                     iid = int(dr["item"])
-                    if iid == GOLD_ID or iid not in db.items:
+                    if iid == GOLD_ID or iid in NO_DROP or iid not in db.items:
                         continue
-                    ch = int(dr.get("chance", 10000)) / 1_000_000.0
-                    if rng.random() < min(0.35, ch * 0.9):
+                    ch = (int(dr.get("chance", 10000)) * MATK.get(iid, 1.0)) / 1_000_000.0
+                    if rng.random() < min(0.38, ch * 1.1):
                         it = db.items[iid]
-                        aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.16) else None
+                        aff = rng.choice(AFFIX_POOL) if (it.get("kind") in ("weapon", "armor") and rng.random() < 0.18) else None
                         self_bag_add(npc, iid, 0, 1, aff)
-                        if db.market_base.get(iid, 0) >= 60000:
+                        if db.market_base.get(iid, 0) >= 250_000:
                             ticker.append(f"💎【打王掉寶】「{npc['name']}」推倒{bmon['name']}喜獲【{it['name']}】！")
 
-            # 水錢／傳送／彈藥金幣回收
-            upkeep = 500 + st["recLv"] * (130 if tier == "whale" else 85 if tier == "regular" else 40)
-            npc["gold"] = max(200, npc["gold"] + run_gold - upkeep)
+            # 水錢／傳送／彈藥／基礎強化消耗
+            upkeep = 1200 + st["recLv"] * (280 if tier == "whale" else 170 if tier == "regular" else 80)
+            npc["gold"] = max(500, npc["gold"] + run_gold - upkeep)
 
-        # 高金幣 NPC 消耗金幣買曼孟強化／隨機裝（模擬真實玩家金幣黑洞，同時讓重課與奸商保有購買百萬飾品的能力）
-        sink_cap = 4_200_000 if tier in ("whale", "scalper") else 1_400_000
+        # 高金幣 NPC 消耗金幣開曼孟 100萬/900萬裝備箱（維持千萬級別流通水位又能買玩家高價貨）
+        sink_cap = 22_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
         if npc["gold"] > sink_cap:
-            spend = min(npc["gold"] - sink_cap // 2, 1_000_000 if rng.random() < 0.5 else 350_000)
+            spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
             npc["gold"] -= spend
             if spend >= 1_000_000:
                 box_pool = [180, 169, 125, 29, 47, 52, 102, 148, 20011, 20033, 20063, 20154, 20210, 20264]
                 bi = rng.choice(box_pool)
-                be = 3 if rng.random() < 0.05 else 2 if rng.random() < 0.15 else 1 if rng.random() < 0.35 else 0
+                be = 4 if rng.random() < 0.05 else 3 if rng.random() < 0.15 else 2 if rng.random() < 0.30 else 0
                 if bi in db.items:
                     self_bag_add(npc, bi, be, 1, None)
 
-        # --- 2. 自動換裝＋強化消耗（裝備／卷軸黑洞）---
+        # --- 2. 利用 craftdb.js 提煉中間素材或打造製作裝備/餅乾 ---
+        craft_npc_items(npc, db, market, rng, ticker, new_events)
+
+        # --- 3. 自動換裝＋強化消耗（裝備／卷軸黑洞）---
         upgrade_npc_gear_and_enchant(npc, db, market, rng, ticker, new_events)
 
         # --- 3. 整理背包 → 下架過期品／補進個人商店貨架 ---
@@ -892,6 +1035,69 @@ def self_bag_add(npc: dict[str, Any], iid: int, ench: int, qty: int, aff: dict[s
     key = f"{iid}:{ench}:{aff_k}"
     bag = npc["bag"]
     bag[key] = bag.get(key, 0) + qty
+
+
+def craft_npc_items(
+    npc: dict[str, Any],
+    db: GameDatabase,
+    market: dict[str, int],
+    rng: random.Random,
+    ticker: list[str],
+    new_events: list[str],
+) -> None:
+    """依 CRAFTDB 配方讓 NPC 把收集到的材料提煉成中階材料或成品裝備"""
+    if not db.recipes:
+        return
+    bag = npc["bag"]
+
+    def bag_cnt(iid: int) -> int:
+        return bag.get(f"{iid}:0:", 0)
+
+    def bag_take(iid: int, qty: int) -> None:
+        k = f"{iid}:0:"
+        if k in bag:
+            bag[k] -= qty
+            if bag[k] <= 0:
+                del bag[k]
+
+    # 先有機率把基礎素材提煉成線/網/蛻皮/樹皮/奧里哈魯根/金屬板等中間料（留一部份原料給玩家買）
+    intermediate_recipes = [r for r in db.recipes if db.items.get(r["out"], {}).get("kind") == "etc" and r["out"] != 40378]
+    rng.shuffle(intermediate_recipes)
+    crafted_mid = 0
+    for r in intermediate_recipes:
+        if crafted_mid >= 2:
+            break
+        # 只保留一定機率提煉，讓原料與半成品同時會在市面上流動
+        if rng.random() > 0.35:
+            continue
+        if npc["gold"] < r["gold"] or any(bag_cnt(in_id) < cnt for in_id, cnt in r["inputs"]):
+            continue
+        for in_id, cnt in r["inputs"]:
+            bag_take(in_id, cnt)
+        if r["gold"] > 0:
+            npc["gold"] -= r["gold"]
+        self_bag_add(npc, r["out"], 0, r["yield"], None)
+        crafted_mid += 1
+
+    # 再檢視是否能合成高價值製作裝 (如力量手套 / 細劍 / 精靈防具 / 法丘 等)
+    equip_recipes = [r for r in db.recipes if db.items.get(r["out"], {}).get("kind") in ("weapon", "armor")]
+    rng.shuffle(equip_recipes)
+    for r in equip_recipes:
+        gold_need = r["gold"] + r["coin"] * 60000
+        if npc["gold"] < gold_need:
+            continue
+        if any(bag_cnt(in_id) < cnt for in_id, cnt in r["inputs"]):
+            continue
+        for in_id, cnt in r["inputs"]:
+            bag_take(in_id, cnt)
+        npc["gold"] -= min(npc["gold"], gold_need)
+        aff = rng.choice(AFFIX_POOL) if rng.random() < 0.14 else None
+        self_bag_add(npc, r["out"], 0, r["yield"], aff)
+        out_name = db.items.get(r["out"], {}).get("name", r["outName"])
+        if calc_expected_price(db, r["out"], 0, market) >= 350_000:
+            ticker.append(f"⚒️【巧手鍛造】「{npc['name']}」湊齊材料打造出【{out_name}】！")
+            new_events.append(f"剛去妖精森林找工匠做出了一件 {out_name}！")
+        break
 
 
 def upgrade_npc_gear_and_enchant(
@@ -1031,7 +1237,7 @@ def restock_npc_shop(
             kept.append(lst)
     shop[:] = kept
 
-    max_slots = 8 if npc["tier"] == "scalper" else 6 if npc["tier"] == "whale" else 5
+    max_slots = 9 if npc["tier"] == "scalper" else 7 if npc["tier"] == "whale" else 6 if npc["tier"] == "regular" else 5
     bag = npc["bag"]
     lo_m, hi_m = TIER_SELL_MULT[npc["tier"]]
 
@@ -1045,32 +1251,36 @@ def restock_npc_shop(
         iid_s, ench_s, aff_k = key.split(":")
         iid, ench = int(iid_s), int(ench_s)
         it = db.items.get(iid)
-        if not it:
-            del bag[key]
+        if not it or iid in NO_SELL or iid in NO_DROP:
+            bag.pop(key, None)
             continue
 
-        # 過低價值垃圾道具（<120金）NPC 直接丟遊戲商店換成水錢（防止個人商店充斥垃圾「肉」或「蠟燭」）
+        # 過低價值生活雜物（< 300 金，如食物/煙火/燈）直接丟遊戲商店換成水錢
         est = calc_expected_price(db, iid, ench, market)
-        if est < 120 and it.get("kind") == "etc":
-            npc["gold"] += max(10, est // 2) * cnt
+        if est < 300 and it.get("kind") == "etc" and it.get("type") not in ("material", "gem", "scroll", "spellbook", "arrow"):
+            npc["gold"] += max(15, est // 2) * cnt
             del bag[key]
             continue
 
-        # 自留少量強化捲軸以備衝裝，並把單格堆疊控制在 1~5 個（親民可買）
+        # 留少量材料自合（稀有材料如巨魔血若有多或商人則直接上架賣），強化捲自留 1~2 張
         if iid in (SCROLL_ARMOR_NORMAL, SCROLL_WEAPON_NORMAL) and npc["tier"] in ("whale", "regular"):
             if cnt <= 2:
                 continue
             sell_n = min(cnt - 2, rng.choice([1, 2, 3]))
+        elif it.get("kind") != "etc":
+            sell_n = 1
+        elif est >= 100_000:
+            sell_n = 1 if cnt == 1 else min(cnt, rng.choice([1, 2]))
+        elif est >= 15_000:
+            sell_n = min(cnt, rng.choice([1, 2, 3, 5]))
         else:
-            sell_n = cnt if it.get("kind") != "etc" else min(cnt, rng.choice([1, 2, 3, 5]))
+            sell_n = min(cnt, rng.choice([2, 3, 5, 10]))
 
         if len(shop) >= max_slots:
             break
 
-        # 若該商品是裝備，逐件上架；若是耗材卷軸可疊加
-        if it.get("kind") in ("weapon", "armor"):
-            sell_n = 1
-        elif it.get("kind") == "etc" and not it.get("stack", 1):
+        # 非堆疊品逐件上架
+        if it.get("kind") == "etc" and not it.get("stack", 1):
             sell_n = 1
 
         # 防止同一 NPC 同品項擺太多格
@@ -1135,7 +1345,7 @@ def run_npc_market_clearing(
             if seller["id"] == buyer["id"] or lst["id"] in sold_ids:
                 continue
             cost = lst["price"]
-            if buyer["gold"] < cost + 5000:
+            if buyer["gold"] < cost + (2_500_000 if tier == "scalper" else 50_000):
                 continue
             iid = lst["item"]
             ench = lst.get("ench", 0)
@@ -1153,9 +1363,9 @@ def run_npc_market_clearing(
                     cur_s = db.item_power_score(buyer["cls"], cur["id"], cur.get("ench", 0)) if cur else 0
                     if db.item_power_score(buyer["cls"], iid, ench) > cur_s + 2.0:
                         want = True
-                elif iid in (SCROLL_ARMOR_NORMAL, SCROLL_WEAPON_NORMAL, SCROLL_ARMOR_BLESSED, SCROLL_WEAPON_BLESSED) and ratio <= 1.05:
-                    want = rng.random() < 0.35
-            elif tier == "casual" and ratio <= 0.85 and cost < 25000:
+                elif it.get("type") in ("material", "gem", "scroll", "spellbook", "potion") and ratio <= tol:
+                    want = rng.random() < (0.45 if tier == "whale" else 0.30)
+            elif tier == "casual" and ratio <= 0.85 and cost < 120_000:
                 want = rng.random() < 0.25
 
             if want:
@@ -1165,7 +1375,7 @@ def run_npc_market_clearing(
                 sold_ids.add(lst["id"])
                 seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
                 # 寫入大額成交快報
-                if cost >= 80000:
+                if cost >= 400_000:
                     nm = db.items.get(iid, {}).get("name", f"#{iid}")
                     disp = f"+{ench} {nm}" if ench > 0 else nm
                     ticker.append(f"💰【市集成交】「{buyer['name']}」向「{seller['name']}」買下【{disp}】({cost:,}金)！")
@@ -1182,7 +1392,7 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
 
     avg_gold = sum(n["gold"] for n in npcs) / max(1, len(npcs))
     # 若全服平均持有金幣過高，柔和啟動價格上限阻尼防止惡性通膨
-    damp = 0.992 if avg_gold > 900_000 else 1.002 if avg_gold < 120_000 else 1.0
+    damp = 0.992 if avg_gold > 9_500_000 else 1.003 if avg_gold < 1_800_000 else 1.0
 
     for mk, cur_p in list(market.items()):
         iid_s, ench_s = mk.split("_")
