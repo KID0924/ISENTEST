@@ -462,6 +462,8 @@ class GameDatabase:
 
         # 第一階段：武器、防具、消耗品、掉落材料、寶石、魔法書初估底價
         for iid, it in self.items.items():
+            if iid == GOLD_ID:
+                continue
             kind = it.get("kind")
             typ = it.get("type")
             slot = it.get("slot") or typ
@@ -504,83 +506,116 @@ class GameDatabase:
                     p = max(p, 420_000)
             elif iid in self.shop_anchor:
                 p = self.shop_anchor[iid]
-            elif iid == SCROLL_ARMOR_BLESSED:
-                p = 520_000
-            elif iid == SCROLL_WEAPON_BLESSED:
-                p = 950_000
+            elif iid == SCROLL_ARMOR_BLESSED:  # 祝防：安定內跳+1~3、過安定×1.5、衝+10唯一通道
+                p = 1_450_000
+            elif iid == SCROLL_WEAPON_BLESSED:  # 祝武：同上，且武器需求極大
+                p = 2_600_000
             elif iid == SCROLL_ARMOR_PERFECT:
-                p = 2_800_000
+                p = 6_500_000
             elif iid == SCROLL_WEAPON_PERFECT:
-                p = 4_800_000
+                p = 12_000_000
             elif iid in (240074, 240087):
-                p = 85_000
-            elif iid == 40513:  # 食人巨魔的血 (MATK=1/3, 力量手套核心卡關材，目標 150~210萬)
+                p = 160_000
+            elif iid == 40088:  # 變形卷軸
+                p = 12_000
+            elif iid == 40513:  # 食人巨魔的血 (MATK=1/3, 力量手套核心卡關材，目標 155~210萬)
                 p = min(2_100_000, max(1_550_000, int(calc_drop_floor(iid, scale=0.42))))
-            elif iid == 84072:  # 純白的萬能藥 (Boss 25% / 菁英 4% 額外掉落，目標 60~85萬，10個約700萬一瓶萬能藥)
+            elif iid == 84072:  # 純白的萬能藥 (Boss 25% / 菁英 4% 額外掉落，10個約680萬換一瓶萬能藥)
                 p = 680_000
-            elif iid == 80019:  # 哈爾巴斯的執念 (Lv63+ 高階掉落，目標 8~16萬)
-                p = min(220_000, max(75_000, int(calc_drop_floor(iid, scale=0.14))))
-            elif iid == 40524:  # 黑色血痕 (目標 4~9萬)
-                p = min(120_000, max(42_000, int(calc_drop_floor(iid, scale=0.14))))
-            elif iid == 40318:  # 魔法寶石 (65張配方核心)
-                p = min(45_000, max(18_000, int(calc_drop_floor(iid, scale=0.09))))
-            elif iid == 40405:  # 皮革 (基礎做裝材料)
-                p = min(12_000, max(5_500, int(calc_drop_floor(iid, scale=0.06))))
+            elif iid == 80019:  # 哈爾巴斯的執念 (Lv63+ 高階掉落)
+                p = min(240_000, max(110_000, int(calc_drop_floor(iid, scale=0.16))))
+            elif iid == 40524:  # 黑色血痕
+                p = min(120_000, max(48_000, int(calc_drop_floor(iid, scale=0.14))))
+            elif iid == 40318:  # 魔法寶石 (65張配方核心觸媒)
+                p = 18_000
+            elif iid == 40405:  # 皮革 (一般大量製裝原料)
+                p = 2_800
             elif iid in (40014, 40068):  # 勇敢藥水 / 精靈餅乾
                 p = 15_000
-            elif iid == 40746:
-                p = 120
-            elif iid == 40745:
-                p = 85
+            elif iid == 40070:  # 進化果實
+                p = 50_000
+            elif iid == 40743:  # 普通箭
+                p = 5
+            elif iid == 40744:  # 銀箭
+                p = 15
+            elif iid == 40745:  # 黃金箭
+                p = 50
+            elif iid == 40746:  # 米索莉箭
+                p = 80
+            elif iid == 40017:  # 解毒藥水
+                p = 450
+            elif iid == 40025:  # 失明藥水
+                p = 150
+            elif iid in (40499, 40496):  # 蘑菇汁 / 粗糙米索莉塊 (高MATK初階大量素材)
+                p = 1_200 if iid == 40499 else 1_500
+            elif iid in (40507, 40519):  # 安特之樹枝 / 潘的鬃毛 (MATK=12，一場掉3~6個)
+                p = 1_800
+            elif iid == 40506:  # 安特的水果 (MATK=9)
+                p = 2_000
+            elif iid == 40515:  # 元素石 (MATK=7.5)
+                p = 2_500
+            elif iid == 40494:  # 純粹的米索莉塊 (MATK=2.7 + 1:1 提煉自粗糙)
+                p = 3_500
+            elif iid == 88:  # 潘的角 (MATK=7.5)
+                p = 5_500
             elif typ == "spellbook":
                 df = calc_drop_floor(iid, scale=0.22, cap=2_500_000)
-                p = max(65_000, df) if df > 0 else (480_000 if iid >= 49130 or iid in (40223, 40230, 40231, 40269) else 95_000)
+                if df > 0:
+                    p = max(75_000, df)
+                elif iid in (40223, 49135):  # 絕對屏障 / 幻覺：化身
+                    p = 650_000
+                elif iid >= 49130 or iid in (40230, 40231, 40269):
+                    p = 480_000
+                elif iid == 40196:  # 召喚術
+                    p = 180_000
+                else:
+                    p = 95_000
             elif typ == "scroll":
-                p = max(25_000, calc_drop_floor(iid, scale=0.12, cap=400_000)) if it.get("use") == "spell" else max(5_500, calc_drop_floor(iid, scale=0.08, cap=120_000))
+                p = max(25_000, calc_drop_floor(iid, scale=0.12, cap=400_000)) if it.get("use") == "spell" else max(8_000, calc_drop_floor(iid, scale=0.08, cap=120_000))
             elif typ in ("gem", "material"):
-                df = calc_drop_floor(iid, scale=0.06, cap=450_000)
-                demand_bonus = min(18_000, recipe_demand.get(iid, 0) * 350)
+                df = calc_drop_floor(iid, scale=0.05, cap=380_000)
+                # 僅極低倍率中/高級寶石保留適度需求權重，高產出基礎材料不再疊加大量配方灌水
+                matk = MATK.get(iid, 1.0)
+                demand_bonus = 0 if matk >= 2.0 else min(8_000, recipe_demand.get(iid, 0) * 180)
                 if "高品質" in nm:
                     floor = 240_000
                 elif "品質" in nm:
                     floor = 95_000
                 elif iid in (40044, 40045):
                     floor = 32_000
-                elif "純粹" in nm or iid == 88:
-                    floor = 22_000
-                elif iid in (40499, 40506, 40507, 40515, 40519, 40496):
-                    floor = 7_500
+                elif "奧里哈魯根" in nm or "金屬板" in nm:
+                    floor = 18_000
                 else:
-                    floor = 4_500
+                    floor = 3_500
                 p = max(floor + demand_bonus, df)
             elif typ == "potion":
-                p = max(1_500, calc_drop_floor(iid, scale=0.04, cap=35_000))
+                p = max(1_200, calc_drop_floor(iid, scale=0.04, cap=35_000))
             elif typ == "food" or "煙火" in nm or "仙女棒" in nm or iid in (40001, 40002, 40003, 40005, 40315):
                 p = 90
             elif str(iid).startswith("81"):
                 p = 260_000
             else:
-                df = calc_drop_floor(iid, scale=0.08, cap=250_000)
-                p = max(800, df)
-            self.market_base[iid] = max(15, int(round(p / 10.0) * 10) if p >= 100 else int(p))
+                df = calc_drop_floor(iid, scale=0.06, cap=180_000)
+                p = max(500, df)
+            self.market_base[iid] = max(5, int(round(p / 10.0) * 10) if p >= 100 else int(p))
 
         # 第二階段：沿 CRAFTDB 112 張配方做由下而上成本傳導（合成料與成品裝價格貼合真實成本，避免中間料過度滾雪球）
         coin_val = 45_000
         for _pass in range(4):
             for rec in self.recipes:
                 oid = rec["out"]
-                if oid not in self.items or oid in NO_SELL or oid == 40068:
+                if oid not in self.items or oid in NO_SELL or oid in (40068, 40494):
                     continue
-                in_cost = sum(self.market_base.get(in_id, 5_000) * cnt for in_id, cnt in rec["inputs"])
+                in_cost = sum(self.market_base.get(in_id, 2_000) * cnt for in_id, cnt in rec["inputs"])
                 total_cost = in_cost + rec["gold"] + rec["coin"] * coin_val
                 unit_cost = total_cost / max(1, rec["yield"])
                 it = self.items[oid]
                 kind = it.get("kind")
                 has_mob_drop = oid in sources_by_item
                 if not has_mob_drop and kind == "etc":
-                    # 純製作中間素材：加上合理工本溢價 (1.08x) 避免多層套疊過深而通膨
-                    target_p = int(round((unit_cost * 1.08) / 10.0) * 10)
-                    self.market_base[oid] = max(self.market_base.get(oid, 1000), target_p)
+                    # 純製作中間素材：加上合理工本溢價 (1.06x)
+                    target_p = int(round((unit_cost * 1.06) / 10.0) * 10)
+                    self.market_base[oid] = max(self.market_base.get(oid, 500), target_p)
                 elif kind in ("weapon", "armor"):
                     target_p = int(round((unit_cost * 1.15) / 10.0) * 10)
                     if target_p > self.market_base.get(oid, 0):
