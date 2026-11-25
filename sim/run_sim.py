@@ -882,14 +882,7 @@ def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: Game
         base_st[k] = max(7, min(20, base_st[k] + rng.choice([-1, 0, 0, 1])))
     start_w = db.startw.get(cls, 172)
     eq = {"weapon": {"id": start_w, "ench": 0, "n": 1}}
-    if tier == "whale":
-        gold = rng.randint(900_000, 2_200_000)
-    elif tier == "scalper":
-        gold = rng.randint(4_000_000, 8_000_000)
-    elif tier == "regular":
-        gold = rng.randint(220_000, 580_000)
-    else:
-        gold = rng.randint(35_000, 120_000)
+    gold = 0
 
     return {
         "id": f"npc_{idx:02d}",
@@ -1128,7 +1121,7 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
 
             # 水錢／傳送／彈藥／基礎強化消耗
             upkeep = 1200 + st["recLv"] * (280 if tier == "whale" else 170 if tier == "regular" else 80)
-            npc["gold"] = max(500, npc["gold"] + run_gold - upkeep)
+            npc["gold"] = max(0, npc["gold"] + run_gold - upkeep)
 
         # 高金幣 NPC 消耗金幣開曼孟 100萬/900萬裝備箱（維持千萬級別流通水位又能買玩家高價貨）
         sink_cap = 22_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
