@@ -1720,7 +1720,8 @@ def main() -> None:
     parser.add_argument("--state-file", type=Path, default=Path(__file__).resolve().parent / "npc_state.json", help="私有模擬狀態保存檔")
     parser.add_argument("--ticks", type=int, default=1, help="每次執行推進幾個虛擬小時 (預設 1)")
     parser.add_argument("--days", type=float, default=0, help="推進天數（會覆蓋 --ticks，如 --days 7）")
-    parser.add_argument("--reset", action="store_true", help="重置世界並重跑 14 天暖機開服狀態")
+    parser.add_argument("--reset", action="store_true", help="重置世界並重跑開服狀態")
+    parser.add_argument("--warmup-ticks", type=int, default=336, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
     parser.add_argument("--seed", type=int, default=None, help="固定亂數種子方便測試重現")
     parser.add_argument("--ai", action="store_true", help="有設定 API KEY 時啟用單次 Batch AI 新聞潤飾")
     parser.add_argument(
@@ -1744,9 +1745,9 @@ def main() -> None:
     is_fresh = args.reset or not state_file.exists()
     if is_fresh:
         print(f"[初始化] 從 {args.data_dir} 載入 {len(db.items)} 件道具、{len(db.monsters)} 隻怪物、{len(db.stages)} 張地圖")
-        # 錯開新服暖機加入時段，使第 1 天即自然存在新兵 Lv1~15、中堅 Lv20~35 與高階/退坑替換 Lv40~50
         all_rosters = make_npc_roster(db, rng)
         rng.shuffle(all_rosters)
+        warmup_ticks = max(0, int(args.warmup_ticks))
         cohorts = [all_rosters[0:22], all_rosters[22:42], all_rosters[42:58], all_rosters[58:70]]
         state = {
             "tick": 0,
@@ -1754,23 +1755,23 @@ def main() -> None:
             "nextSeq": 1000,
             "market": {},
             "ticker": [],
-            "npcs": list(cohorts[0]),
+            "npcs": list(all_rosters) if warmup_ticks == 0 else list(cohorts[0]),
         }
-        warmup_ticks = 336
-        print(f"[暖機] 進行 {warmup_ticks} 小時開服生態預演（7 職業各 10 人，分批入服打造各等級梯度）...")
-        for t in range(warmup_ticks):
-            if t == 144:
-                state["npcs"].extend(cohorts[1])
-            elif t == 252:
-                state["npcs"].extend(cohorts[2])
-            elif t == 312:
-                state["npcs"].extend(cohorts[3])
-            simulate_tick(state, db, rng, args)
+        if warmup_ticks > 0:
+            print(f"[暖機] 進行 {warmup_ticks} 小時開服生態預演（7 職業各 10 人，分批入服打造各等級梯度）...")
+            for t in range(warmup_ticks):
+                if t == 144:
+                    state["npcs"].extend(cohorts[1])
+                elif t == 252:
+                    state["npcs"].extend(cohorts[2])
+                elif t == 312:
+                    state["npcs"].extend(cohorts[3])
+                simulate_tick(state, db, rng, args)
     else:
         state = json.loads(state_file.read_text(encoding="utf-8"))
 
     run_ticks = int(round(args.days * 24)) if args.days > 0 else max(0, args.ticks)
-    if not is_fresh or args.days > 0:
+    if not is_fresh or args.days > 0 or args.warmup_ticks == 0:
         for _ in range(run_ticks):
             simulate_tick(state, db, rng, args)
 
