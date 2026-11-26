@@ -998,7 +998,7 @@
           <span>版本：<strong id="mVer">載入中…</strong></span>
           <span>虛擬時數：<strong id="mTick">-</strong></span>
           <span>最後更新：<strong id="mTime">-</strong></span>
-          <span>排程：每 1 小時自動推進</span>
+          <span>排程：每小時推進 2 虛擬小時</span>
         </div>
       </div>
       <div class="actions">
@@ -2109,7 +2109,7 @@
           }
 
           // Ticker & live 4-tier stats
-          document.getElementById('tickerList').innerHTML = (WORLD.ticker || []).map(t => '<li>' + esc(t) + '</li>').join('') || '<li style="color:var(--muted)">開服初期尚無重大快報，隨每 1 小時推進會持續產生！</li>';
+          document.getElementById('tickerList').innerHTML = (WORLD.ticker || []).map(t => '<li>' + esc(t) + '</li>').join('') || '<li style="color:var(--muted)">開服初期尚無重大快報，隨定時推進會持續產生！</li>';
           for (const tk of ['whale', 'regular', 'scalper', 'casual']) {
             const el = document.querySelector('[data-live="' + tk + '"]');
             if (!el) continue;
