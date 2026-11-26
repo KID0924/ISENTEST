@@ -40,12 +40,41 @@
   setTimeout(mresFetch, 300);
   function mapDirName(b) { return String(b || MAPBASE).replace(/\/+$/, '').split('/').pop(); }   // 地圖資料夾名字（例如 ../maps/map21/ → map21），手機小圖清單用這個當代號
   const _sprMissing = new Set();
+  const _missingReported = new Set();
+  function reportMissingAsset(rawPath, extra) {
+    try {
+      let p = String(rawPath || '').split('?')[0].split('#')[0].trim();
+      if (!p) return;
+      if (/^https?:\/\//i.test(p)) {
+        if (!p.startsWith(location.origin)) return;
+        p = p.slice(location.origin.length);
+      }
+      if (!/(^\/?assets\/|^\/?maps\/)/i.test(p)) return;
+      if (!p.startsWith('/')) p = '/' + p;
+      if (_missingReported.has(p)) return;
+      _missingReported.add(p);
+      if (!/^https?:$/.test(location.protocol)) return;
+      const st = (typeof STAGES !== 'undefined' && typeof stageIdx !== 'undefined') ? STAGES[stageIdx] : null;
+      const payload = Object.assign({
+        path: p,
+        mapId: (typeof curMapId !== 'undefined') ? curMapId : null,
+        stage: st ? (st.name || '') : (typeof MAPNAME !== 'undefined' ? MAPNAME : '')
+      }, extra || {});
+      fetch('/api/missing-assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => { });
+    } catch (e) { }
+  }
   function sprLoad(im, g, f) {   // 讀怪物／角色圖：有手機小圖就讀小圖（讀失敗自動改讀原圖）；78 組外連影子走 GitHub 圖床
     if (BACKUP_SHADOW_IDS.has(String(g))) { im.crossOrigin = 'anonymous'; im.src = GH_ASSETS + g + '/' + g + '-' + f + '.png'; return im; }
     const png = 'assets/' + g + '/' + g + '-' + f + '.png', m = META[g] && META[g][f];
     im.addEventListener('error', () => {
       if (im._fw) { im._fw = 0; im.src = png; return; }
       const sg = String(g);
+      reportMissingAsset(png, { source: 'sprLoad', gfx: sg, frame: String(f) });
       if (!_sprMissing.has(sg)) {
         _sprMissing.add(sg);
         console.warn('[缺檔警告] 讀不到本地圖片:', png);
@@ -63,7 +92,13 @@
   // ---------- 說話之島地圖 ----------
   const MCELLS = 512, OYDEF = MCELLS * 12;
   let WBOX = null, HAVE_MAP = false, HAVE_ART = false, MOX = 0, MOY = OYDEF, MCH = 1024, WALK = null, chunkSet = null, MAPDIR = 'map0', MAPBASE = 'assets/map0/', curMapId = 0;
-  document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && /assets\/icons\//.test(t.src)) t.style.visibility = 'hidden'; }, true);
+  document.addEventListener('error', e => {
+    const t = e.target;
+    if (t && t.tagName === 'IMG') {
+      if (t.src) reportMissingAsset(t.src, { source: 'dom_img' });
+      if (/assets\/icons\//.test(t.src)) t.style.visibility = 'hidden';
+    }
+  }, true);
   const START_GX = 213, START_GY = 263;
 
   // ---------- 地圖外圍黑邊：十種樣式，每張圖依編號固定套一種（形狀依可走範圍的外輪廓自動算出，內部的樹石牆不會被塗黑） ----------
@@ -290,7 +325,10 @@
       const md = mapDirName(), useM = mresOn() && MRES.map.has(md) && !CHM_BAD[md + ':' + k];
       if (useM) { im._m = 1; im.addEventListener('error', () => { CHM_BAD[md + ':' + k] = 1; }); }
       im.onerror = () => {
-        if (!im._m && !window.__chunkWarn) { window.__chunkWarn = 1; try { addChat('讀不到地圖圖片：' + im.src.split('/').slice(-3).join('/'), 'warn'); } catch (e) { } }
+        if (!im._m) {
+          reportMissingAsset(im.src, { source: 'chunkAt' });
+          if (!window.__chunkWarn) { window.__chunkWarn = 1; try { addChat('讀不到地圖圖片：' + im.src.split('/').slice(-3).join('/'), 'warn'); } catch (e) { } }
+        }
         CHUNKRETRY[k] = (CHUNKRETRY[k] | 0) + 1;
         if (CHUNKRETRY[k] <= 6) setTimeout(() => { if (chunkImgs[k] === im) delete chunkImgs[k]; }, 800 * CHUNKRETRY[k]);
         if (im._cbs) { const a = im._cbs; im._cbs = null; for (const fn of a) fn(); }
