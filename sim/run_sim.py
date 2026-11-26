@@ -1087,10 +1087,7 @@ class GameDatabase:
         return 0.0
 
 
-def calc_expected_price(db: GameDatabase, iid: int, ench: int, market: dict[str, int]) -> int:
-    key = f"{iid}_{ench}"
-    if key in market:
-        return market[key]
+def _expected_ench_price(db: GameDatabase, iid: int, ench: int) -> int:
     base = db.market_base.get(iid, 1000)
     if ench <= 0:
         return base
@@ -1109,7 +1106,22 @@ def calc_expected_price(db: GameDatabase, iid: int, ench: int, market: dict[str,
             # safe=0 的飾品若完全照連乘阻尼容易暴衝到數十億，改採溫和飾品溢價曲線
             exp_damp = 0.42 if safe == 0 else 0.72
             val = (val + scr_cost) / (p ** exp_damp)
-    res = max(base, int(round(val / 10.0) * 10))
+    return max(base, int(round(val / 10.0) * 10))
+
+
+def calc_expected_price(db: GameDatabase, iid: int, ench: int, market: dict[str, int]) -> int:
+    key = f"{iid}_{ench}"
+    if key in market:
+        return market[key]
+    res = _expected_ench_price(db, iid, ench)
+    if ench > 0:
+        for prev_e in range(ench - 1, -1, -1):
+            pk = f"{iid}_{prev_e}"
+            if pk in market:
+                floor_p = int(round((market[pk] * (1.25 ** (ench - prev_e))) / 5.0) * 5)
+                if res < floor_p:
+                    res = floor_p
+                break
     market[key] = res
     return res
 
@@ -3088,6 +3100,7 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
     # 依一般冒險人口人均金幣做柔和阻尼（排除囤現金的大盤商人，避免誤壓全服基準物價）
     damp = 0.992 if avg_gold > 22_000_000 else 1.003 if avg_gold < 3_000_000 else 1.0
 
+    by_iid: dict[int, list[tuple[int, str]]] = {}
     for mk, cur_p in list(market.items()):
         iid_s, ench_s = mk.split("_")
         iid, ench = int(iid_s), int(ench_s)
@@ -3100,12 +3113,26 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
             adj = 1.0
         new_p = int(cur_p * adj * damp)
         base_p = db.market_base.get(iid, 100)
-        lo = max(20, int(base_p * 0.60))
-        hi = max(lo * 3, int(base_p * (1.45 if ench == 0 else 80.0)))
+        init_p = _expected_ench_price(db, iid, ench) if ench > 0 else base_p
+        lo = max(20, int(init_p * 0.60))
+        hi = max(lo * 3, int(init_p * (1.45 if ench == 0 else 2.20)))
         if iid in db.shop_anchor and db.items.get(iid, {}).get("kind") == "etc" and ench == 0:
             hi = min(hi, int(db.shop_anchor[iid] * 0.92))
             lo = min(lo, max(10, int(db.shop_anchor[iid] * 0.55)))
         market[mk] = max(lo, min(hi, int(round(new_p / 5.0) * 5)))
+        by_iid.setdefault(iid, []).append((ench, mk))
+
+    # 高強化單調保護：同道具高一階價格至少維持前一階的 1.25×（避免缺貨導致 +7 比 +8 貴）
+    for iid, entries in by_iid.items():
+        if len(entries) < 2:
+            continue
+        entries.sort(key=lambda x: x[0])
+        prev_e, prev_mk = entries[0]
+        for ench, mk in entries[1:]:
+            min_p = int(round((market[prev_mk] * (1.25 ** (ench - prev_e))) / 5.0) * 5)
+            if market[mk] < min_p:
+                market[mk] = min_p
+            prev_e, prev_mk = ench, mk
 
 
 def optionally_ai_enrich(world: dict[str, Any]) -> None:
