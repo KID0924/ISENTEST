@@ -12,7 +12,7 @@
    - whale (5): 重課肝帝 35~50 場/天
    - regular (35): 一般冒險者 12~25 場/天
    - casual (20): 新手探險家 8~15 場/天（急售便宜貨 0.65~0.85×）
-   - scalper (10): 奇岩商人 10~17 場/天（低掃 <0.80×、高賣 1.15~1.35×）
+   - scalper (10): 奇岩商人 10~17 場/天（低掃 <=0.80×、加價轉賣 1.04~1.16×，金幣上限 2 億）
 3. 具備完整防通膨與資源回收機制：
    - 依真實 enchRate() 衝裝（失敗爆裝消耗裝備與卷軸）
    - 藥水/傳捲消耗、拍賣交易 10% 手續費銷毀
@@ -63,11 +63,11 @@ TIER_SELL_MULT = {
     "whale": (1.00, 1.10),
     "regular": (0.95, 1.05),
     "casual": (0.65, 0.85),
-    "scalper": (1.15, 1.35),
+    "scalper": (1.04, 1.16),
 }
 TIER_BUY_TOL = {
     "whale": 1.25,
-    "regular": 1.03,
+    "regular": 1.12,
     "casual": 0.90,
     "scalper": 0.80,
 }
@@ -1341,9 +1341,11 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                         break
 
             npc["gold"] = max(0, npc["gold"] + run_gold_acc)
+            if tier == "scalper":
+                npc["gold"] = min(200_000_000, npc["gold"])
 
-        # 高金幣 NPC 消耗金幣開曼孟 100萬/900萬裝備箱（維持千萬級別流通水位又能買玩家高價貨）
-        sink_cap = 22_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
+        # 高金幣 NPC 消耗金幣開曼孟 100萬/300萬裝備箱；商人天花板 2 億、約 1.65 億以上才微幅開箱
+        sink_cap = 165_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
         if npc["gold"] > sink_cap:
             spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
             npc["gold"] -= spend
@@ -1352,6 +1354,8 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                 be = 4 if rng.random() < 0.05 else 3 if rng.random() < 0.15 else 2 if rng.random() < 0.30 else 0
                 if bi in db.items:
                     self_bag_add(npc, bi, be, 1, None)
+        if tier == "scalper":
+            npc["gold"] = min(200_000_000, npc["gold"])
 
         # --- 2. 利用 craftdb.js 提煉中間素材或打造製作裝備/餅乾 ---
         craft_npc_items(npc, db, market, rng, ticker, new_events)
@@ -1615,7 +1619,7 @@ def restock_npc_shop(
     state: dict[str, Any],
 ) -> None:
     shop: list[dict[str, Any]] = npc.setdefault("shop", [])
-    # 移除掛太久沒賣掉的舊貨（48 ticks 約 2 天）並退回背包或微調減價
+    # 移除掛太久沒賣掉的舊貨（48 ticks 打 9 折但不破保底價；滿 60 ticks 退回背包以免本金與貨物蒸發）
     kept: list[dict[str, Any]] = []
     for lst in shop:
         age = tick_id - lst.get("tick", tick_id)
@@ -1624,19 +1628,46 @@ def restock_npc_shop(
             mk = f"{lst['item']}_{lst.get('ench', 0)}"
             state.setdefault("unsoldPress", {})[mk] = state.get("unsoldPress", {}).get(mk, 0) + 1
             if age < 60:
-                lst["price"] = max(50, int(lst["price"] * 0.90))
+                est_l = calc_expected_price(db, lst["item"], lst.get("ench", 0), market) * max(1, lst.get("n", 1))
+                floor_r = 0.85 if npc["tier"] == "scalper" else 0.72
+                floor_p = max(50, int(est_l * floor_r))
+                lst["price"] = max(floor_p, int(lst["price"] * 0.90))
                 kept.append(lst)
+            else:
+                self_bag_add(npc, lst["item"], lst.get("ench", 0), lst.get("n", 1), lst.get("aff"))
         else:
             kept.append(lst)
     shop[:] = kept
 
-    max_slots = 9 if npc["tier"] == "scalper" else 7 if npc["tier"] == "whale" else 6 if npc["tier"] == "regular" else 5
+    max_slots = 15 if npc["tier"] == "scalper" else 11 if npc["tier"] == "whale" else 9 if npc["tier"] == "regular" else 8
     bag = npc["bag"]
     lo_m, hi_m = TIER_SELL_MULT[npc["tier"]]
 
-    # 奸商優先高價出清捲軸/藍裝；一般玩家保留 1-2 張捲自用，其餘賣掉換金幣
+    # 奸商優先高價／高流通品擺滿 15 格，避免貨架被便宜雜物卡死；一般玩家保留 1-2 張捲自用，其餘賣掉換金幣
     keys = list(bag.keys())
-    rng.shuffle(keys)
+    if npc["tier"] == "scalper":
+        # 背包爆倉過多 (>45 種) 時，商人會將過剩低流動普通庫存批發變現 (45%)，防止死貨卡住現金
+        if len(keys) > 45:
+            rng.shuffle(keys)
+            while len(keys) > 40:
+                dk = keys.pop()
+                dc = bag.get(dk, 0)
+                if dc <= 0:
+                    continue
+                di_s, de_s, _ = dk.split(":")
+                di, de = int(di_s), int(de_s)
+                if di in db.items and di not in db.no_sell and di not in db.no_drop:
+                    d_est = calc_expected_price(db, di, de, market)
+                    if d_est < 350_000:
+                        npc["gold"] = min(200_000_000, npc["gold"] + max(20, int(d_est * 0.45)) * dc)
+                        del bag[dk]
+        keys = list(bag.keys())
+        keys.sort(
+            key=lambda k: calc_expected_price(db, int(k.split(":")[0]), int(k.split(":")[1]), market) * rng.uniform(0.65, 1.35),
+            reverse=True,
+        )
+    else:
+        rng.shuffle(keys)
     for key in keys:
         cnt = bag.get(key, 0)
         if cnt <= 0:
@@ -1652,6 +1683,8 @@ def restock_npc_shop(
         est = calc_expected_price(db, iid, ench, market)
         if est < 300 and it.get("kind") == "etc" and it.get("type") not in ("material", "gem", "scroll", "spellbook", "arrow"):
             npc["gold"] += max(15, est // 2) * cnt
+            if npc["tier"] == "scalper":
+                npc["gold"] = min(200_000_000, npc["gold"])
             del bag[key]
             continue
 
@@ -1732,13 +1765,19 @@ def run_npc_market_clearing(
     for buyer in npcs[:35]:  # 每輪約半數活躍買家逛街
         tier = buyer["tier"]
         tol = TIER_BUY_TOL[tier]
-        # 挑 3 筆來看
-        sample = rng.sample(all_listings, min(8, len(all_listings)))
+        # 若商人貨架已經近滿 (13+ 格)，暫停進貨等貨架消化
+        if tier == "scalper" and len(buyer.get("shop", [])) >= 13:
+            continue
+        # 買家每次看 12~16 件（商人更勤勞看 16~22 件），配合擴增的貨架維持交易流動率
+        view_n = rng.randint(16, 22) if tier == "scalper" else rng.randint(12, 16)
+        max_buys = 3 if tier == "whale" else 2 if tier == "regular" else 1
+        bought_here = 0
+        sample = rng.sample(all_listings, min(view_n, len(all_listings)))
         for seller, lst in sample:
             if seller["id"] == buyer["id"] or lst["id"] in sold_ids:
                 continue
             cost = lst["price"]
-            if buyer["gold"] < cost + (2_500_000 if tier == "scalper" else 50_000):
+            if buyer["gold"] < cost + (500_000 if tier == "scalper" else 50_000):
                 continue
             iid = lst["item"]
             ench = lst.get("ench", 0)
@@ -1747,7 +1786,9 @@ def run_npc_market_clearing(
 
             want = False
             if tier == "scalper" and ratio <= 0.80:
-                want = True
+                it_sc = db.items.get(iid, {})
+                if it_sc.get("type") in ("material", "gem", "scroll", "spellbook", "potion") or est >= 30_000:
+                    want = True
             elif tier in ("whale", "regular") and ratio <= tol:
                 it = db.items.get(iid, {})
                 if it.get("kind") in ("weapon", "armor") and db.can_equip(buyer["cls"], iid):
@@ -1757,13 +1798,15 @@ def run_npc_market_clearing(
                     if db.item_power_score(buyer["cls"], iid, ench) > cur_s + 2.0:
                         want = True
                 elif it.get("type") in ("material", "gem", "scroll", "spellbook", "potion") and ratio <= tol:
-                    want = rng.random() < (0.45 if tier == "whale" else 0.30)
+                    want = rng.random() < (0.55 if tier == "whale" else 0.40)
             elif tier == "casual" and ratio <= 0.85 and cost < 120_000:
                 want = rng.random() < 0.25
 
             if want:
                 buyer["gold"] -= cost
                 seller["gold"] += int(cost * 0.90)  # 10% 交易稅直接銷毀（金幣黑洞）
+                if seller["tier"] == "scalper":
+                    seller["gold"] = min(200_000_000, seller["gold"])
                 self_bag_add(buyer, iid, ench, lst.get("n", 1), lst.get("aff"))
                 sold_ids.add(lst["id"])
                 seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
@@ -1772,7 +1815,9 @@ def run_npc_market_clearing(
                     nm = db.items.get(iid, {}).get("name", f"#{iid}")
                     disp = f"+{ench} {nm}" if ench > 0 else nm
                     ticker.append(f"💰【市集成交】「{buyer['name']}」向「{seller['name']}」買下【{disp}】({cost:,}金)！")
-                break
+                bought_here += 1
+                if bought_here >= max_buys:
+                    break
 
 
 def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: dict[str, int]) -> None:
