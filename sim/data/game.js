@@ -585,7 +585,7 @@
   (function () { const st = document.createElement('style'); st.textContent = '.orbA{width:27.914px;margin:0 2.043px;height:32px;flex:none;background:url(' + ORBANIM + ') 0 50%/auto 32px no-repeat;animation:orbA .72s steps(9) infinite}@keyframes orbA{to{background-position:-251.23px 50%}}'; document.head.appendChild(st); })();
   const ORBICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAHwUlEQVR4Xo2X228Vxx3HP7OXs+dibGNsN5CA7IBTSKIK4qA2EpUSItKm5SVVkZKXqG1SKUKVqqovlZI/oEXqc/oWqX1AaoTaqiStlLTCEBEwMUnVkpiEezE2YMMxHOfs2ctM9ZudNcZc0pFWc87uzPy+v+/vOnDvoYCg/BzBMzX4QQQnIjAR5G6W3+XzY1mz7EjvPjK+elRhbQR/qEJSBdMFZsU9nhrYpwp/qRRASuGizF3H3T7IO9UD3Rk8mcKbPmwIwfiQe+BH3L5PNiRACpkBk0GowRiYVLCjDVOOzWw5irsBCOWsGnwTOCIqhJBVwA9BiU2iZafIIR1AOyAZZAl4KXgGTgHPxnDBMSLLFsdyACJP12G1hgMBDEUQVMCrgpiDigMgQGSzcYIFgKgXAwsFG/IuT8E3cMbAjg6cc1tkmx1LAYjwoApfM/APH0ZqkNfBF6F1oAHU3KOUIlfKHuBrbQF0PI+W1hZEG2gVIOIUqgbeiuEnBaEWnx2LXu7oSQw878FICGkIoawW4d1Al5uFw43GEBjDPHBVKTrGWOGihTDlO+1UYTExyQtVeC+GP7rP+XIGhN4XPNgXQFaHUDQWoTL3Az1KERnDaBDwncFB1m3Zwowx/PXdd5kNAh579FHGJieZTBIWlKJpDDcKk5gOKA1xXJC4OJYy0OXBz6wd3CPay+qVTvMBYKdSbBseJnrqKXj5ZdaePMmPJidpjY7S3d/PzBdfMO2OF1MI1xmoHNKkiKDfdOBXzhduAajC94DtxlEvvIlwobPHzaPGsH14GAYH0fv34z38MGbrVuqvv069u5t4bIx6p0OvUmhjLABxTAlR4VvCM4c1pfDS7qU3fgAcqBSgcrGhOJ/Qb31AKXplpdaYvj68kRF4/31UtQo7d2I2b6Z65gxrg4D+SoU+paz5hEV5DAQB5Aq+G8HTdzihgi0Gvu1BXitCz3qPbI48j7rWdI+MoLq6MB9/DAMD0NUFExNQraI8D9NosNIYVkgERBGNToeGMTYsK4UZJPz6Paw1b48CDX3OOyWbWW+2wsUUxljtH0sS2LwZde4cpClMTcGePbBxI6xfDytX8vXRUcKpKfY2m4R5TiVNFxWR0FySOm43AfB7l7iDsgrJLABSY9gErHr8cbh6FXX2LKxZAwLouedAzDE+jjp9mvqFC3wDeLq3F09r60OiiJhUFFOgPGiWDCxWKgO/dS9tfJYxmipFXxCwfdcusr4+8g8/JJmbg/5++5hKBYaGrPZm/XpMrcZsu81/5uboDUM837+V9gocImDPHQAUvOqStF1k0Uq2M4Zn+/qoT0+TvPMOJ5KEz4Gp6WnSnh7S3l7YuhXt+6i5OfxXXmFuzRriPMdTilCppWGt7OHwxB0+ANZ3BINlRcJHnGetUmxSik8nJvgoDDkfhjxZr/PAihWEjzyCqVbJxsZsSGaHDxMMDzNVq1FRCryCYAkrUajMjqaIytt9wINXZYurZHaFHHLOGD7duJHjAwPsb7VoNptcHhykf9cukg0baCtF5nl4u3fjiykOHmQ4y8hrNVhCf1kCXRVyRNxqGOTDexoOZQWIXJKI5HZJRhNHjvDnqSku+z6tep0Nvk989Cim1SKdnyeXYjQ+TrZpE+nq1XSuXSMJAnSSoCRvOG1d5dSqYPp2BtpwEZj2wMuLMmrDRqAudDp8nuecT1NUHHNhYQF/fp7g0CG6hoaob9tG/tln3Dx2zDplz8AAeZoWJVlry2bZsMj5BnbfAcAVr7c06BwC2SCIJa9LqZX8KXPLGJ4IQ9S6ddy4fp2k2UQZY1NxQ9J0rYbpdEjimMQYK1j2KchN0aSMK/jb3QDIwr9rOKYLM+gvHSpxyNXOXqe1ptFsYt5+m7jR4OK+feTnz3N1bAwt2l68yL+vXLHsiX+UBSnBUu8p+MR1R4sOWg6bKxT8MoMPAhcRs8AV4EGw2TD2PE42mzRWrWL1wABm3Tri48e50W7TPHWKuZkZmknCzTxnQWsLpOyWHKtSXG3nVUZIOcRUfgz/imBvCi+2IeuFYBx4KQx5wxh+l2V80mrx0MwMYaVCNjvLpTzn7NwcD/i+rYL1LON6mhYsFCXZiFk1XPPgF6Xw5QBcpqRl4Ibrbo2YQZCd930eNIYfAmezjGOXLtGcmWE+CMi05qFKhZNZxqTWnEpT245JMyKznKFBGai7DnlxLG1IZNiIUTArfpAWTYQdR+OYnlqN/2YZQ2FIw/OYD0P6o4gTN28ynaYcyDJi6YS0tq2aCO4U3ZBEVSsrvF/olzJjk9FyAOJvXgfeqMCghp9Kr68hyJTioyThSp7T4/ucUYqrSUIWx1zKslJLFm61YfadmDGF0MCfUti7vCm918VEHFLuAm8G8FoEcQWk7HjSnNpO2HVMUi3Fm4Q6Yct1wtbxvgTdAZ3BaeD7HTh7v7Z8+RAZuYAI4TVpUIQuD0wdlPwXLmWRACjbL6EwA5NC3qYo7cC32nB0aTdcjnve2ZbcGeTiuSOAX4ewReq5aOE7EK6wyDWs7PuECfF4+SYOva8OP79eWETwLV5K/t9RgvTq8HwEl+uQrQAtl9RuML1ulv9ygY0glQttBENfJeR+DCxlqfTcrAr/BJ4x0JFLhzQyIRyWlls0FGYMzMZw0B1Qyrir5v8Dc10sLCQtducAAAAASUVORK5CYII=';   // 強化補血球的小圖（補血球第 3 格縮成 32 格），直接內嵌，不用另外放圖檔
   if (MAGIC[34]) MAGIC[34].name = '電弧';   // 玩家的魔法「極道落雷」已改成電弧：名稱也改成「電弧」（怪物／首領的極道落雷技能名不變）
-  delete MAGIC[18];   // 起死回生術（不死系即死）移除：升級不會再出現、不會自動施放
+  delete MAGIC[18]; delete MAGIC[16];   // 起死回生術、地獄之牙移除：升級不會再出現、不會自動施放
   const ORB_K = [20, 30, 50];   // 騎士的強化補血球：一顆回復量（只有 3 級）
   const actCk = a => (a && a.ck) || window.__ck || 'elf';
   const actCs = a => (a && a.cs) || window.__cs || {};
@@ -753,10 +753,13 @@
     if (elf || ck === 'mage' || ck === 'royal') {   // 王族：戰局內也能學魔法，但最高只到 3 級魔法
       if (elf) for (const u of PASS) { if (u.id === 150 || u.id === 175 || u.id === 174 || u.id === 151 || LU.GEN_PASS.includes(u.id) || (BOWONLY.has(u.id) && !bow)) continue; const h = rk(u.id, T); if (h < u.max) pool.push({ key: 'p' + u.id, name: u.name, desc: u.d(h + 1, T), have: h, icon: u.id, sid: NEWPASS[u.id], tag: '職業被動技能', fx: u.fx || (p => { recalcActor(p); }), wt: RW.passive }); }
       for (const id in MAGIC) {
-        const k = MAGIC[id], h = ups['m' + id] || 0; if (+id === 59 && ck !== 'mage') continue; if (elf && (+id === 29 || +id === 34 || +id === 38 || +id === 30)) continue; if (ck === 'mage' && MG_OFF.has(+id)) continue; if (k.tier > (elf ? 6 : ck === 'royal' ? 3 : 10) || h >= 5 || (elf ? level < k.tier * 1.2 - 1 : false)) continue;   // 法師同原版：N 級魔法要 Lv4×N 才學得到（已學過的可繼續升級）
-        // 精靈只能學到 6 級魔法（同原版）
+        const k = MAGIC[id], h = ups['m' + id] || 0; if (+id === 59 && ck !== 'mage') continue; if (elf && (+id === 29 || +id === 34 || +id === 38 || +id === 30)) continue; if (ck === 'mage' && MG_OFF.has(+id)) continue; if ((+id === 70 && (ups.m53 || 0) > 0) || (+id === 53 && (ups.m70 || 0) > 0)) continue; if (k.tier > (elf ? 6 : ck === 'royal' ? 3 : 10) || h >= 5 || (elf ? level < k.tier * 1.2 - 1 : false)) continue;   // 龍捲風與火風暴擇一；精靈限 6 階、王族限 3 階
+        if (k.id === 53 || k.id === 70) { pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，召喚 4 個' + k.name + '瞬間出現在你上下左右，各造成一次大範圍傷害，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒（龍捲風與火風暴擇一）', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', tier: 'green', fx: () => { }, wt: RW.active }); continue; }
+        if (k.id === 59) { pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，2.5 秒內於半屏範圍降下大量冰暴，範圍內怪物受傷並有 50% 機率冰凍 1 秒，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', tier: 'blue', fx: () => { }, wt: RW.active }); continue; }
+        if (k.id === 6) { const sc = [1, 2, 2, 3, 3][Math.min(4, h)]; pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，一次射 ' + sc + ' 發（最多 3 發），每發命中後連鎖彈射可彈 ' + (h + 2) + ' 隻怪（傷害依序 100/90/80/70/60/50% 遞減），每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active }); continue; }
+        if (k.id === 7) { const sc = [1, 2, 2, 3, 3][Math.min(4, h)]; pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，一次射 ' + sc + ' 發（最多 3 發），每發貫穿路線上所有怪物並自動追蹤目標，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active }); continue; }
+        if (k.id === 38) { pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，冰錐命中必定冰凍 2 秒（菁英減半、首領免疫），傷害 ' + Math.round((k.dv + k.dc * (k.dd + 1) / 2) * DMGSCALE * 0.8 * magicDmgMul(h + 1) * magicBoost(k, T)) + (magicShots(k, h + 1, T) > 1 ? '，一次 ' + magicShots(k, h + 1, T) + ' 發' : '') + '，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active }); continue; }
         if (k.undead || k.slow) { pool.push({ key: 'm' + id, name: k.name, desc: k.undead ? '自動施放，範圍內不死系怪物有機率即死（王除外，等級越高機率越高），每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒' : '自動施放，範圍內怪物移動速度減半 ' + slowSec(h + 1) + ' 秒，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active }); continue; }
-        if (k.id === 59) { pool.push({ key: 'm' + id, name: k.name, desc: '自動施放，2.5 秒內於半屏範圍降下大量冰暴，範圍內怪物受傷並有 50% 機率冰凍 1 秒，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active }); continue; }
         pool.push({ key: 'm' + id, name: k.name, desc: k.id === 74 ? '自動施放，在目標周圍連續落 ' + METN + ' 顆，每顆傷害 ' + Math.round((k.dv + k.dc * (k.dd + 1) / 2) * DMGSCALE * 0.8 * magicDmgMul(h + 1) * METF) + '，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒' : '自動施放，傷害 ' + Math.round((k.dv + k.dc * (k.dd + 1) / 2) * DMGSCALE * 0.8 * magicDmgMul(h + 1) * magicBoost(k, T)) + (k.area ? '（範圍' + (k.id === 74 && isMage(T) ? '＋' + Math.round(MET_R[Math.min(4, h)] * 100) + '%，一次落 ' + magicShots(k, h + 1, T) + ' 顆' : '') + '）' : magicShots(k, h + 1, T) > 1 ? '，一次 ' + magicShots(k, h + 1, T) + ' 發' : '') + '，每 ' + magicCd(k, h + 1, T).toFixed(1) + ' 秒', have: h, icon: k.id, sid: MGNEW.has(+id) ? 'mg_' + id : undefined, tag: '職業主動技能', fx: () => { }, wt: RW.active });
       }
     }
@@ -800,6 +803,7 @@
     paused = false; stageIdx = 0; waveN = 0; waveDone = false; siegeQ = 0; siegeAcc = 0; zones = []; campT = 0; movT = 0; lastHurtAt = 0; lastPressAt = 0; runStats = []; stageT = 0; transT = 0; _stageClearedWait = false; pendingLv = 0; kills = 0; time = 0; level = 1; xp = 0; _lsMsg = -1; xpNeed = 9; running = true; paused = false; boss = null; bossSpawned = false; spawnAcc = 0; over = false;
     if (vill) { PARTY.length = 0; enterVillage(); }
     else buildPartyForRun();
+    if (!vill && window.__ck === 'mage') P.openPick = 1;   // 【V050】法師戰局開始→三選一（2級光箭/冰箭/風刃）
   }
   const MON = DATA.monsters.filter(m => !m.boss && !m.x).sort((a, b) => a.lvl - b.lvl || a.hp - b.hp);
   const BOSS = DATA.monsters.find(m => m.id === 45600);
@@ -858,13 +862,13 @@
     { mapId: 4201, name: '龍之谷外圍', sub: '骸骨在山谷入口遊蕩', len: 360, eliteBase: '骷髏警衛', boss: BX(9120), spawn: [33392, 32478], box: [33345, 33449, 32435, 32522], appear: { 9101: 0, 9102: 0, 9103: 72, 45161: 144, 45264: 144, 45278: 216, 9104: 288, 9105: 288 }, pool: () => byIds([9101, 9102, 9103, 45161, 45264, 45278, 9104, 9105]) },
     { mapId: 4202, name: '龍之谷中間區域', sub: '毒蠍與石化的氣息', len: 360, eliteBase: '歐吉', boss: BX(9121), spawn: [33283, 32399], box: [33225, 33335, 32340, 32435], appear: { 45259: 0, 45264: 0, 9106: 72, 9107: 144, 45278: 216, 9104: 288, 9105: 288 }, pool: () => byIds([45259, 45264, 9106, 9107, 45278, 9104, 9105]) },
     { mapId: 4203, name: '龍之谷深處', sub: '巨大的骸骨守著最後的山谷', len: 360, last: true, rush: 300, eliteBase: '巨大歐吉', boss: BX(9122), spawn: [33413, 32253], box: [33345, 33449, 32232, 32325], appear: { 9110: 0, 9111: 0, 9112: 60, 9113: 120, 9114: 120, 9115: 180, 9105: 240 }, pool: () => byIds([9110, 9111, 9112, 9113, 9114, 9115, 9105]) },
-    // ---- 龍之谷地監路線（1F~6F：各待 6 分鐘，時間到收光怪物後前往下一層；7F：安塔瑞斯） ----
-    { mapId: 30, name: '龍之谷地監 1F', hpb: 1, sub: '龍之谷的地底', len: 360, spawn: [32740, 32777], pool: () => byIds([45161, 45184, 9102, 9103, 45280, 9101]) },
-    { mapId: 31, name: '龍之谷地監 2F', hpb: 1, sub: '更深的地方', len: 360, spawn: [32760, 32781], pool: () => byIds([9102, 9103, 45280, 9101, 45289]) },
-    { mapId: 32, name: '龍之谷地監 3F', hpb: 1, sub: '更深的地方', len: 360, spawn: [32709, 32818], pool: () => byIds([9102, 9103, 45280, 9101, 45289, 45373]) },
-    { mapId: 33, name: '龍之谷地監 4F', hpb: 1, sub: '更深的地方', len: 360, spawn: [32669, 32869], pool: () => byIds([9102, 9103, 45280, 9101, 45289, 45373, 45393]) },
-    { mapId: 35, name: '龍之谷地監 5F', hpb: 1, sub: '更深的地方', len: 360, spawn: [32746, 32802], pool: () => byIds([45289, 45373, 45393, 45451]) },
-    { mapId: 36, name: '龍之谷地監 6F', hpb: 1, sub: '更深的地方', len: 360, spawn: [32663, 32846], pool: () => byIds([45373, 45393, 45451]) },
+    // ---- 龍之谷地監路線（1F~6F：各層固定首領；7F：安塔瑞斯） ----
+    { mapId: 30, name: '龍之谷地監 1F', boss: BX(45280), sub: '龍之谷的地底', len: 360, spawn: [32740, 32777], pool: () => byIds([45161, 45184, 9102, 9103, 45280, 9101]) },
+    { mapId: 31, name: '龍之谷地監 2F', boss: BX(45289), sub: '更深的地方', len: 360, spawn: [32760, 32781], pool: () => byIds([9102, 9103, 45280, 9101, 45289]) },
+    { mapId: 32, name: '龍之谷地監 3F', boss: BX(45373), sub: '更深的地方', len: 360, spawn: [32709, 32818], pool: () => byIds([9102, 9103, 45280, 9101, 45289, 45373]) },
+    { mapId: 33, name: '龍之谷地監 4F', boss: BX(45393), sub: '更深的地方', len: 360, spawn: [32669, 32869], pool: () => byIds([9102, 9103, 45280, 9101, 45289, 45373, 45393]) },
+    { mapId: 35, name: '龍之谷地監 5F', boss: BX(45451), sub: '更深的地方', len: 360, spawn: [32746, 32802], pool: () => byIds([45289, 45373, 45393, 45451]) },
+    { mapId: 36, name: '龍之谷地監 6F', boss: BX(45451), sub: '更深的地方', len: 360, spawn: [32663, 32846], pool: () => byIds([45373, 45393, 45451]) },
     { mapId: 37, name: '龍之谷地監 7F', sub: '安塔瑞斯棲息的地方', len: 1, last: true, nopool: 1, boss: BX(71014), spawn: [32697, 32823], pool: () => [] },
     // ---- 妖精森林路線（妖精森林 → 妖魔森林 → 眠龍洞穴；目前只開到妖精森林） ----
     { mapId: 4301, matK: 1.35, name: '妖精森林', sub: '腐化的氣息籠罩著森林', len: 360, eliteBase: '腐化的安特', boss: BX(9220), spawn: [33119, 32359], box: [33035, 33185, 32300, 32465], appear: { 45009: 0, 45019: 0, 45551: 0, 45043: 0, 45041: 27, 45065: 27, 45082: 54, 45024: 72, 45098: 90, 45121: 108, 45127: 126, 45143: 144, 45149: 162, 45171: 180, 9203: 198, 9201: 216, 9204: 234, 9202: 252 }, pool: () => byIds([45009, 45019, 45551, 45043, 45041, 45065, 45082, 45024, 45098, 45121, 45127, 45143, 45149, 45171, 9201, 9202, 9203, 9204]) },
@@ -1095,7 +1099,7 @@
       invDirty = true; return last;
     }
     if (d.kind === 'etc') { const f = inv.find(i => i.id === id); if (f) { f.n += n; invDirty = true; return f; } const it = { u: uidN++, id, n, ench: 0, eq: null }; inv.push(it); invDirty = true; return it; }
-    let last = null; for (let k = 0; k < n; k++) { last = { u: uidN++, id, n: 1, ench: 0, eq: null }; inv.push(last); } invDirty = true; return last;
+    let last = null; for (let k = 0; k < n; k++) { last = { u: uidN++, id, n: 1, ench: 0, eq: null }; if (!SRV()) ensureItemSu(last); inv.push(last); } invDirty = true; return last;
   }
   function countItem(id) { let c = 0; for (const i of inv) if (i.id === id) c += i.n; return c; }
   function takeItem(id, n) { for (const i of inv.slice()) { if (i.id !== id) continue; const t = Math.min(n, i.n); i.n -= t; n -= t; if (i.n <= 0) inv.splice(inv.indexOf(i), 1); if (n <= 0) break; } invDirty = true; }
@@ -1150,6 +1154,7 @@
     if (T.form) { st.hp += formHp(T.form, T); st.ac += formAc(T.form, T); }
     cardStats(st, T.cardOwn);
     dollStats(st, T);
+    if (isL) mcardSockStats(st);
     st.wLeech = WX.leech || 0; st.wDrain = WX.drain || 0; st.fxMag = WX.mag || 0; st.dr += WX.dr || 0; T.dx.expMul *= 1 + (WX.exp || 0); T.dx.spd *= 1 + (WX.spd || 0); T.dx.hpTR += WX.hpTR || 0; T.dx.mpTR += WX.mpTR || 0;   // 高階裝備特效
     T.dx.eva += OR.er;
     T.st = st;
@@ -1271,7 +1276,9 @@
     inv = []; uidN = 1; let sv = null;
     try { const nm = localStorage.getItem('l1s_name') || '', el = !window.__ck || window.__ck === 'elf'; sv = JSON.parse(lsGet('l1s_save2', el ? ['l1s_save2'] : ['l1s_save2_' + nm], el ? 'l1s_save2' : null) || 'null'); } catch (e) { }
     if (sv && sv.inv && sv.inv.length) {
-      for (const o of sv.inv) if (ITEMS[o.id]) inv.push({ u: uidN++, su: typeof o.u === 'string' ? o.u : undefined, id: o.id, n: o.n, ench: o.ench || 0, eq: o.eq || null, lk: o.lk ? 1 : 0 });
+      let _suFix = false;
+      for (const o of sv.inv) if (ITEMS[o.id]) { const it = { u: uidN++, su: typeof o.u === 'string' ? o.u : undefined, id: o.id, n: o.n, ench: o.ench || 0, eq: o.eq || null, lk: o.lk ? 1 : 0 }; if (!SRV() && !it.su) { ensureItemSu(it); if (it.su) _suFix = true; } inv.push(it); }
+      if (_suFix) setTimeout(() => { try { saveSave(); } catch (_) { } }, 0);
     } else if (!SRV()) {   // 單機版：新角色給起始武器；連線版由伺服器決定（伺服器補發會寫流水帳）
       const b = addItem((window.__ck && STARTW[window.__ck]) || 172, 1); b.eq = 'weapon';
     }
@@ -1282,7 +1289,7 @@
     }
     if (!(sv && sv.qs)) qsDefaults();   // 新角色：第 1 格＝補血藥水（自動挑身上有的）、第 4 格＝加速藥水
     for (const k of START_KNOWN) P.known[k] = true;
-    if (window.__ck === 'mage') { P.ups.m4 = P.ups.m4 || 1; }   // 法師初始只會光箭（火箭術拿掉，之後升級還是骰得到）
+    /* 【V050】法師戰局開場不再自動給光箭；改為彈出固定三選一（見 resetGame 的 openPick 與 mageStartPick） */
     if (window.__ck === 'knight') { P.ups.k_stun = 1; P.ups.k_crisis = 1; }   // 騎士初始只給劍氣 Lv1＋生存危機（紫色地獄火、堅固防禦改成升級時抽）   // 騎士初始就會紫色地獄火 Lv1、劍氣（普攻）、堅固防禦 Lv2、生存危機（以下為舊註解）衝擊之暈（普攻）Lv1、堅固防禦 Lv2（近戰沒有這些撐不過第一關）
     inv = inv.filter(i => idef(i).type !== 'arrow');
     inv = inv.filter(i => i.id !== 41246);   // 魔法結晶體已移除：不再掉落，舊存檔裡的也清掉
@@ -1320,7 +1327,7 @@
     const W = actWm(T); let d = rndi(1, Math.max(1, wd.dmgS)) + (ar.dmgS > 0 ? rndi(1, ar.dmgS) : 0) + (w ? (w.ench || 0) : 0) + st.dmg + st.bowDmg + (bow ? 0 : STAT.strDmg(st.str)) + (bow ? T.orig.bowDmg : T.orig.dmg) + (illBolt ? T.orig.magicDmg : 0);
     for (const [v, p] of T.dx.dmgR) if (Math.random() * 100 < p) d += v;
     const upgMul = 1 + 0.06 * (illBolt ? Math.max(U.int || 0, U.atk || 0) : (bow ? (U.spd || 0) : (U.atk || 0)));
-    d = Math.max(1, d) * DMGSCALE * CLS_BASE_DMG_MUL(T) * T.dmgMul * ((isL && gmmOn()) ? GMM.dmg : 1) * upgMul * (skill ? PLI.skill * formSkill(T) : (bow ? PLI.ranged : PLI.melee)) * (illBolt ? STAT.intCoef(st.int, st.sp) : 1) * formMul(T) * (mul || 1) * W.dmg * illMindDmg(T);
+    d = Math.max(1, d) * DMGSCALE * CLS_BASE_DMG_MUL(T) * T.dmgMul * (1 + ((T && T.mcDmg) || 0)) * ((isL && gmmOn()) ? GMM.dmg : 1) * upgMul * (skill ? PLI.skill * formSkill(T) : (bow ? PLI.ranged : PLI.melee)) * (illBolt ? STAT.intCoef(st.int, st.sp) : 1) * formMul(T) * (mul || 1) * W.dmg * illMindDmg(T);
     if (W.critCh && Math.random() < W.critCh) d *= W.critMul;
     if (m && m.brkT > time) d *= 1 + (m.brkA || 0);   // 騎士破甲劍氣：破甲中的怪受到的傷害增加
     if (m && m.boss && ckSlayOn(T)) d *= 1 + CKV.slayer.up;
@@ -1340,7 +1347,7 @@
     let d = (Math.max(1, wd.dmgS) + 1) / 2 + (ar.dmgS > 0 ? (ar.dmgS + 1) / 2 : 0) + (w ? (w.ench || 0) : 0) + st.dmg + st.bowDmg + (bow ? 0 : STAT.strDmg(st.str)) + (bow ? T.orig.bowDmg : T.orig.dmg) + (illBolt ? T.orig.magicDmg : 0);
     for (const [v, p] of T.dx.dmgR) d += v * p / 100;
     const upgMul = 1 + 0.06 * (illBolt ? Math.max(U.int || 0, U.atk || 0) : (bow ? (U.spd || 0) : (U.atk || 0)));
-    d = Math.max(1, d) * DMGSCALE * CLS_BASE_DMG_MUL(T) * T.dmgMul * ((isL && gmmOn()) ? GMM.dmg : 1) * upgMul * (skill ? PLI.skill * formSkill(T) : (bow ? PLI.ranged : PLI.melee)) * (illBolt ? STAT.intCoef(st.int, st.sp) : 1) * formMul(T) * (mul || 1) * W.dmg * illMindDmg(T);
+    d = Math.max(1, d) * DMGSCALE * CLS_BASE_DMG_MUL(T) * T.dmgMul * (1 + ((T && T.mcDmg) || 0)) * ((isL && gmmOn()) ? GMM.dmg : 1) * upgMul * (skill ? PLI.skill * formSkill(T) : (bow ? PLI.ranged : PLI.melee)) * (illBolt ? STAT.intCoef(st.int, st.sp) : 1) * formMul(T) * (mul || 1) * W.dmg * illMindDmg(T);
     if (W.critCh) d *= 1 + W.critCh * ((W.critMul || 1) - 1);
     d *= M.dmg * (skill ? M.skill : 1);
     return d;
@@ -1363,7 +1370,7 @@
       for (const key of ['shield', 'spin']) { const kk = { shield: 'k_shield', spin: 'l_spin' }[key], r = actCkLv(T, kk), tb = CKV[key]; if (r && tb && tb.mul) { const cd = Array.isArray(tb.cd) ? tb.cd[r - 1] : tb.cd; if (cd > 0) t += shotAvgActor(T, tb.mul[r - 1], true) / (cd / wr); } }
       for (const k in T.ups) {
         if (!/^m\d+$/.test(k) || !T.ups[k]) continue; const id = +k.slice(1), m = MAGIC[id]; if (!m || m.undead || m.slow) continue; const r = T.ups[k];
-        let v = (m.dv + m.dc * (m.dd + 1) / 2 + T.orig.magicDmg) * DMGSCALE * 0.8 * magicDmgMul(r) * magicBoost(m, T) * (1 + 0.06 * (U.int || 0)) * PLI.skill * formSkill(T) * STAT.intCoef(T.st.int, T.st.sp) * ((actStfW(T) || { dmg: 1 }).dmg) * M.dmg * M.skill;
+        let v = (m.dv + m.dc * (m.dd + 1) / 2 + T.orig.magicDmg) * DMGSCALE * 0.8 * magicDmgMul(r) * magicBoost(m, T) * (1 + ((T && T.mcDmg) || 0)) * (1 + 0.06 * (U.int || 0)) * PLI.skill * formSkill(T) * STAT.intCoef(T.st.int, T.st.sp) * ((actStfW(T) || { dmg: 1 }).dmg) * M.dmg * M.skill;
         if (m.tier <= 6 && T.orig.magicCrit) v *= 1 + 0.5 * T.orig.magicCrit / 100;
         t += v * magicShots(m, r, T) / magicCd(m, r, T);
       }
@@ -1644,8 +1651,8 @@
     45614: { r: 142, self: 1, L: [{ act: 'attack', fx: 1812, mul: 3, area: 142, n: '震裂術' }] },
     45264: { r: 330, L: [{ act: 'spell', proj: 11769, spd: 300, hr: 26, life: 1.8, mul: 1.2, drain: 1, n: '吸血鬼之吻' }, { act: 'spell', proj: 746, spd: 250, mul: 0.6, curse: 1, rr: 210, n: '木乃伊的詛咒' }] },
     45241: { r: 150, L: [{ act: 'attack', fx: 2510, mul: 1.5, area: 84, n: '火焰噴吐' }] },
-    9104: { r: 230, L: [{ act: 'spell', beam: 1054, mul: 1.3, freeze: 1.2, n: '石化光線', snd: 265 }] },
-    9107: { r: 230, L: [{ act: 'spell', beam: 1054, mul: 1.3, freeze: 1.2, n: '石化光線', snd: 265 }] },
+    9104: { r: 340, L: [{ act: 'spell', proj: 752, spd: 470, slow: 1, mul: 0.8, life: 2.4, n: '緩速光彈', spread: [-0.12, 0.12], snd: 1282 }] },
+    9107: { r: 230, L: [{ act: 'spell', beam: 1054, mul: 1.3, freeze: 0.5, n: '石化光線', snd: 265 }] },
     45068: { r: 150, L: [{ act: 'attack', proj: 746, spd: 250, mul: 0.6, curse: 1, n: '木乃伊的詛咒' }] },
     45464: { r: 250, L: [{ act: 'attack', proj: 170, mul: 1.3, n: '極光雷電' }] },
     45488: { r: 250, L: [{ act: 'attack', proj: 171, mul: 1.3, n: '燃燒的火球' }] },
@@ -1684,7 +1691,7 @@
     H(45422, 300, [{ act: 'attack', fx: 1804, area: 110, rr: 260, mul: 1.6, n: '寒冰氣息' }, { act: 'altattack', proj: 752, spd: 260, mul: 0.6, curse: 1, rr: 330, n: '緩速術' }]);   // 地底巨王龜：寒冰氣息 (skill22 gfx1804)、緩速術 (skill29 gfx752)；弱化術沒有對應機制，略過
     H(45487, 330, [VOLT, SHOCK], 0, 0);
     for (const id of [45732, 45819, 45938]) H(id, 130, [SHOCK], 0, 1);
-    H(45683, 330, [{ act: 'claw', area: 150, rr: 150, mul: 1.5, n: '龍爪' }, { act: 'claw2', area: 150, rr: 150, mul: 1.5, n: '龍爪' }, { act: 'tail', area: 210, rr: 170, mul: 1.7, n: '龍尾橫掃' }, { act: 'spell', cone: 1, fx: 1593, rr: 330, mul: 1.9, n: '冰息' }, { act: 'spelltwo', fx: 1594, rr: 330, mul: 1.7, n: '岩石崩落' }, { act: 'altattack', area: 260, fx: 4164, rr: 260, mul: 1.8, n: '龍之咆哮' }], 0, 1);   // 法利昂（水龍）：動作與特效照 list.spr，招式分配與倍率是我配的（資料庫沒有它的 mobskill）
+    H(45683, 600, [{ act: 'claw', area: 150, rr: 150, mul: 1.5, n: '龍爪' }, { act: 'claw2', area: 150, rr: 150, mul: 1.5, n: '龍爪' }, { act: 'tail', area: 210, rr: 170, mul: 1.7, n: '龍尾橫掃' }, { act: 'spell', bolts: 32, bolts2: 32, bolts3: 32, fx: 10, mul: 1.6, n: '極道落雷', rk: 1, snd: 34, tele: 0.9, scr: 1, rr: 600 }, { act: 'spell', proj: 11738, spd: 560, hr: 20, life: 2.0, mul: 1.2, n: '冰錐', spread: [-1.2, -0.85, -0.5, -0.15, 0.15, 0.5, 0.85, 1.2], rr: 600 }, { act: 'spell', proj: 3705, spd: 300, hr: 22, life: 2.4, mul: 0.8, slow: 1, n: '緩速術', spread: [-2.36, -1.57, -0.78, 0, 0.78, 1.57, 2.36, 3.14], rr: 600 }], 0, 1);   // 法利昂（水龍）：動作與特效照 list.spr，32 道極道落雷＋8 路冰錐＋8 向緩速術
     H(45546, 320, [{ act: 'spell', fx: 757, area: 260, rr: 320, mul: 1.6, n: '冰雪暴' }, { act: 'spell', fx: 1819, area: 110, rr: 220, mul: 1.8, n: '火風暴' }]);   // 變形怪首領：冰雪暴 (skill59 gfx757)、火風暴 (skill70 gfx1819)
     H(81238, 330, [{ act: 'spell', fx: 11758, area: 70, rr: 260, mul: 1.5, n: '烈炎術' }, { act: 'spell', proj: 11738, spd: 300, mul: 1.4, rr: 330, n: '冰錐' }]);   // 烈炎術 (skill46 gfx11758)、冰錐 (skill38 gfx11738)
     for (const id of [45812, 45936]) H(id, 420, [{ act: 'spell', proj: 1606, spd: 320, hr: 20, life: 2.6, mul: 1.0, rr: 420, n: '水泡' }, { act: 'spelltwo', proj: 1608, spd: 300, hr: 22, life: 2.6, mul: 1.1, rr: 380, n: '漩渦' }], 1);   // 希爾黛斯：水泡 gfx1606、漩渦 gfx1608（遠攻）
@@ -1812,7 +1819,7 @@
   const ELITE_CHANCE = 0.10;
   const ELITE_K = 1 / 3;   // 一般戰局菁英出現機率的倍率（原本的 1/3；無限刷怪塔另外算，不受影響）
   const eliteChance = () => ELITE_K * (stageIdx <= 0 ? 0.04 : Math.min(0.24, 0.12 + 0.03 * (stageIdx - 1)));   // 多張圖的路線（例如 說話之島→洞窟1F→2F）：第一張圖菁英很少，從第二張圖開始變多，之後每張再多一點
-  const BOSSHP = { 812: 30000, 813: 100000, 4201: 15000, 4202: 30000, 4203: 60000, 4: 10000, 4001: 15000, 47: 15000, 48: 18000, 51: 24000, 25: 8500, 26: 9000, 27: 18000, 28: 20000, 4100: 15000, 53: 16000, 54: 18000, 55: 20000, 56: 24000 };   // 首領血量覆蓋表：地圖編號→血量
+  const BOSSHP = { 30: 33000, 31: 38000, 32: 45000, 33: 52000, 35: 60000, 36: 70000, 812: 30000, 813: 100000, 4201: 15000, 4202: 30000, 4203: 60000, 4: 10000, 4001: 15000, 47: 15000, 48: 18000, 51: 24000, 25: 8500, 26: 9000, 27: 18000, 28: 20000, 4100: 15000, 53: 16000, 54: 18000, 55: 20000, 56: 24000 };   // 首領血量覆蓋表：地圖編號→血量
   const BOSSK = 2;   // 一般關卡首領血量倍率（想再硬或再軟就改這個數字）
   const DVHP_K = 0.2;   // 龍之谷地監 1F~6F 血量總調整（0.2＝原本的 20%；覺得還是太硬就調小、太軟就調大）
   const DVHP = { 30: 59.5 * DVHP_K, 31: 69 * DVHP_K, 32: 80 * DVHP_K, 33: 93 * DVHP_K, 35: 108 * DVHP_K, 36: 125 * DVHP_K, 807: 1.8, 808: 2.1, 809: 2.5, 810: 2.9, 811: 3.3, 812: 3.8, 813: 4.5, 53: 20.6, 54: 23.9, 55: 27.8, 56: 32.2 };   // 古魯丁地監／奇岩地監的各層起點：從說話之島 ×1 照關卡順序每關 ×1.163 成長（和裂隙每層 ×1.167 一樣），各地監內部再照裂隙逐層比例 1／1.16／1.35／1.56／1.81／2.1／2.44   // 逐層血量比例照桌面破壞神裂隙 1~6 層（596%→1,361% 的成長比例），6F 維持 125 倍
@@ -2619,7 +2626,7 @@ function hv(m,dt,d){
   function xpNeedOf(l) { return Math.max(9, Math.round(2.479 + 4.8955 * l + 0.8097 * l * l - 0.027986 * l * l * l + 0.000562 * l * l * l * l)); }   // 2026-11-14 平滑曲線：從原本「每 10 級跳一階」的樓梯中間穿過，總量跟原本差不多，但每一級都平順往上
   function giveXp(v) {
     if (level >= 100) { xp = 0; return; }
-    xp += v * P.dx.expMul * TM.exp * ((DIFFT[RUNDIFF] || DIFFT[1]).exp || 1);
+    xp += v * P.dx.expMul * (1 + (P.mcExp || 0)) * TM.exp * ((DIFFT[RUNDIFF] || DIFFT[1]).exp || 1);
     while (level < 100 && xp >= xpNeed) { xp -= xpNeed; level++; xpNeed = xpNeedOf(level); addChat('戰局等級提升！Lv.' + level, 'sys'); spawnFx(2127, P.x, P.y, true, 0, 0.07); SND.play(517, 0.9, 300); openLevelUp(); partyOnLevelUp(level); }
   }
   let pendingLv = 0;
@@ -2721,18 +2728,30 @@ function hv(m,dt,d){
     }
     return out;
   }
-  function showLevelUp() {
+  function mageStartPick() {   // 【V050】法師戰局開場固定三選一：2級光箭 / 冰箭 / 風刃
+    const mk = (id, have, desc) => ({ key: 'm' + id, name: MAGIC[id].name, desc, have, icon: id, sid: MGNEW.has(id) ? 'mg_' + id : undefined, tag: '職業主動技能', tier: 'white', fx: () => { } });
+    pendingLv = 1;
+    showLevelUp([
+      mk(4, 1, '光屬性單體箭，直接 2 級（一次射 2 發）'),
+      mk(6, 0, '冰箭，命中後投射物飛去彈射下一隻（傷害遞減）'),
+      mk(7, 0, '風刃，貫穿路線上所有怪＋追蹤；打王/血多怪會停住持續切割'),
+    ]);
+  }
+  function showLevelUp(fixedPick) {
     // 選技能時遊戲暫停（怪物、計時、掉落都停住；選完才繼續；連續升級就連續選）
-    const pool = buildPool();
-    // 變身單獨抽：每次升級有 FORM_CHANCE 機率「額外」多一張變身卡（技能固定 3 張）（顏色只在變身之間依 白65/綠25/藍5/紫3/紅2/金1 抽），其餘卡只從技能抽
-    const FORM_CHANCE = 0.15, sk = pool.filter(u => !u.form), fm = pool.filter(u => u.form);
-    let pick;
-    const NSK = 3 + TM.extra;   // 天賦「博學多聞」：技能選項 +1
-    if (fm.length && sk.length && Math.random() < FORM_CHANCE) pick = drawByTier(sk, NSK).concat(drawByTier(fm, 1));   // 變身是額外第 4 張，不佔技能的位子
-    else if (sk.length) pick = drawByTier(sk, NSK);
-    else pick = drawByTier(fm, 3);
+    let pick, pool = null;
+    if (fixedPick) { pick = fixedPick; }
+    else {
+      pool = buildPool();
+      // 變身單獨抽：每次升級有 FORM_CHANCE 機率「額外」多一張變身卡（技能固定 3 張）（顏色只在變身之間依 白65/綠25/藍5/紫3/紅2/金1 抽），其餘卡只從技能抽
+      const FORM_CHANCE = 0.15, sk = pool.filter(u => !u.form), fm = pool.filter(u => u.form);
+      const NSK = 3 + TM.extra;   // 天賦「博學多聞」：技能選項 +1
+      if (fm.length && sk.length && Math.random() < FORM_CHANCE) pick = drawByTier(sk, NSK).concat(drawByTier(fm, 1));   // 變身是額外第 4 張，不佔技能的位子
+      else if (sk.length) pick = drawByTier(sk, NSK);
+      else pick = drawByTier(fm, 3);
+    }
     if (window.__ck === 'knight' && ckLv('k_crisis') && !ckLv('k_revive') && P.hp < P.maxhp * 0.5) { const r = CK_UP.knight.find(x => x.key === 'k_revive'); pick.push({ key: 'k_revive', name: r.name, desc: r.d(1), have: 0, tag: r.tag, sid: 'k_revive', fx: () => { } }); }   // 生存危機：血量低於 50% 升級，必定多一張藍色「死裡逃生」
-    if (pick.length && pick.every(u => u.form) && !pool.some(u => !u.form)) pick.push({ key: 'skip', name: '維持現狀', desc: '技能都已滿級，這次不選強化；回復 30% 生命與護盾', have: 0, tag: '略過', fx: p => { p.hp = Math.min(p.maxhp, p.hp + p.maxhp * 0.3); p.mp = Math.min(p.maxmp, p.mp + p.maxmp * 0.3); } });
+    if (pick.length && pick.every(u => u.form) && (!pool || !pool.some(u => !u.form))) pick.push({ key: 'skip', name: '維持現狀', desc: '技能都已滿級，這次不選強化；回復 30% 生命與護盾', have: 0, tag: '略過', fx: p => { p.hp = Math.min(p.maxhp, p.hp + p.maxhp * 0.3); p.mp = Math.min(p.maxmp, p.mp + p.maxmp * 0.3); } });
     if (!document.getElementById('kqCss')) { const st = document.createElement('style'); st.id = 'kqCss'; st.textContent = '#cards .card{position:relative}#cards .card .kq{position:absolute;left:3px;top:2px;min-width:15px;height:15px;padding:0 3px;border-radius:3px;background:rgba(0,0,0,.62);border:1px solid #d9b45a;color:#ffe9a8;font:700 11px sans-serif;line-height:15px;text-align:center;pointer-events:none;z-index:3}'; document.head.appendChild(st); }
     const box = document.getElementById('cards'); box.innerHTML = ''; box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';   // 每次出現都重播「彈出來」的動畫
     let __ci = -1;
@@ -2889,7 +2908,7 @@ function hv(m,dt,d){
   function magicDmgActor(owner, k, r) {
     const T = owner || P, U = actUpg(T), PLI = actPl(T), M = actTM(T);
     let d = 0; for (let i = 0; i < k.dc; i++)d += rndi(1, k.dd);
-    let v = (k.dv + d + T.orig.magicDmg) * DMGSCALE * 0.8 * magicDmgMul(r) * magicBoost(k, T) * (1 + 0.06 * (U.int || 0)) * PLI.magic * formSkill(T) * STAT.intCoef(T.st.int, T.st.sp) * ((stfW(T) || { dmg: 1 }).dmg) * M.dmg * M.skill;
+    let v = (k.dv + d + T.orig.magicDmg) * DMGSCALE * 0.8 * magicDmgMul(r) * magicBoost(k, T) * (1 + ((T && T.mcDmg) || 0)) * (1 + 0.06 * (U.int || 0)) * PLI.magic * formSkill(T) * STAT.intCoef(T.st.int, T.st.sp) * ((stfW(T) || { dmg: 1 }).dmg) * M.dmg * M.skill;
     if (k.tier <= 6 && T.orig.magicCrit && Math.random() * 100 < T.orig.magicCrit) v *= 1.5;   // 魔法暴擊（創角智力加成，1~6 階魔法）
     return v;
   }
@@ -2957,12 +2976,63 @@ function hv(m,dt,d){
       BLIZ = BLIZ.filter(b => b.life > 0);
     }
   }
-  function castRoamersActor(owner, k, r) {
+  function castBurst4Actor(owner, k, r) {   // 龍捲風/火風暴：召喚 4 個瞬間出現在施法者上下左右，各造成一次大範圍傷害
     const T = owner || P; if (!nearestActor(T, 560)) return false;
-    const cap = ROAM_MAX * Math.max(1, aliveActors().length);
-    for (let i = 0; i < 4; i++) { const a = 6.283 * (i / 4) + Math.random() * 0.7, sp = 95 + Math.random() * 45; PROAM.push({ owner: T, k, r, x: T.x, y: T.y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 20, tick: 0.3, retarget: 0.4, emit: 0, gfx: k.gfx }); }
-    while (PROAM.length > cap) PROAM.shift();
-    spawnFx(k.gfx, T.x, T.y); return true;
+    const off = GRID * 2, pts = [[0, -off], [0, off], [-off, 0], [off, 0]];
+    for (const [ox, oy] of pts) { const x = T.x + ox, y = T.y + oy; spawnFx(k.gfx, x, y); magicHitActor(T, k, r, x, y - 18, null); }
+    return true;
+  }
+  function iceBounceHit(p) {   // 冰箭：命中當前目標→投射物飛去彈射下一隻（傷害 100/90/80/70/60/50% 遞減）
+    const ow = p.owner || P, k = p.k, r = p.r, t = p.t, M = [1, 0.9, 0.8, 0.7, 0.6, 0.5];
+    const cx = t ? t.x : p.x, cy = t ? t.y : p.y;
+    if (t && !t.dead) { magicHurtActor(ow, t, k, r, M[Math.min(p.hop, 5)]); hitFx(k.hit || k.gfx, t.x, t.y); p.hit.add(t); }
+    p.hop++;
+    if (p.bounce > 0) {
+      let best = null, bd = (3.6 * GRID) ** 2;
+      for (const o of mons) { if (o.dead || o.hid || p.hit.has(o)) continue; const d2 = (o.x - cx) ** 2 + (o.y - cy) ** 2; if (d2 < bd) { bd = d2; best = o; } }
+      if (best) { p.bounce--; p.t = best; p.x = cx; p.y = cy - 18; p.age = 0; return; }
+    }
+    p.done = true;
+  }
+  function magicProjHit(p, tx, ty) {   // 飛行法術命中結算：冰錐必凍（用怪物自己的結冰特效 e44），其餘照原本 magicHit
+    const ow = p.owner || P, k = p.k, r = p.r, t = p.t;
+    if (k.id === 38) {
+      magicHitActor(ow, k, r, tx, ty, t);
+      if (t && !t.dead && !t.boss) { const sec = 2 * (t.elite ? 0.5 : 1); if (!(t.frzT > 0)) t.frzS = time; t.frzT = Math.max(t.frzT || 0, sec); t.stunT = Math.max(t.stunT || 0, sec); t.cd = Math.max(t.cd || 0, sec); }
+      return;
+    }
+    magicHitActor(ow, k, r, tx, ty, t);
+  }
+  function windProjTick(p, dt) {   // 風刃：追蹤+貫穿；打到王/菁英/血多怪會停住持續切割
+    const ow = p.owner || P, k = p.k, sp = 560 * dt;
+    if (p.stick) {
+      const m = p.stick;
+      if (m.dead) { p.done = true; return; }
+      p.x = m.x; p.y = m.y - 18; p.dx = 1; p.dy = 0;
+      p.emit = (p.emit || 0) - dt; if (p.emit <= 0) { p.emit = 0.1; spawnFx(k.gfx, m.x, m.y - 18); }
+      p.dotT = (p.dotT || 0) - dt;
+      if (p.dotT <= 0) {
+        p.dotT = 0.2; const d = Math.max(1, Math.round(spDps(ow) * 0.01)); m.hp -= d; m.hurtT = 0.1;
+        pop(m.x + rnd(-30, 30), m.y - 58 - rnd(0, 48), String(d), '#9fe3ff', 0.7 + Math.random() * 0.5);
+        if (m.hp <= 0) { m._lastOwn = ow; killMon(m); p.done = true; return; }
+      }
+      p.life = (p.life == null ? 2.5 : p.life) - dt; if (p.life <= 0) p.done = true;
+      return;
+    }
+    if (!p.t || p.t.dead) { let best = null, bd = 1e9; for (const m of mons) { if (m.dead || m.hid || p.hit.has(m)) continue; const d = (m.x - p.x) ** 2 + ((m.y - 18) - p.y) ** 2; if (d < bd) { bd = d; best = m; } } p.t = best; }
+    let ux, uy;
+    if (p.t && !p.t.dead) { const dx = p.t.x - p.x, dy = (p.t.y - 18) - p.y, d = Math.hypot(dx, dy) || 1; ux = dx / d; uy = dy / d; }
+    else { const d = Math.hypot(p.dx || 1, p.dy || 0) || 1; ux = (p.dx || 1) / d; uy = (p.dy || 0) / d; }
+    p.dx = ux; p.dy = uy; p.x += ux * sp; p.y += uy * sp;
+    for (const m of mons) {
+      if (m.dead || p.hit.has(m)) continue;
+      if (Math.hypot(m.x - p.x, (m.y - 18) - p.y) <= 32) {
+        p.hit.add(m); magicHurtActor(ow, m, k, p.r); hitFx(k.gfx, m.x, m.y);
+        if (m.boss || m.elite || m.maxhp > spDps(ow) * 5) { p.stick = m; p.life = 2.5; p.dotT = 0.2; p.emit = 0; return; }
+      }
+    }
+    p.trav = (p.trav || 0) + sp;
+    if (p.trav > (ow.range || P.range) * 1.6 || p.age > 3) p.done = true;
   }
   function castBlizzardActor(owner, k, r) {
     const T = owner || P; if (!nearestActor(T, 560)) return false;
@@ -2973,7 +3043,7 @@ function hv(m,dt,d){
   }
   function castMagicActor(owner, k, r) {
     const T = owner || P;
-    if (k.id === 53 || k.id === 70) return castRoamersActor(T, k, r);
+    if (k.id === 53 || k.id === 70) return castBurst4Actor(T, k, r);
     if (k.id === 59) return castBlizzardActor(T, k, r);
     if (k.undead || k.slow) {
       const rad = k.area * 42 + 16 + magicRadAdd(T), vs = mons.filter(m => !m.dead && (!k.undead || UNDEAD.has(m.def.name)) && Math.hypot(m.x - T.x, m.y - T.y) <= rad);
@@ -2990,6 +3060,15 @@ function hv(m,dt,d){
     const rng = Math.min(T.range, k.range * 45), ts = magicTargetsActor(T, k, r, rng); if (!ts.length) return false;
     T.dir = dirFromVec(ts[0].x - T.x, ts[0].y - T.y);
     if (k.id === 74) { meteorRainActor(T, ts[0], k, r); return true; }   // 流星雨：目標周圍一個範圍連續落很多顆
+    if (k.id === 6 || k.id === 7) {
+      const SHOT = [1, 2, 2, 3, 3], n = SHOT[Math.max(0, Math.min(4, r - 1))];
+      for (let i = 0; i < n; i++) {
+        const t = ts[i % ts.length];
+        if (k.id === 6) mproj.push({ owner: T, k, r, x: T.x, y: T.y - 22, t, age: 0, dx: t.x - T.x, dy: t.y - T.y, ice: 1, bounce: r, hop: 0, hit: new Set() });
+        else mproj.push({ owner: T, k, r, x: T.x, y: T.y - 22, t, age: 0, dx: t.x - T.x, dy: t.y - T.y, wind: 1, hit: new Set() });
+      }
+      return true;
+    }
     ts.forEach((t, i) => {
       if (k.id === 17) {   // 極光雷電：從玩家身上噴出，沿方向貫穿
         const dx = t.x - T.x, dy = t.y - T.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, len = Math.min(rng, 260);
@@ -3030,9 +3109,12 @@ function hv(m,dt,d){
     for (const ow of aliveActors()) autoSkillsActor(ow, dt);
     fRoamTick(dt);
     for (const p of mproj) {
-      p.age += dt; if (p.age < 0) continue; const tx = p.t.x, ty = p.t.y - 18, dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+      p.age += dt; if (p.age < 0) continue;
+      if (p.wind) { windProjTick(p, dt); continue; }
+      if (p.ice && (!p.t || p.t.dead)) { iceBounceHit(p); continue; }
+      const tx = p.t.x, ty = p.t.y - 18, dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
       const st = 520 * dt; p.dx = dx; p.dy = dy;
-      if (d <= st + 10 || p.age > 2.5) { p.done = true; magicHitActor(p.owner || P, p.k, p.r, tx, ty, p.t); }
+      if (d <= st + 10 || p.age > 2.5) { if (p.ice) iceBounceHit(p); else { p.done = true; magicProjHit(p, tx, ty); } }
       else { p.x += dx / d * st; p.y += dy / d * st; }
     }
     mproj = mproj.filter(p => !p.done);
@@ -3142,6 +3224,7 @@ function hv(m,dt,d){
   }
   function update(dt) {
     time += dt;
+    if (P.openPick && !village && running && !paused) { const lv = document.getElementById('lvl'); if (!lv || lv.classList.contains('hidden')) { P.openPick = 0; mageStartPick(); } }   // 【V050】法師戰局開場三選一
     if (!village) wpnLeech(dt);
     updateBursts(dt); updateArcs(dt); meteorTick(dt); chestQueueTick();
     if (village) { P.hp = Math.min(P.maxhp, P.hp + P.maxhp * 0.2 * dt); P.mp = Math.min(P.maxmp, P.mp + P.maxmp * 0.2 * dt); netTick(dt); if (!SRV()) updateVillageAlts(dt); }
@@ -3247,7 +3330,7 @@ function hv(m,dt,d){
             if (s.sm) { if (s.cdk) m[s.cdk] = time + (s.cdv || 20); if (mons.filter(x => !x.dead && !x.boss).length < 60) { summonMobs(m, s.sm, s.n2 || 4, s.hpm || 30, false); addChat(m.def.name + '使用了「' + s.n + '」！', 'warn'); } }
             else if (s.line) { castLine(m, s); } else if (s.beam) { const bx = mt.x - m.x, by = (mt.y - 20) - (m.y - 24), fl = fxFile(s.beam, dirFromVec(bx, by)); if (fl != null) fxs.push({ id: s.beam, x: m.x, y: m.y - 24, t: 0, follow: false, file: fl }); if (L <= spOf(m).r + 40) { hurtSp(m, m.dmg * s.mul, mt); if (s.freeze) { mt.frzT = s.freeze; pop(mt.x, mt.y - 70, '石化', '#cfd8dc', 0.9); } } }
             else if (s.bolts) { castBolts(m, m.hp < m.maxhp / 3 ? s.bolts3 : m.hp < m.maxhp * 0.5 ? s.bolts2 : s.bolts, s.fx, 0, s.mul, s.n, false, s.rk ? { r: BOLTZ.r * s.rk, snd: s.snd, tele: s.tele || BOLTZ.tele, scr: s.scr } : null); }
-            else if (s.proj) { if (s.proj === 3705 || s.frz) SND.play(1282, 0.9, 150); const a0 = Math.atan2((mt.y - 20) - (m.y - 24), mt.x - m.x); for (const da of (m.boss && !s.one ? [-0.3, -0.15, 0, 0.15, 0.3] : [0])) { const a = a0 + da; eprojs.push({ bs: !!m.boss, nm: m.def.name + (m.boss ? '（首領）' : m.elite ? '（菁英）' : '') + '的' + s.n, x: m.x, y: m.y - 24, vx: Math.cos(a) * (s.spd || 340), vy: Math.sin(a) * (s.spd || 340), rg: { gfx: s.proj, oy: s.oy || 0, ox: s.ox || 0 }, curse: s.curse, frz: s.frz, drain: s.drain, m: m, hr: s.hr || 18, dmg: m.dmg * s.mul * (m.boss ? 0.8 : 1), age: 0, life: (s.life || (s.spd ? 1.8 : 1.3)) }); } }
+            else if (s.proj) { if (s.proj === 3705 || s.frz) SND.play(1282, 0.9, 150); const a0 = Math.atan2((mt.y - 20) - (m.y - 24), mt.x - m.x); for (const da of (s.spread || (m.boss && !s.one ? [-0.3, -0.15, 0, 0.15, 0.3] : [0]))) { const a = a0 + da; eprojs.push({ bs: !!m.boss, nm: m.def.name + (m.boss ? '（首領）' : m.elite ? '（菁英）' : '') + '的' + s.n, x: m.x, y: m.y - 24, vx: Math.cos(a) * (s.spd || 340), vy: Math.sin(a) * (s.spd || 340), rg: { gfx: s.proj, oy: s.oy || 0, ox: s.ox || 0 }, curse: s.curse, frz: s.frz, slow: s.slow, drain: s.drain, m: m, hr: s.hr || 18, dmg: m.dmg * s.mul * (m.boss ? 0.8 : 1), age: 0, life: (s.life || (s.spd ? 1.8 : 1.3)) }); } }
             else if (ar) { spawnFx(s.fx, m.x, m.y); for (const T of aliveActors()) if (Math.hypot(T.x - m.x, T.y - m.y) <= ar + 20) { hurtSp(m, m.dmg * s.mul, T); if (s.stun && !(T.frzT > 0)) { T.frzT = s.stun; T.frzN = '衝擊之暈（暈眩，無法移動）'; pop(T.x, T.y - 70, '暈眩', '#ffe27a', 0.9); } } }
             else { if (s.fr) spawnFx(s.fx, m.x + Math.cos(m.aim || 0) * 60, m.y + Math.sin(m.aim || 0) * 60, false, null, s.fd); else spawnFx(s.fx, mt.x, mt.y + 6, false, null, s.fd); if (L <= (s.rr || spOf(m).r) + 40 && (!s.cone || coneOK(m))) { hurtSp(m, m.dmg * s.mul, mt); if (s.drain) m.hp = Math.min(m.maxhp, m.hp + m.maxhp * 0.04); if (s.curse && !m.boss) { mt.curseT = 2.5; pop(mt.x, mt.y - 70, '詛咒', '#c9a7ff', 0.9); } } }
             pop(m.x, m.y - 60, s.n, '#ffd27a', 0.8); if (s.snd) SND.play(s.snd, 0.9, 150);
@@ -3791,7 +3874,7 @@ function hv(m,dt,d){
       if (RUNON && m.elite) RUNREP.ke[m.def.id] = (RUNREP.ke[m.def.id] || 0) + _km;
       if (_x.up > 0) { if (_x.hp || _x.mp) { P.baseHp += _x.hp; P.baseMp += _x.mp; recalc(); } addChat('永久等級提升！ Lv' + _x.lv + '　生命 +' + _x.hp + '　護盾 +' + _x.mp + (_x.lv >= PL.MAXLV ? '（已滿級）' : ''), 'sys'); SND.play(517, 0.9, 300); }
     }
-    if (!m.def.next) rollDrops(m);
+    if (!m.def.next) { rollDrops(m); try { mcardDropLocal(m); } catch (e) { } }
     if (Math.random() < (m.boss ? 0.25 : 0.04)) gitems.push({ x: m.x + rnd(-14, 14), y: m.y + rnd(-6, 6), id: 40010, n: 1, name: '回復', col: '#ff6a6a', t: 0, ph: 0, heal: 5 });
     if (m.eb) { cardDrop(m); addChat('首領「' + m.def.name + '」被擊倒了！', 'sys'); return; }   // 無限刷怪區的首領：只掉東西，不結算、不清場
     if (m.boss && m.def.next) { purgeMons(m); PHASEQ.push({ t: 2.4, id: m.def.next, x: m.x, y: m.y }); addChat('「' + m.def.name + '」倒下了…', 'warn'); return; }   // 多階段首領：還沒到最後一階段，不結算、不掉寶
@@ -6597,7 +6680,7 @@ function hv(m,dt,d){
   function whMerge(rows) {
     const out = []; for (const o of rows) {
       if (!o || !ITEMS[o.id] || !(o.n > 0)) continue; const d = ITEMS[o.id];
-      if (d.kind === 'etc') { const f = out.find(w => w.id === o.id && !(w.ench || 0)); if (f) { f.n += o.n; continue; } out.push({ id: o.id, n: o.n, ench: 0 }); } else out.push({ id: o.id, n: o.n, ench: o.ench || 0 });
+      if (d.kind === 'etc') { const f = out.find(w => w.id === o.id && !(w.ench || 0)); if (f) { f.n += o.n; continue; } out.push({ id: o.id, n: o.n, ench: 0 }); } else out.push({ id: o.id, n: o.n, ench: o.ench || 0, su: o.su || undefined });
     } return out;
   }
   function whLoadLocal() {
@@ -6633,10 +6716,10 @@ function hv(m,dt,d){
     if (changed) { layoutVnpc(); if (village && !SRV() && P && typeof initVillageAlts === 'function') initVillageAlts(); }
     if (typeof window.__setGmBarVisible === 'function') window.__setGmBarVisible(gm);
   }
-  function loadVill() { try { wh = (window.L1S_API ? (JSON.parse(lsGet('l1s_wh', ['l1s_wh'], 'l1s_wh') || '[]') || []) : whLoadLocal()).filter(o => ITEMS[o.id]); } catch (e) { wh = []; } try { Object.assign(upg, { hp: 0, mp: 0, atk: 0, spd: 0, mag: 0, int: 0, mv: 0 }, JSON.parse(lsGet('l1s_up', ['l1s_up'], 'l1s_up') || '{}')); } catch (e) { } try { dollTok = +lsGet('l1s_dtok', [], null) || 0; } catch (e) { } try { pots = Object.assign({ str: 0, con: 0, dex: 0, int: 0, wis: 0, cha: 0 }, JSON.parse(lsGet('l1s_pots', [], null) || '{}')); } catch (e) { pots = { str: 0, con: 0, dex: 0, int: 0, wis: 0, cha: 0 }; } try { cardOwn = JSON.parse(lsGet('l1s_cards', [], null) || '{}') || {}; cardSel = +lsGet('l1s_csel', [], null) || 0; if (cardSel && !cardOwn[cardSel]) cardSel = 0; } catch (e) { cardOwn = {}; cardSel = 0; } try { ownDolls = JSON.parse(lsGet('l1s_dolls', [], null) || '[]').filter(i => DOLLBY[i]); dollSel = lsGet('l1s_doll', [], null) || ''; if (dollSel && !ownDolls.includes(dollSel)) dollSel = ''; } catch (e) { } syncGmVisibility(); }
+  function loadVill() { try { wh = (window.L1S_API ? (JSON.parse(lsGet('l1s_wh', ['l1s_wh'], 'l1s_wh') || '[]') || []) : whLoadLocal()).filter(o => ITEMS[o.id]); } catch (e) { wh = []; } try { Object.assign(upg, { hp: 0, mp: 0, atk: 0, spd: 0, mag: 0, int: 0, mv: 0 }, JSON.parse(lsGet('l1s_up', ['l1s_up'], 'l1s_up') || '{}')); } catch (e) { } try { dollTok = +lsGet('l1s_dtok', [], null) || 0; } catch (e) { } try { pots = Object.assign({ str: 0, con: 0, dex: 0, int: 0, wis: 0, cha: 0 }, JSON.parse(lsGet('l1s_pots', [], null) || '{}')); } catch (e) { pots = { str: 0, con: 0, dex: 0, int: 0, wis: 0, cha: 0 }; } try { cardOwn = JSON.parse(lsGet('l1s_cards', [], null) || '{}') || {}; cardSel = +lsGet('l1s_csel', [], null) || 0; if (cardSel && !cardOwn[cardSel]) cardSel = 0; } catch (e) { cardOwn = {}; cardSel = 0; } try { ownDolls = JSON.parse(lsGet('l1s_dolls', [], null) || '[]').filter(i => DOLLBY[i]); dollSel = lsGet('l1s_doll', [], null) || ''; if (dollSel && !ownDolls.includes(dollSel)) dollSel = ''; } catch (e) { } try { mcardLoadLocal(); } catch (e) { } syncGmVisibility(); }
   let ownDolls = [], dollTok = 0;
   let cardOwn = {}, cardSel = 0;
-  function saveVill() { try { localStorage.setItem(ckey('l1s_dtok'), String(dollTok)); localStorage.setItem(ckey('l1s_pots'), JSON.stringify(pots)); localStorage.setItem(ckey('l1s_dolls'), JSON.stringify(ownDolls)); localStorage.setItem(ckey('l1s_cards'), JSON.stringify(cardOwn)); localStorage.setItem(ckey('l1s_csel'), String(cardSel)); if (window.L1S_API) localStorage.setItem(ckey('l1s_wh'), JSON.stringify(wh)); else localStorage.setItem(whKeyA(), JSON.stringify(wh)); localStorage.setItem(ckey('l1s_up'), JSON.stringify(upg)); } catch (e) { } syncGmVisibility(); }
+  function saveVill() { try { localStorage.setItem(ckey('l1s_dtok'), String(dollTok)); localStorage.setItem(ckey('l1s_pots'), JSON.stringify(pots)); localStorage.setItem(ckey('l1s_dolls'), JSON.stringify(ownDolls)); localStorage.setItem(ckey('l1s_cards'), JSON.stringify(cardOwn)); localStorage.setItem(ckey('l1s_csel'), String(cardSel)); if (window.L1S_API) localStorage.setItem(ckey('l1s_wh'), JSON.stringify(wh)); else localStorage.setItem(whKeyA(), JSON.stringify(wh)); localStorage.setItem(ckey('l1s_up'), JSON.stringify(upg)); } catch (e) { } try { mcardSaveLocal(); } catch (e) { } syncGmVisibility(); }
   const UPG = [
     { k: 'hp', name: '體力', desc: l => '最大血量 +' + 15 * l },
     { k: 'mp', name: '精神', desc: l => '最大護盾 +' + 8 * l },
@@ -6795,7 +6878,7 @@ function hv(m,dt,d){
     shop: [['購買物品', n => shopBuy(n)], ['賣出物品', n => shopSell(n)]],
     gate: [['出發冒險（說話之島）', n => renderGate(n)], ['出發冒險（古魯丁）', n => renderGateGL(n)], ['出發冒險（沙漠）', n => renderGateDS(n)], ['出發冒險（奇岩）', n => renderGateGI(n)], ['出發冒險（龍之谷）', n => renderGateDV(n)], ['出發冒險（龍之谷地監）', n => renderGateDD(n)]],
     wh: [['存入物品', n => whIn(n)], ['取出物品', n => whOut(n)]],
-    up: [['變身圖鑑', n => openCodex()], ['怪物圖鑑', n => openBestiary()], ['首領首殺圖鑑', n => openFirstKill()], ['強化基礎能力', n => renderUp(n)], ['購買武器', n => upBuy(n, 'weapon')], ['購買裝備', n => upBuy(n, 'armor')], ['隨機武器包', n => gacha(n, 'weapon')], ['隨機裝備包', n => gacha(n, 'armor')]],
+    up: [['怪物卡片（收集／合成／插卡）', n => mcardOpen(n)], ['變身圖鑑', n => openCodex()], ['怪物圖鑑', n => openBestiary()], ['首領首殺圖鑑', n => openFirstKill()], ['強化基礎能力', n => renderUp(n)], ['購買武器', n => upBuy(n, 'weapon')], ['購買裝備', n => upBuy(n, 'armor')], ['隨機武器包', n => gacha(n, 'weapon')], ['隨機裝備包', n => gacha(n, 'armor')]],
     clan: [['血盟（創立／加入／管理）', n => clanMenu(n)]],
     duel: [['登記決鬥／取消登記', n => duelRegToggle(false)], ['挑戰對手（登記名單）', n => duelNpcList(n)], ['輸入名字挑戰', n => duelNpcName(n)], ['決鬥規則', n => duelRules(n)]],
     auc: [['瀏覽拍賣品', n => aucOpen(n, 'browse')], ['上架物品', n => aucOpen(n, 'post')], ['我的上架／領取', n => aucOpen(n, 'mine')], ['手續費說明', n => aucInfo(n)]],
@@ -6809,8 +6892,276 @@ function hv(m,dt,d){
     tp: [['選擇要去的地圖', n => tpMenu()], ['⚙ 開啟 GM 控制台與按鈕', () => { window.__unlockGmBar && window.__unlockGmBar(true); }]],
     gm: [['拿武器', n => gmCats(n, 'weapon')], ['拿防具', n => gmCats(n, 'armor')], ['拿金色必成功強化卷軸', n => gmScroll(n)], ['⚙ 開啟 GM 控制台與按鈕', () => { window.__unlockGmBar && window.__unlockGmBar(true); }]],   // 【測試用，測完刪除】   // 【測試用，測完刪除】
     craft: [['製作武器', n => craftList(n, 'weapon')], ['製作防具', n => craftList(n, 'armor')], ['製作裝備', n => craftList(n, 'equip')], ['製作箭矢與消耗品', n => craftList(n, 'arrow')], ['製作其他妖精森林道具', n => craftList(n, 'other')]],
+    codex: [['怪物卡片（收集／合成／插卡）', n => mcardOpen(n)], ['變身圖鑑', n => openCodex()], ['怪物圖鑑', n => openBestiary()], ['首領首殺圖鑑', n => openFirstKill()]],
     info: [], enh: [], guard: [],
   };
+
+  /* ===== 【怪物卡片 V082】單機完整版（收集／合成／插卡；屬性：火=傷害%、水=最大護盾、風=命中、地=最大HP、無=經驗%）===== */
+  const MCARD_EL = { fire: '火', water: '水', wind: '風', earth: '地', none: '無' };
+  const MCARD_FX = { fire: ['dmgpct', [1, 2, 5]], water: ['shield', [6, 12, 30]], wind: ['hit', [1, 2, 5]], earth: ['hp', [10, 20, 50]], none: ['exppct', [2, 4, 10]] };
+  const MCARD_ELC = { fire: '#ff7a4a', water: '#5fb4ff', wind: '#8ee88a', earth: '#d9a86a', none: '#d9d2c0' };
+  function mcFxTxt(el) { const f = MCARD_FX[el]; if (!f) return ''; const u = f[0] === 'dmgpct' ? '% 傷害' : f[0] === 'shield' ? ' 最大護盾' : f[0] === 'hit' ? ' 命中' : f[0] === 'hp' ? ' 最大HP' : '% 經驗'; return '普 ' + f[1][0] + u + '／銀 ' + f[1][1] + u + '／金 ' + f[1][2] + u; }
+  const MSTAR = ['', '普', '銀', '金'], MSTARC = ['', '#d8c6a0', '#dfe7ef', '#ffd24a'];
+  const MSOCK_SLOTS = { weapon: 3, helm: 1, armor: 1, pants: 1, boots: 1, glove: 1, shield: 1, cloak: 1 };
+  const MCARD_CAT = [
+    { id: 45009, n: '妖魔', el: 'fire', lv: 2, ci: 'cmob_0000' }, { id: 45008, n: '哥布林', el: 'earth', lv: 2, ci: 'cmob_0001' },
+    { id: 45019, n: '妖魔弓箭手', el: 'fire', lv: 3, ci: 'cmob_0002' }, { id: 45016, n: '地靈', el: 'earth', lv: 3, ci: 'cmob_0003' },
+    { id: 45043, n: '狼', el: 'wind', lv: 4, ci: 'cmob_0004' }, { id: 45041, n: '侏儒', el: 'earth', lv: 5, ci: 'cmob_0005' },
+    { id: 45065, n: '人形殭屍', el: 'earth', lv: 6, ci: 'cmob_0006' }, { id: 97290, n: '妖魔鬥士', el: 'fire', lv: 8, ci: 'cmob_0007' },
+    { id: 45024, n: '狼人', el: 'wind', lv: 9, ci: 'cmob_0009' }, { id: 45092, n: '侏儒戰士', el: 'earth', lv: 9, ci: 'cmob_0010' },
+    { id: 45107, n: '骷髏', el: 'earth', lv: 10, ci: 'cmob_0011' }, { id: 45121, n: '妖魔法師', el: 'fire', lv: 12, ci: 'cmob_0012' },
+    { id: 45157, n: '食屍鬼', el: 'earth', lv: 16, ci: 'cmob_0016' }, { id: 45161, n: '史巴托', el: 'earth', lv: 16, ci: 'cmob_0017' },
+    { id: 45173, n: '萊肯', el: 'wind', lv: 17, ci: 'cmob_0018' }, { id: 45822, n: '龍龜', el: 'water', lv: 24, ci: 'cmob_0019' },
+    { id: 45551, n: '蘑菇', el: 'earth', lv: 4, ci: 'cmob_0021' }, { id: 45098, n: '甘地妖魔', el: 'fire', lv: 10, ci: 'cmob_0024' },
+    { id: 45127, n: '羅孚妖魔', el: 'fire', lv: 13, ci: 'cmob_0026' }, { id: 45149, n: '阿吐巴妖魔', el: 'fire', lv: 15, ci: 'cmob_0027' },
+    { id: 45143, n: '都達瑪拉妖魔', el: 'fire', lv: 15, ci: 'cmob_0028' }, { id: 45171, n: '那魯加妖魔', el: 'fire', lv: 17, ci: 'cmob_0029' },
+    { id: 45142, n: '卡司特', el: 'earth', lv: 21, ci: 'cmob_0030' }, { id: 45068, n: '漂浮之眼', el: 'none', lv: 7, ci: 'cmob_0033' },
+    { id: 45122, n: '骷髏弓箭手', el: 'earth', lv: 12, ci: 'cmob_0034' }, { id: 45130, n: '骷髏斧手', el: 'earth', lv: 13, ci: 'cmob_0035' },
+    { id: 45136, n: '夏洛伯', el: 'earth', lv: 14, ci: 'cmob_0037' }, { id: 45573, n: '巴風特', el: 'earth', lv: 61, ci: 'cmob_0039' },
+    { id: 45711, n: '高麗幼犬', el: 'none', lv: 5, ci: 'cmob_0044' }, { id: 45138, n: '妖魔巡守', el: 'fire', lv: 14, ci: 'cmob_0046' },
+    { id: 101005, n: '重裝蜥蜴人', el: 'wind', lv: 24, ci: 'cmob_0054' }, { id: 101006, n: '高等蜥蜴人', el: 'water', lv: 25, ci: 'cmob_0055' },
+    { id: 45259, n: '毒蠍', el: 'fire', lv: 26, ci: 'cmob_0063' }, { id: 45278, n: '歐吉', el: 'none', lv: 28, ci: 'cmob_0065' },
+    { id: 45083, n: '怪手', el: 'wind', lv: 8, ci: 'cmob_0106' }, { id: 45392, n: '食人妖精', el: 'fire', lv: 22, ci: 'cmob_0109' },
+    { id: 45241, n: '地獄犬', el: 'fire', lv: 24, ci: 'cmob_0110' }, { id: 45601, n: '死亡騎士', el: 'earth', lv: 75, ci: 'cmob_0117' },
+    { id: 45168, n: '安普長老', el: 'wind', lv: 6, ci: 'cmob_0118' }, { id: 45264, n: '哈維', el: 'wind', lv: 26, ci: 'cmob_0120' },
+    { id: 45115, n: '巨蟻', el: 'earth', lv: 12, ci: 'cmob_0121' }, { id: 45190, n: '巨大兵蟻', el: 'earth', lv: 20, ci: 'cmob_0123' },
+    { id: 45946, n: '白螞蟻群', el: 'fire', lv: 25, ci: 'cmob_0124' }, { id: 45947, n: '巨大白螞蟻', el: 'water', lv: 28, ci: 'cmob_0125' },
+    { id: 45321, n: '格利芬', el: 'wind', lv: 31, ci: 'cmob_0126' }, { id: 45949, n: '強化白螞蟻群', el: 'fire', lv: 34, ci: 'cmob_0128' },
+    { id: 45381, n: '邪惡蜥蜴', el: 'water', lv: 36, ci: 'cmob_0129' }, { id: 45307, n: '鱷魚', el: 'water', lv: 10, ci: 'cmob_0136' },
+    { id: 45187, n: '蟑螂人', el: 'earth', lv: 12, ci: 'cmob_0137' }, { id: 45170, n: '穴居人', el: 'water', lv: 15, ci: 'cmob_0138' },
+    { id: 45810, n: '人魚', el: 'water', lv: 16, ci: 'cmob_0139' }, { id: 45816, n: '鯊魚', el: 'water', lv: 16, ci: 'cmob_0140' },
+    { id: 45169, n: '蟹人', el: 'water', lv: 18, ci: 'cmob_0141' }, { id: 45809, n: '鼠人', el: 'earth', lv: 20, ci: 'cmob_0142' },
+    { id: 45818, n: '海星', el: 'water', lv: 20, ci: 'cmob_0143' }, { id: 45812, n: '希爾黛斯', el: 'water', lv: 24, ci: 'cmob_0145' },
+    { id: 45819, n: '伊萊克頓', el: 'water', lv: 28, ci: 'cmob_0146' }, { id: 45823, n: '奎斯坦修', el: 'water', lv: 29, ci: 'cmob_0147' },
+    { id: 45349, n: '多眼怪', el: 'wind', lv: 33, ci: 'cmob_0149' }, { id: 45807, n: '變形怪', el: 'earth', lv: 33, ci: 'cmob_0150' },
+    { id: 45329, n: '強盜', el: 'none', lv: 28, ci: 'cmob_0155' }, { id: 45420, n: '獨眼巨人', el: 'wind', lv: 40, ci: 'cmob_0158' },
+    { id: 9102, n: '骷髏神射手', el: 'earth', lv: 27, ci: 'cmob_0159' }, { id: 9103, n: '骷髏警衛', el: 'earth', lv: 27, ci: 'cmob_0160' },
+    { id: 9101, n: '骷髏鬥士', el: 'earth', lv: 29, ci: 'cmob_0162' }, { id: 9104, n: '亞力安', el: 'earth', lv: 34, ci: 'cmob_0163' },
+    { id: 9105, n: '飛龍', el: 'wind', lv: 48, ci: 'cmob_0167' }, { id: 9113, n: '黑長者', el: 'none', lv: 50, ci: 'cmob_0168' },
+    { id: 45682, n: '安塔瑞斯', el: 'earth', lv: 93, ci: 'cmob_0169' }, { id: 45243, n: '冰原老虎', el: 'water', lv: 33, ci: 'cmob_0193' },
+    { id: 45282, n: '魔狼', el: 'fire', lv: 40, ci: 'cmob_0269' }
+  ];
+  const MCARD_MOBS = {}; MCARD_CAT.forEach(c => { MCARD_MOBS[c.id] = c.el; });
+  const MCARD_FRAME = s => GH_ASSETS + 'mcard/f' + (s || 1) + '.png?v=v82';
+  const MCARD_SPR = ci => GH_ASSETS + 'codex/' + String(ci) + '.png?v=v88';
+  const MCARD_DROP_MOB = 0.02, MCARD_DROP_BOSS = 0.15, MCARD_FUSE_RATE = { 1: 0.55, 2: 0.30 };
+  var MSOCK = {}, MCARDOWN = {}, MCAT = MCARD_CAT.slice(), MCATBY = {}, MUNSOCK = { 1: [100000, 5], 2: [500000, 20], 3: [2000000, 50] };
+  MCAT.forEach(c => { MCATBY[c.id] = c; });
+  function ensureItemSu(it) {
+    if (!it || it.su) return it;
+    const d = idef(it); if (!d) return it;
+    const sl = d.kind === 'weapon' ? 'weapon' : (d.kind === 'armor' ? d.slot : null);
+    if (!sl || !MSOCK_SLOTS[sl]) return it;
+    it.su = 's' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    return it;
+  }
+  function mcardLoadLocal() { try { MSOCK = JSON.parse(lsGet('l1s_msock', [], null) || '{}') || {}; } catch (e) { MSOCK = {}; } try { MCARDOWN = JSON.parse(lsGet('l1s_mcard', [], null) || '{}') || {}; } catch (e) { MCARDOWN = {}; } }
+  function mcardSaveLocal() { try { localStorage.setItem(ckey('l1s_msock'), JSON.stringify(MSOCK || {})); localStorage.setItem(ckey('l1s_mcard'), JSON.stringify(MCARDOWN || {})); } catch (e) { } }
+  function mcardApply(own, sock) { if (own) MCARDOWN = own; if (sock) MSOCK = sock; mcardSaveLocal(); try { recalc(); } catch (e) { } }
+  function mcardElOf(gid) { return (MCATBY[gid] && MCATBY[gid].el) || MCARD_MOBS[gid] || MCARD_MOBS[String(gid)] || null; }
+  function mcardSync(cb) {
+    if (!SRV()) { mcardLoadLocal(); if (cb) cb(); return; }
+    ruleGet({ k: 'mcards' }).then(function (r) {
+      if (r.cat) { MCAT = r.cat; MCATBY = {}; MCAT.forEach(function (c) { MCATBY[c.id] = c; }); }
+      if (r.unsock) MUNSOCK = r.unsock;
+      mcardApply(r.own, r.sock); if (cb) cb(r);
+    }).catch(function () { mcardLoadLocal(); if (cb) cb(); });
+  }
+  function mcardSockStats(st) {
+    P.mcDmg = 0; P.mcExp = 0; if (!MSOCK) return;
+    for (const it of inv) {
+      if (!it.eq || !it.su) continue; const sk = MSOCK[it.su]; if (!sk || !sk.length) continue;
+      for (const c of sk) {
+        const el = mcardElOf(c.m), f = el && MCARD_FX[el]; if (!f) continue; const v = (f[1][(c.s | 0) - 1]) || 0;
+        if (f[0] === 'hp') st.hp = (st.hp || 0) + v; else if (f[0] === 'shield') st.mp = (st.mp || 0) + v; else if (f[0] === 'hit') st.hit = (st.hit || 0) + v; else if (f[0] === 'dmgpct') P.mcDmg += v / 100; else if (f[0] === 'exppct') P.mcExp += v / 100;
+      }
+    }
+  }
+  function mcardDropLocal(m) {
+    if (SRV() || !m || !m.def || m.def.id == null) return;
+    let c = MCATBY[m.def.id] || null;
+    const ch = m.boss ? MCARD_DROP_BOSS : (c ? MCARD_DROP_MOB : 0);
+    if (!ch || Math.random() >= ch * (gmmOn() ? Math.max(1, GMM.dr) : 1)) return;
+    if (!c) c = MCAT[Math.floor(Math.random() * MCAT.length)];
+    if (!c) return;
+    const a = MCARDOWN[c.id] || (MCARDOWN[c.id] = [0, 0, 0]);
+    a[0] = (a[0] | 0) + 1; mcardSaveLocal();
+    addChat('獲得怪物卡片：' + c.n + '（普卡 · ' + MCARD_EL[c.el] + '）', 'loot');
+    lootLog.push({ text: c.n + '普卡', t: 0 });
+    pop(m.x, m.y - 68, '掉落卡片：' + c.n, MCARD_ELC[c.el] || '#ffd24a', 1.4);
+  }
+  function mcardOpen(n) { mcardSync(function () { mcardGrid(n); }); }
+  function mcardGrid(n) {
+    var e = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var cat = MCAT || [];
+    var tot = cat.length, colGot = cat.filter(function (c) { var a = MCARDOWN[c.id]; return a && (a[0] || a[1] || a[2]); }).length;
+    var dropTip = SRV() ? '有機率掉該怪的' : '有 <b>2%</b> 機率（首領 <b>15%</b>）掉';
+    var fuseTip = SRV() ? '會失敗，失敗材料破裂' : '1→2 星 55%／2→3 星 30%，失敗材料破裂';
+    var h = '<div style="font-size:12px;color:#cbbd93;margin:2px 0 8px;line-height:1.7;background:rgba(0,0,0,.25);border:1px solid #6b5a30;border-radius:5px;padding:7px 11px;text-align:left">'
+      + '<b style="color:#ffd24a">怎麼玩怪物卡片</b><br>'
+      + '① <b style="color:#d8c6a0">打一般怪</b>' + dropTip + ' <b style="color:#d8c6a0">普卡(1星)</b>。<br>'
+      + '② <b style="color:#dfe7ef">銀卡</b>／<b style="color:#ffd24a">金卡</b>只能<b>合成</b>：2張普卡→1銀、2張銀卡→1金（<b style="color:#ff9b6a">' + fuseTip + '</b>）。點下面任一張卡進去合成。<br>'
+      + '③ 把卡<b>插在裝備</b>上才生效：武器3格、斗篷/頭盔/盔甲/褲子/靴子/手套/盾牌各1格（用下面「🗂 裝備插卡介面」）。拔卡要付金幣＋倖存者金幣，卡會退回這裡。<br>'
+      + '④ 效果看屬性：<span style="color:#ff7a4a">火=傷害%</span>・<span style="color:#5fb4ff">水=最大護盾</span>・<span style="color:#8ee88a">風=命中</span>・<span style="color:#d9a86a">地=最大HP</span>・<span style="color:#d9d2c0">無=經驗%</span>（星級越高加越多）。'
+      + '</div>';
+    h += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">';
+    h += '<span style="font-size:12px;color:#8d8366">已收集 <b style="color:#ffd24a">' + colGot + '</b> / ' + tot + ' 種</span>';
+    h += '<button class="dgo" id="mcSock" style="padding:4px 14px;font-size:13px">🗂 裝備插卡介面</button></div>';
+    h += '<div style="max-height:52vh;overflow:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:4px">';
+    cat.forEach(function (c) {
+      var a = MCARDOWN[c.id] || [0, 0, 0]; var got = a[0] || a[1] || a[2];
+      var elc = MCARD_ELC[c.el] || '#ccc';
+      var spr = e(MCARD_SPR(c.ci)), fbSpr = 'assets/codex/' + e(String(c.ci)) + '.png?v=v88';
+      var img = '<img src="' + spr + '" style="width:40px;height:40px;object-fit:contain' + (got ? '' : ';filter:brightness(0) opacity(.5)') + '" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'' + fbSpr + '\';}else{this.style.visibility=\'hidden\';}">';
+      var cnt = got ? ('<span style="color:#d8c6a0">' + (a[0] || 0) + '</span>/<span style="color:#dfe7ef">' + (a[1] || 0) + '</span>/<span style="color:#ffd24a">' + (a[2] || 0) + '</span>') : '<span style="color:#6b5a30">未收集</span>';
+      h += '<div class="dgo mc1" data-i="' + e(String(c.id)) + '" style="width:82px;min-height:96px;padding:3px;margin:0;border-color:' + (got ? elc : '#5a4a2a') + ';display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center">' + img + '<div style="font-size:10px;line-height:1.15;color:' + (got ? '#ffe9a0' : '#6b5a30') + ';margin-top:2px">' + (got ? e(c.n) : '？？？') + '</div><div style="font-size:9px;color:' + elc + '">' + (got ? MCARD_EL[c.el] : '') + '</div><div style="font-size:10px;margin-top:1px">' + cnt + '</div></div>';
+    });
+    if (!cat.length) h += '<div style="padding:20px;color:#bda">（尚無可收集的怪物卡）</div>';
+    h += '</div>';
+    openNpc('怪物卡片：收集圖鑑', h);
+    $id('mcSock').onclick = function () { mcardSockOpen(n); };
+    Array.prototype.forEach.call($id('nwB').querySelectorAll('.mc1'), function (b) { b.onclick = function () { mcardOne(n, +b.dataset.i); }; });
+  }
+  function mcardCard(c, star) {
+    var e = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var spr = e(MCARD_SPR(c.ci)), fbSpr = 'assets/codex/' + e(String(c.ci)) + '.png?v=v88';
+    var fr = e(MCARD_FRAME(star)), fbFr = 'assets/mcard/f' + (star || 1) + '.png?v=v82';
+    return '<div style="position:relative;width:150px;height:218px;margin:0 auto">'
+      + '<img src="' + fr + '" style="position:absolute;inset:0;width:150px;height:218px" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'' + fbFr + '\';}else{this.style.display=\'none\';}">'
+      + '<img src="' + spr + '" style="position:absolute;left:50%;top:56px;transform:translateX(-50%);width:124px;height:124px;object-fit:contain" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'' + fbSpr + '\';}else{this.style.visibility=\'hidden\';}">'
+      + '<div style="position:absolute;left:0;right:0;top:18px;text-align:center;font-size:13px;font-weight:bold;color:#3a2a12;text-shadow:0 1px 0 rgba(255,255,255,.3)">' + e(c.n) + '</div>'
+      + '</div>';
+  }
+  function mcardOne(n, gid) {
+    var c = MCATBY[gid]; if (!c) { mcardGrid(n); return; }
+    var e = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var a = MCARDOWN[gid] || [0, 0, 0]; var elc = MCARD_ELC[c.el] || '#ccc';
+    var top = a[2] ? 3 : a[1] ? 2 : a[0] ? 1 : 1;
+    var h = '<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start">';
+    h += '<div>' + mcardCard(c, top) + '</div>';
+    h += '<div style="text-align:left;min-width:200px;max-width:300px">';
+    h += '<div style="font-size:17px;color:#ffe9a0">' + e(c.n) + ' <span style="color:' + elc + ';font-size:14px">【' + MCARD_EL[c.el] + '屬】</span></div>';
+    h += '<div style="font-size:12px;color:#b9a77a;margin:4px 0 8px">效果（插在裝備上生效）：<br>' + mcFxTxt(c.el) + '</div>';
+    h += '<div style="font-size:13px;line-height:1.9">持有：<span style="color:#d8c6a0">普 ' + (a[0] || 0) + '</span>　<span style="color:#dfe7ef">銀 ' + (a[1] || 0) + '</span>　<span style="color:#ffd24a">金 ' + (a[2] || 0) + '</span></div>';
+    var b1 = (a[0] || 0) >= 2, b2 = (a[1] || 0) >= 2;
+    h += '<div style="margin-top:10px">';
+    h += '<button class="big mcFu" data-f="1" style="display:block;width:100%;margin:4px 0;font-size:14px;padding:7px 0;' + (b1 ? '' : 'opacity:.4;cursor:not-allowed') + '"' + (b1 ? '' : ' disabled') + '>合成 銀卡（吃 2 張普卡）</button>';
+    h += '<button class="big mcFu" data-f="2" style="display:block;width:100%;margin:4px 0;font-size:14px;padding:7px 0;' + (b2 ? '' : 'opacity:.4;cursor:not-allowed') + '"' + (b2 ? '' : ' disabled') + '>合成 金卡（吃 2 張銀卡）</button>';
+    h += '<div style="font-size:11px;color:#c98a6a;margin-top:4px;line-height:1.5">⚠ 合成有失敗率，失敗時兩張材料卡會<b>破裂消失</b>（' + (SRV() ? '機率在伺服器端' : '單機：1→2 星 55%、2→3 星 30%') + '）。</div>';
+    h += '</div></div></div>';
+    h += '<div class="crBtns"><button class="big" id="mcBack" style="font-size:15px;padding:6px 20px;margin:10px 4px 0">返回圖鑑</button></div>';
+    openNpc('怪物卡片：' + e(c.n), h);
+    $id('mcBack').onclick = function () { mcardGrid(n); };
+    Array.prototype.forEach.call($id('nwB').querySelectorAll('.mcFu'), function (b) {
+      b.onclick = function () {
+        if (b.disabled || window.__mcBusy) return; window.__mcBusy = 1; setTimeout(function () { window.__mcBusy = 0; }, 500);
+        var from = +b.dataset.f;
+        if (SRV()) {
+          srvDo('mcardFuse', { mob: gid, from: from }, function (r) {
+            addChat(r && r.fused ? ('合成成功！獲得 ' + MSTAR[from + 1] + '卡：' + c.n) : ('合成失敗…兩張' + MSTAR[from] + '卡破裂了'), r && r.fused ? 'loot' : 'warn');
+            mcardSync(function () { mcardOne(n, gid); });
+          });
+          return;
+        }
+        var cur = MCARDOWN[gid] || (MCARDOWN[gid] = [0, 0, 0]);
+        if ((cur[from - 1] | 0) < 2) return;
+        cur[from - 1] -= 2;
+        var fused = Math.random() < (MCARD_FUSE_RATE[from] || 0.3);
+        if (fused) cur[from] = (cur[from] | 0) + 1;
+        mcardSaveLocal(); try { recalc(); } catch (err) { }
+        addChat(fused ? ('合成成功！獲得 ' + MSTAR[from + 1] + '卡：' + c.n) : ('合成失敗…兩張' + MSTAR[from] + '卡破裂了'), fused ? 'loot' : 'warn');
+        mcardOne(n, gid);
+      };
+    });
+  }
+  /* ---- 裝備插卡介面 ---- */
+  function mcardSockOpen(n) { mcardSync(function () { mcardSockRender(n); }); }
+  function mcardSockName(slot) { return SLOTNAME[slot] || slot; }
+  function mcardSockRender(n) {
+    var e = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var h = '<div style="font-size:12px;color:#8d8366;margin:2px 0 8px;line-height:1.6">武器 3 格、斗篷/頭盔/盔甲/褲子/靴子/手套/盾牌 各 1 格。插卡免費；拔卡要付金幣＋倖存者金幣（卡會退回圖鑑）。</div>';
+    h += '<div style="max-height:56vh;overflow:auto;padding:2px">';
+    var any = false, suChanged = false;
+    for (const slot in MSOCK_SLOTS) {
+      var it = eqOf(slot); if (!it) continue; any = true;
+      if (!SRV() && !it.su) { ensureItemSu(it); if (it.su) suChanged = true; }
+      var lim = MSOCK_SLOTS[slot]; var sk = (it.su && MSOCK[it.su]) || [];
+      h += '<div style="border:1px solid #6b5a30;border-radius:5px;padding:6px 8px;margin:5px 0;background:rgba(0,0,0,.22)">';
+      h += '<div style="font-size:14px;color:#ffe9a0;margin-bottom:4px">' + e(mcardSockName(slot)) + '：' + e(iname(it)) + (it.su ? '' : ' <span style="color:#c98a6a;font-size:11px">(此裝備尚無編號，重新上線後可插卡)</span>') + '</div>';
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      for (var i = 0; i < lim; i++) {
+        var card = sk[i];
+        if (card) {
+          var cc = MCATBY[card.m]; var elc = cc ? MCARD_ELC[cc.el] : '#ccc';
+          h += '<div class="mcSk" data-u="' + e(it.su || '') + '" data-x="' + i + '" style="cursor:pointer;width:112px;border:1px solid ' + elc + ';border-radius:4px;padding:4px;text-align:center;background:rgba(0,0,0,.3)"><div style="font-size:12px;color:' + MSTARC[card.s] + '">' + MSTAR[card.s] + '卡</div><div style="font-size:11px;color:#ffe9a0">' + e(cc ? cc.n : ('#' + card.m)) + '</div><div style="font-size:10px;color:' + elc + '">' + (cc ? MCARD_EL[cc.el] : '') + '</div><div style="font-size:10px;color:#c98a6a;margin-top:2px">點此拔卡</div></div>';
+        } else {
+          h += '<div class="mcEm" data-slot="' + slot + '" data-u="' + e(it.su || '') + '" style="cursor:' + (it.su ? 'pointer' : 'not-allowed') + ';width:112px;border:1px dashed #6b5a30;border-radius:4px;padding:4px;text-align:center;color:#8d8366;min-height:56px;display:flex;align-items:center;justify-content:center;font-size:12px">＋ 空插槽<br>點此插卡</div>';
+        }
+      }
+      h += '</div></div>';
+    }
+    if (suChanged) { try { saveSave(); } catch (err) { } }
+    if (!any) h += '<div style="padding:18px;color:#bda;text-align:center">你目前沒有裝備任何可插卡的武器或防具。<br>先去裝備武器、斗篷、頭盔、盔甲、褲子、靴子、手套或盾牌。</div>';
+    h += '</div><div class="crBtns"><button class="big" id="mcSkBack" style="font-size:15px;padding:6px 20px;margin:8px 4px 0">返回卡片圖鑑</button></div>';
+    openNpc('裝備插卡介面', h);
+    $id('mcSkBack').onclick = function () { mcardGrid(n); };
+    Array.prototype.forEach.call($id('nwB').querySelectorAll('.mcEm'), function (b) { b.onclick = function () { if (!b.dataset.u) return; mcardPickFor(n, b.dataset.slot, b.dataset.u); }; });
+    Array.prototype.forEach.call($id('nwB').querySelectorAll('.mcSk'), function (b) { b.onclick = function () { mcardUnsock(n, b.dataset.u, +b.dataset.x); }; });
+  }
+  function mcardPickFor(n, slot, uid) {
+    var e = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var h = '<div style="font-size:12px;color:#8d8366;margin:2px 0 8px">選一張要插入的卡（插卡免費）。效果依卡片屬性加在這件裝備上。</div>';
+    h += '<div style="max-height:56vh;overflow:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:2px">';
+    var any = false;
+    (MCAT || []).forEach(function (c) {
+      var a = MCARDOWN[c.id] || [0, 0, 0]; var elc = MCARD_ELC[c.el] || '#ccc';
+      for (var s = 3; s >= 1; s--) {
+        if ((a[s - 1] | 0) < 1) continue; any = true;
+        var spr = e(MCARD_SPR(c.ci)), fbSpr = 'assets/codex/' + e(String(c.ci)) + '.png?v=v88';
+        h += '<div class="mcPk" data-m="' + e(String(c.id)) + '" data-s="' + s + '" style="cursor:pointer;width:96px;border:1px solid ' + elc + ';border-radius:4px;padding:4px;text-align:center;background:rgba(0,0,0,.28)"><img src="' + spr + '" style="width:36px;height:36px;object-fit:contain" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'' + fbSpr + '\';}else{this.style.visibility=\'hidden\';}"><div style="font-size:11px;color:' + MSTARC[s] + '">' + MSTAR[s] + '卡 ×' + a[s - 1] + '</div><div style="font-size:10px;color:#ffe9a0">' + e(c.n) + '</div><div style="font-size:10px;color:' + elc + '">' + MCARD_EL[c.el] + ' ' + (MCARD_FX[c.el][1][s - 1]) + (MCARD_FX[c.el][0] === 'dmgpct' || MCARD_FX[c.el][0] === 'exppct' ? '%' : '') + '</div></div>';
+      }
+    });
+    if (!any) h += '<div style="padding:18px;color:#bda">你還沒有任何卡片，先去打怪收集普卡。</div>';
+    h += '</div><div class="crBtns"><button class="big" id="mcPkBack" style="font-size:15px;padding:6px 20px;margin:8px 4px 0">返回</button></div>';
+    openNpc('選擇要插入的卡', h);
+    $id('mcPkBack').onclick = function () { mcardSockRender(n); };
+    Array.prototype.forEach.call($id('nwB').querySelectorAll('.mcPk'), function (b) {
+      b.onclick = function () {
+        if (window.__mcBusy) return; window.__mcBusy = 1; setTimeout(function () { window.__mcBusy = 0; }, 400);
+        var mobId = +b.dataset.m, star = +b.dataset.s;
+        if (SRV()) {
+          srvDo('mcardSocket', { uid: uid, mob: mobId, star: star }, function () { addChat('已插入卡片', 'sys'); mcardSync(function () { mcardSockRender(n); }); });
+          return;
+        }
+        var lim = MSOCK_SLOTS[slot] || 1, cur = MCARDOWN[mobId];
+        if (!cur || (cur[star - 1] | 0) < 1) return;
+        var sk = MSOCK[uid] || (MSOCK[uid] = []);
+        if (sk.length >= lim) { addChat('該裝備的插槽已滿。', 'warn'); return; }
+        cur[star - 1]--; sk.push({ m: mobId, s: star });
+        mcardSaveLocal(); try { recalc(); } catch (err) { }
+        addChat('已插入卡片', 'sys'); mcardSockRender(n);
+      };
+    });
+  }
+  function mcardUnsock(n, uid, idx) {
+    var sk = MSOCK[uid]; if (!sk || !sk[idx]) return; var card = sk[idx]; var cost = MUNSOCK[card.s] || MUNSOCK[1];
+    var cc = MCATBY[card.m];
+    var msg = '拔下 ' + MSTAR[card.s] + '卡（' + (cc ? cc.n : ('#' + card.m)) + '）需要：\n金幣 ' + cost[0].toLocaleString() + ' ＋ 倖存者金幣 ' + cost[1] + '\n卡片會退回圖鑑。確定拔卡？';
+    if (!confirm(msg)) return;
+    if (window.__mcBusy) return; window.__mcBusy = 1; setTimeout(function () { window.__mcBusy = 0; }, 400);
+    if (SRV()) {
+      srvDo('mcardUnsock', { uid: uid, idx: idx }, function () { addChat('已拔下卡片，退回圖鑑', 'sys'); mcardSync(function () { mcardSockRender(n); }); });
+      return;
+    }
+    if (gold() < cost[0]) { addChat('金幣不足（需要 ' + cost[0].toLocaleString() + '）。', 'warn'); return; }
+    if (countItem(49100) < cost[1]) { addChat('倖存者金幣不足（需要 ' + cost[1] + ' 個）。', 'warn'); return; }
+    takeItem(40308, cost[0]); takeItem(49100, cost[1]); invDirty = true; saveSave();
+    sk.splice(idx, 1); if (!sk.length) delete MSOCK[uid];
+    var cur = MCARDOWN[card.m] || (MCARDOWN[card.m] = [0, 0, 0]);
+    cur[(card.s | 0) - 1] = (cur[(card.s | 0) - 1] | 0) + 1;
+    mcardSaveLocal(); try { recalc(); } catch (err) { }
+    addChat('已拔下卡片，退回圖鑑', 'sys'); mcardSockRender(n);
+  }
 
   // ================= 血盟（血盟創辦人）與拍賣場（拍賣場管理員）：資料在伺服器，這裡只管畫面 =================
   const CLSN = { royal: '王族', knight: '騎士', elf: '妖精', mage: '法師', darkelf: '黑暗妖精', dk: '龍騎士', ill: '幻術師' };
@@ -8142,13 +8493,23 @@ function hv(m,dt,d){
   const qtyOf = e => e && e.ctrlKey ? 100 : e && e.shiftKey ? 10 : 1;
   // ---- 倉庫 ----
   function whIn(n) {
-    const rows = []; for (const it of inv.slice()) {
+    const rows = [];
+    { const _g = gold(); if (_g > 0) rows.push({
+      icon: 40308, name: '存入金幣（身上 ' + _g.toLocaleString() + '）', fn: () => {
+        const g = gold(); const v = prompt('要存多少金幣進倉庫？（身上 ' + g.toLocaleString() + '）\n同帳號其他角色也能提領', String(g));
+        if (v === null) return; let amt = Math.floor(Number(String(v).replace(/[^0-9]/g, '')) || 0); if (!(amt > 0)) return; if (amt > g) amt = g;
+        if (SRV()) { srvDo('whPut', { id: 40308, n: amt }, () => whIn(n)); return; }
+        takeItem(40308, amt); const gf = wh.find(w => w.id === 40308); if (gf) gf.n += amt; else wh.push({ id: 40308, n: amt, ench: 0 });
+        invDirty = true; saveSave(); saveVill(); whIn(n);
+      }
+    }); }
+    for (const it of inv.slice()) {
       if (it.eq || it.lk || it.id === 40308) continue;
       rows.push({
         icon: it.id, name: iname(it), info: it.n > 1 ? '×' + it.n : '', fn: () => {
           if (SRV()) { srvDo('whPut', { id: it.id, ench: it.ench || 0, n: it.n, u: it.su || undefined }, () => whIn(n)); return; }   // 上線版：由伺服器直接搬，不會再被蓋回去
           inv.splice(inv.indexOf(it), 1); const f = idef(it).kind === 'etc' ? wh.find(w => w.id === it.id) : null;
-          if (f) f.n += it.n; else wh.push({ id: it.id, n: it.n, ench: it.ench || 0 });
+          if (f) f.n += it.n; else wh.push({ id: it.id, n: it.n, ench: it.ench || 0, su: it.su || undefined });
           invDirty = true; saveSave(); saveVill(); whIn(n);
         }
       });
@@ -8157,12 +8518,25 @@ function hv(m,dt,d){
     listWin({ id: 'whin', title: n.name + '：存入（同帳號角色共用）', rows, total: '點一下存入倉庫', hint: '背包' });
   }
   function whOut(n) {
-    const rows = []; for (const w of wh.slice()) {
+    const rows = [];
+    { let _wg = 0; for (const w of wh) if (w.id === 40308) _wg += w.n;
+      if (_wg > 0) rows.push({
+        icon: 40308, name: '取出金幣（倉庫 ' + _wg.toLocaleString() + '）', fn: () => {
+          let wg = 0; for (const w of wh) if (w.id === 40308) wg += w.n;
+          const v = prompt('要從倉庫取出多少金幣？（倉庫 ' + wg.toLocaleString() + '）', String(wg));
+          if (v === null) return; let amt = Math.floor(Number(String(v).replace(/[^0-9]/g, '')) || 0); if (!(amt > 0)) return; if (amt > wg) amt = wg;
+          if (SRV()) { srvDo('whGet', { id: 40308, n: amt }, () => whOut(n)); return; }
+          let left = amt; for (let i = wh.length - 1; i >= 0 && left > 0; i--) { if (wh[i].id !== 40308) continue; const t = Math.min(left, wh[i].n); wh[i].n -= t; left -= t; if (wh[i].n <= 0) wh.splice(i, 1); }
+          addItem(40308, amt); invDirty = true; saveSave(); saveVill(); whOut(n);
+        }
+      }); }
+    for (const w of wh.slice()) {
+      if (w.id === 40308) continue;
       const d = ITEMS[w.id];
       rows.push({
         icon: w.id, name: (w.ench > 0 ? '+' + w.ench + ' ' : w.ench < 0 ? w.ench + ' ' : '') + d.name, info: w.n > 1 ? '×' + w.n : '', fn: () => {
           if (SRV()) { srvDo('whGet', { id: w.id, ench: w.ench || 0, n: w.n, u: typeof w.u === 'string' ? w.u : undefined }, () => whOut(n)); return; }   // 上線版：由伺服器直接搬
-          wh.splice(wh.indexOf(w), 1); const it = addItem(w.id, w.n); if (it) it.ench = w.ench || 0;
+          wh.splice(wh.indexOf(w), 1); const it = addItem(w.id, w.n); if (it) { it.ench = w.ench || 0; if (w.su) it.su = w.su; }
           invDirty = true; saveSave(); saveVill(); whOut(n);
         }
       });
@@ -8732,7 +9106,7 @@ function hv(m,dt,d){
   }
 
   function startGame() {   // 進入（回到）村莊
-    SND.music([20]);   // 奇岩村的音樂：直接指定 20 號（不看 audio.js 的對照表，免得被別的版本蓋掉）
+    SND.music([9001], false, [20]);   // 主音樂 9001（若未下載則自動退回 20 號奇岩音樂）
     npcClose(); resetGame(true); $id('chat').innerHTML = ''; invDirty = true; closeAll(); $id('ui').classList.remove('hidden'); addChat('歡迎來到奇岩村。', 'sys'); changeMap('奇岩村', '安全的村莊'); $id('bossbar').style.display = 'none'; hideLayers();
     if (!ONLINE) setTimeout(checkResumePrompt, 120);
   }
