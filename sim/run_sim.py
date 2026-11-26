@@ -78,7 +78,7 @@ TIER_GOLD_CAP = {
     "casual": 7_500_000,
 }
 TIER_SINK_CAP = {
-    "scalper": 165_000_000,
+    "scalper": 100_000_000,
     "whale": 44_000_000,
     "regular": 18_000_000,
     "casual": 6_000_000,
@@ -220,8 +220,8 @@ NPC_NAME_POOL = [
 ]
 
 
-def ench_rate(kind: str, ench: int, safe: int, blessed: bool = False) -> float:
-    """復刻 game.js:enchRate 的真實成功率公式"""
+def ench_rate(kind: str, ench: int, safe: int, blessed: bool = False, uncapped: bool = False) -> float:
+    """復刻 game.js:enchRate 的真實成功率公式（uncapped=True 時不封頂於 +9）"""
     if safe < 0:
         return 0.0
     ch = max(ENCH_MIN, ENCH_BASE - ENCH_STEP * (ench - safe))
@@ -232,7 +232,7 @@ def ench_rate(kind: str, ench: int, safe: int, blessed: bool = False) -> float:
         ch = min(ch, table[idx])
     if blessed:
         ch = min(1.0, ch * 1.5)
-    if ench >= ENCH_MAX:
+    if not uncapped and ench >= ENCH_MAX:
         ch = 0.003 if blessed else 0.0
     return max(0.0, min(1.0, ch))
 
@@ -2007,16 +2007,53 @@ def simulate_tick(
         if clog:
             npc["combatLog"] = [r for r in clog if r.get("t", 0) > cutoff_tick]
 
-        # 高金幣 NPC 超過開箱門檻開始開曼孟 100萬/300萬裝備箱，並嚴格遵守各身分現金天花板
+        # 高金幣 NPC 超過開箱門檻開始開曼孟裝備箱；奇岩商人 (1億起) 還會直接去商店買武防捲硬衝過安定+2起跳、上不封頂
         sink_cap = TIER_SINK_CAP[tier]
         if npc["gold"] > sink_cap:
-            spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
+            spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < (0.45 if tier == "scalper" else 0.35) else 1_000_000)
             npc["gold"] -= spend
             if spend >= 1_000_000 and db.box_pool:
                 bi = rng.choice(db.box_pool)
                 be = 4 if rng.random() < 0.05 else 3 if rng.random() < 0.15 else 2 if rng.random() < 0.30 else 0
                 if bi in db.items:
-                    self_bag_add(npc, bi, be, 1, None)
+                    if tier == "scalper":
+                        it_b = db.items[bi]
+                        b_kind = it_b.get("kind", "armor")
+                        b_safe = max(0, int(it_b.get("safe", 6 if b_kind == "weapon" else 4)))
+                        scr_id = SCROLL_WEAPON_NORMAL if b_kind == "weapon" else SCROLL_ARMOR_NORMAL
+                        scr_cost = db.shop_anchor.get(scr_id, 85_000 if b_kind == "weapon" else 41_000)
+                        min_target = b_safe + 2
+                        cur_e = be
+                        exploded = False
+                        while True:
+                            if cur_e >= min_target:
+                                push_prob = 0.45 * (0.68 ** (cur_e - min_target))
+                                if rng.random() >= push_prob:
+                                    break
+                            if npc["gold"] < scr_cost:
+                                break
+                            npc["gold"] -= scr_cost
+                            if cur_e < b_safe:
+                                p_step = 1.0
+                            elif cur_e < min_target:
+                                # 未達「安定+2」前，依遊戲真實機率 ÷ 2 強迫過關
+                                p_step = ench_rate(b_kind, cur_e, b_safe, blessed=False, uncapped=True) / 2.0
+                            else:
+                                # 超過「安定+2」之後改回遊戲真實機率，且不封頂繼續賭
+                                p_step = ench_rate(b_kind, cur_e, b_safe, blessed=False, uncapped=True)
+                            if rng.random() < p_step:
+                                cur_e += 1
+                            elif cur_e >= b_safe:
+                                exploded = True
+                                break
+                        if not exploded:
+                            self_bag_add(npc, bi, cur_e, 1, None)
+                            if cur_e >= min_target:
+                                ticker.append(f"💎【商會豪賭】「{npc['name']}」開箱買捲衝出【+{cur_e} {it_b['name']}】！")
+                        elif cur_e >= min_target:
+                            ticker.append(f"💥【豪賭成灰】「{npc['name']}」衝 +{cur_e+1} {it_b['name']} 失敗蒸發……")
+                    else:
+                        self_bag_add(npc, bi, be, 1, None)
                 maybe_upgrade_npc_card(npc, rng, boost=2.6)
         npc["gold"] = max(0, min(TIER_GOLD_CAP[tier], npc["gold"]))
 
