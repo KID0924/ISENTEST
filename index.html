@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="dark light">
   <title>奇岩廣場 70-NPC 生態與物價即時看板 · ISENTEST</title>
   <style>
@@ -91,6 +91,18 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
+      overflow-wrap: break-word;
+    }
+
+    h1,
+    h2,
+    h3 {
+      text-wrap: balance;
+    }
+
+    p,
+    li {
+      text-wrap: pretty;
     }
 
     .wrap {
@@ -441,6 +453,9 @@
     th {
       font-weight: 700;
       color: var(--muted);
+    }
+
+    thead th {
       white-space: nowrap;
     }
 
@@ -488,12 +503,30 @@
     }
 
     tbody th {
-      position: sticky;
-      inset-inline-start: 0;
-      z-index: 1;
       background: var(--surface);
       color: var(--text);
       font-weight: 600;
+      text-align: start;
+    }
+
+    tbody th:first-child {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+    }
+
+    .npc-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .npc-cell-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 6px;
     }
 
     tbody tr:hover td,
@@ -609,7 +642,6 @@
       .table-wrapper table,
       .table-wrapper thead,
       .table-wrapper tbody,
-      .table-wrapper tr,
       .table-wrapper th,
       .table-wrapper td {
         display: block;
@@ -620,7 +652,9 @@
       }
 
       .table-wrapper tr {
-        margin: 10px;
+        display: flex;
+        flex-direction: column;
+        margin: 10px 4px;
         border: 1px solid var(--border);
         border-radius: 10px;
         overflow: hidden;
@@ -628,23 +662,46 @@
       }
 
       .table-wrapper tbody th {
-        position: sticky;
-        inset-block-start: 0;
+        order: -1;
+        position: static;
+        inset-inline-start: auto;
         background: var(--surface-2);
         border-block-end: 1px solid var(--border);
+        white-space: normal;
+        padding: 10px 12px;
       }
 
       .table-wrapper td {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
-        gap: 12px;
+        align-items: flex-start;
+        gap: 4px 12px;
         text-align: end;
+        padding: 8px 12px;
       }
 
       .table-wrapper td::before {
+        flex: 0 0 auto;
         color: var(--muted);
         font-weight: 600;
         text-align: start;
+        font-size: 0.84rem;
+      }
+
+      .table-wrapper td .cell-val {
+        flex: 1 1 160px;
+        min-inline-size: 0;
+        text-align: end;
+        overflow-wrap: break-word;
+      }
+
+      .table-wrapper td .combat-floors {
+        justify-content: flex-end;
+      }
+
+      .table-wrapper td:nth-child(1)::before {
+        content: var(--label-1) ": ";
       }
 
       .table-wrapper td:nth-child(2)::before {
@@ -797,6 +854,17 @@
       font: inherit;
     }
 
+    .dlg-table-wrap {
+      overflow-x: auto;
+      max-inline-size: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .dlg-table-wrap .dlg-shop {
+      min-inline-size: 480px;
+    }
+
     .dlg-tabs {
       margin-block: 6px 12px;
     }
@@ -804,6 +872,119 @@
     .dlg-tabs button[role="tab"] {
       padding: 7px 12px;
       font-size: 0.9rem;
+    }
+
+    @media (pointer: coarse) {
+      :is(.btn, .tablist button[role="tab"], .controls input[type="search"], .controls select, .pager button, .pager select) {
+        min-block-size: 44px;
+        min-inline-size: 44px;
+      }
+
+      .link-btn {
+        min-block-size: 32px;
+        padding: 4px 2px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding: 10px 10px max(18px, env(safe-area-inset-bottom, 0px));
+      }
+
+      header.topbar {
+        gap: 10px;
+        margin-block-end: 12px;
+      }
+
+      .meta-row {
+        gap: 4px 12px;
+        font-size: 0.84rem;
+      }
+
+      .actions {
+        inline-size: 100%;
+      }
+
+      .actions .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-block-end: 12px;
+      }
+
+      .kpi {
+        padding: 10px 11px;
+      }
+
+      .kpi-val {
+        font-size: 1.12rem;
+      }
+
+      .tablist button[role="tab"] {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+      }
+
+      .controls {
+        gap: 8px;
+      }
+
+      .controls input[type="search"] {
+        flex: 1 1 100%;
+        max-inline-size: 100%;
+      }
+
+      .controls select {
+        flex: 1 1 calc(50% - 4px);
+        max-inline-size: 100%;
+        min-inline-size: 0;
+      }
+
+      .count-note {
+        flex: 1 0 100%;
+        margin-inline-start: 0;
+      }
+
+      .table-wrapper {
+        max-block-size: none;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+      }
+
+      .pager {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 10px;
+      }
+
+      .pager-btns {
+        justify-content: center;
+      }
+
+      dialog#npcDlg {
+        max-inline-size: calc(100vw - 16px);
+        max-block-size: 92dvh;
+      }
+
+      .dlg-hdr {
+        padding: 10px 12px;
+      }
+
+      .dlg-body {
+        padding: 12px;
+        max-block-size: calc(92dvh - 60px);
+      }
+
+      .eq-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -1110,7 +1291,7 @@
       </div>
       <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-combat">
         <table id="tblCombat"
-          style="--label-1:'時數';--label-2:'冒險者 / 卡片';--label-3:'路線 / 難度';--label-4:'各層細節 (怪數/清場/坦)';--label-5:'擊殺 / 經驗';--label-6:'淨金幣';--label-7:'戰利品';">
+          style="--label-1:'Tick';--label-2:'冒險者 / 卡片';--label-3:'路線 / 難度';--label-4:'各層細節 (怪數/清場/坦)';--label-5:'擊殺 / 經驗';--label-6:'淨金幣';--label-7:'戰利品';">
           <caption id="cap-combat" class="sr-only-caption">後台最近 66 ticks 戰鬥紀錄明細</caption>
           <thead>
             <tr>
@@ -1547,25 +1728,25 @@
           '<div class="eq-grid">' + (eqHtml || '<span style="color:var(--muted)">無穿戴裝備</span>') + '</div>' +
           '<h3 style="margin:10px 0 6px;font-size:0.96rem">個人商店貨架 (' + (n.shop || []).length + ' 件)</h3>' +
           ((n.shop || []).length
-            ? '<table class="dlg-shop"><thead><tr><th>商品</th><th data-align="end">數量</th><th data-align="end">售價</th></tr></thead><tbody>' + shopRows + '</tbody></table>'
+            ? '<div class="dlg-table-wrap"><table class="dlg-shop"><thead><tr><th>商品</th><th data-align="end">數量</th><th data-align="end">售價</th></tr></thead><tbody>' + shopRows + '</tbody></table></div>'
             : '<p style="color:var(--muted);margin:4px 0">目前個人商店空空如也。</p>') +
           '</section>' +
           '<section data-dpanel="bag"' + (_dlgTab === 'bag' ? '' : ' hidden') + '>' +
           '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">' + (bagInfo ? ('合計 ' + fmtNum(bagInfo.totalQty) + ' 件 · 總估值 ' + fmtNum(bagInfo.totalVal) + ' 金') : '尚未載入 npc_state.json') + '</div>' +
           (bagAll.length
-            ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>' + dlgPagerHtml('bag', _dlgPg.bag, bagPages, bagAll.length)
+            ? '<div class="dlg-table-wrap"><table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table></div>' + dlgPagerHtml('bag', _dlgPg.bag, bagPages, bagAll.length)
             : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>') +
           '</section>' +
           '<section data-dpanel="trade"' + (_dlgTab === 'trade' ? '' : ' hidden') + '>' +
           '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">最近 66 ticks：買入 ' + tBuyCnt + ' 筆 ／ 賣出 ' + tSellCnt + ' 筆</div>' +
           (tLogs.length
-            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>買賣對象</th><th>商品</th><th data-align="end">成交額</th></tr></thead><tbody>' + tradeRows + '</tbody></table>' + dlgPagerHtml('trade', _dlgPg.trade, tPages, tLogs.length)
+            ? '<div class="dlg-table-wrap"><table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>買賣對象</th><th>商品</th><th data-align="end">成交額</th></tr></thead><tbody>' + tradeRows + '</tbody></table></div>' + dlgPagerHtml('trade', _dlgPg.trade, tPages, tLogs.length)
             : '<p style="color:var(--muted);margin:4px 0">尚無最近市場成交紀錄。</p>') +
           '</section>' +
           '<section data-dpanel="combat"' + (_dlgTab === 'combat' ? '' : ' hidden') + '>' +
           '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">最近 66 ticks：共 ' + cLogs.length + ' 場 · 完整通關率 ' + cRate + '%</div>' +
           (cLogs.length
-            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table>' + dlgPagerHtml('combat', _dlgPg.combat, cPages, cLogs.length)
+            ? '<div class="dlg-table-wrap"><table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table></div>' + dlgPagerHtml('combat', _dlgPg.combat, cPages, cLogs.length)
             : '<p style="color:var(--muted);margin:4px 0">尚無最近戰鬥紀錄。</p>') +
           '</section>';
 
@@ -1621,11 +1802,11 @@
         document.getElementById('tbShops').innerHTML = pg.slice.map(r =>
           '<tr>' +
           '<th scope="row" data-value="' + esc(r.name) + '"><span class="item-cell">' + iconHtml(r.item) + '<span>' + esc(r.name) + (r.aff ? ' <span class="affix">[' + esc(r.aff.name) + ']</span>' : '') + '</span></span></th>' +
-          '<td><span class="badge">' + esc(r.catLabel) + '</span></td>' +
-          '<td data-align="end" data-value="' + r.n + '">' + fmtNum(r.n) + '</td>' +
-          '<td data-align="end" data-value="' + r.price + '"><strong style="color:var(--accent)">' + fmtNum(r.price) + '</strong></td>' +
-          '<td data-align="end" data-value="' + r.refTotal + '">' + fmtNum(r.refTotal) + '</td>' +
-          '<td data-value="' + esc(r.sellerName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.sellerId) + '">' + esc(r.sellerName) + '</button> <span class="badge ' + esc(r.tier) + '">' + esc(TIER_ZH[r.tier] || '') + '</span></td>' +
+          '<td><span class="cell-val"><span class="badge">' + esc(r.catLabel) + '</span></span></td>' +
+          '<td data-align="end" data-value="' + r.n + '"><span class="cell-val">' + fmtNum(r.n) + '</span></td>' +
+          '<td data-align="end" data-value="' + r.price + '"><span class="cell-val"><strong style="color:var(--accent)">' + fmtNum(r.price) + '</strong></span></td>' +
+          '<td data-align="end" data-value="' + r.refTotal + '"><span class="cell-val">' + fmtNum(r.refTotal) + '</span></td>' +
+          '<td data-value="' + esc(r.sellerName) + '"><div class="cell-val"><button type="button" class="link-btn" data-npc="' + esc(r.sellerId) + '">' + esc(r.sellerName) + '</button> <span class="badge ' + esc(r.tier) + '">' + esc(TIER_ZH[r.tier] || '') + '</span></div></td>' +
           '</tr>'
         ).join('');
         renderPager('pgShops', 'shops', pg, renderShops);
@@ -1668,15 +1849,15 @@
           const bagInfo = BAG_MAP.get(n.id);
           const bagTypes = bagInfo ? bagInfo.items.length : 0;
           const card = CARD_MAP.get(n.id);
-          const cardTag = card ? (' <span class="badge card-' + esc(card.tier) + '">' + esc(card.zh) + '</span>') : '';
+          const cardTag = card ? ('<span class="badge card-' + esc(card.tier) + '">' + esc(card.zh) + '</span>') : '';
           return '<tr>' +
-            '<th scope="row" data-value="' + esc(n.name) + '"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button>' + cardTag + '</th>' +
-            '<td data-value="' + esc(CLS_ZH[n.cls] || n.cls) + '">' + esc(CLS_ZH[n.cls] || n.cls) + ' <span class="badge ' + esc(n.tier) + '">' + esc(TIER_ZH[n.tier] || n.tier) + '</span></td>' +
-            '<td data-align="end" data-value="' + n.lv + '"><strong>Lv.' + n.lv + '</strong></td>' +
-            '<td data-align="end" data-value="' + n.gold + '">' + fmtNum(n.gold) + '</td>' +
-            '<td data-align="end" data-value="' + shopCnt + '">' + shopCnt + ' 件</td>' +
-            '<td data-align="end" data-value="' + bagTypes + '">' + (bagInfo ? (bagTypes + ' 種') : '-') + '</td>' +
-            '<td><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</td>' +
+            '<th scope="row" data-value="' + esc(n.name) + '"><div class="npc-cell-top"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button>' + cardTag + '</div></th>' +
+            '<td data-value="' + esc(CLS_ZH[n.cls] || n.cls) + '"><div class="cell-val">' + esc(CLS_ZH[n.cls] || n.cls) + ' <span class="badge ' + esc(n.tier) + '">' + esc(TIER_ZH[n.tier] || n.tier) + '</span></div></td>' +
+            '<td data-align="end" data-value="' + n.lv + '"><span class="cell-val"><strong>Lv.' + n.lv + '</strong></span></td>' +
+            '<td data-align="end" data-value="' + n.gold + '"><span class="cell-val">' + fmtNum(n.gold) + '</span></td>' +
+            '<td data-align="end" data-value="' + shopCnt + '"><span class="cell-val">' + shopCnt + ' 件</span></td>' +
+            '<td data-align="end" data-value="' + bagTypes + '"><span class="cell-val">' + (bagInfo ? (bagTypes + ' 種') : '-') + '</span></td>' +
+            '<td><div class="cell-val"><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</div></td>' +
             '</tr>';
         }).join('');
         renderPager('pgNpcs', 'npcs', pg, renderNpcs);
@@ -1703,11 +1884,11 @@
         document.getElementById('tbMarket').innerHTML = pg.slice.map(m =>
           '<tr>' +
           '<th scope="row" data-value="' + esc(m.disp) + '"><span class="item-cell">' + iconHtml(m.id) + '<span>' + esc(m.disp) + '</span></span></th>' +
-          '<td data-value="' + esc(m.key) + '"><code>' + m.id + '</code>' + (m.ench > 0 ? ' <span class="badge">+' + m.ench + '</span>' : '') + '</td>' +
-          '<td><span class="badge">' + esc(m.catLabel) + '</span></td>' +
-          '<td data-align="end" data-value="' + m.price + '"><strong style="color:var(--accent)">' + fmtNum(m.price) + '</strong></td>' +
-          '<td data-align="end" data-value="' + m.supply + '">' + (m.supply > 0 ? '<strong style="color:var(--ok)">' + m.supply + ' 件</strong>' : '<span style="color:var(--muted)">0</span>') + '</td>' +
-          '<td data-align="end" data-value="' + m.bagSupply + '">' + (m.bagSupply > 0 ? fmtNum(m.bagSupply) + ' 個' : '<span style="color:var(--muted)">0</span>') + '</td>' +
+          '<td data-value="' + esc(m.key) + '"><div class="cell-val"><code>' + m.id + '</code>' + (m.ench > 0 ? ' <span class="badge">+' + m.ench + '</span>' : '') + '</div></td>' +
+          '<td><span class="cell-val"><span class="badge">' + esc(m.catLabel) + '</span></span></td>' +
+          '<td data-align="end" data-value="' + m.price + '"><span class="cell-val"><strong style="color:var(--accent)">' + fmtNum(m.price) + '</strong></span></td>' +
+          '<td data-align="end" data-value="' + m.supply + '"><span class="cell-val">' + (m.supply > 0 ? '<strong style="color:var(--ok)">' + m.supply + ' 件</strong>' : '<span style="color:var(--muted)">0</span>') + '</span></td>' +
+          '<td data-align="end" data-value="' + m.bagSupply + '"><span class="cell-val">' + (m.bagSupply > 0 ? fmtNum(m.bagSupply) + ' 個' : '<span style="color:var(--muted)">0</span>') + '</span></td>' +
           '</tr>'
         ).join('');
         renderPager('pgMarket', 'market', pg, renderMarket);
@@ -1743,13 +1924,13 @@
           }).join('');
           const drTxt = (r.dr || []).slice(0, 5).map(d => (d.e > 0 ? '+' + d.e + ' ' : '') + d.nm + (d.n > 1 ? '×' + d.n : '')).join('、') || '-';
           return '<tr>' +
-            '<td data-align="end" data-value="' + r.t + '"><strong>#' + r.t + '</strong></td>' +
-            '<th scope="row" data-value="' + esc(r.npcName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.npcId) + '">' + esc(r.npcName) + '</button> <span class="badge">Lv.' + (r.lv || '-') + '</span><br><span class="badge card-' + esc(r.cardTier || 'white') + '">' + esc(r.cardZh || r.card || '白卡') + ' · 群×' + (r.aoe || 1) + '</span></th>' +
-            '<td data-value="' + esc(r.seg) + '"><strong>' + esc(r.seg) + '</strong><br><span class="badge">' + esc(r.diff) + '</span> <span class="badge ' + (r.win ? 'res-win' : 'res-wipe') + '">' + (r.win ? '通關' : esc(r.stop || '撤退')) + '</span></td>' +
-            '<td><div class="combat-floors">' + flHtml + '</div></td>' +
-            '<td data-align="end" data-value="' + r.k + '">' + fmtNum(r.k) + ' 隻<br><span style="color:var(--muted);font-size:0.78rem">EXP +' + fmtNum(r.exp) + '</span></td>' +
-            '<td data-align="end" data-value="' + r.g + '"><strong style="color:' + (r.g >= 0 ? 'var(--accent)' : 'var(--warn)') + '">' + fmtNum(r.g) + '</strong></td>' +
-            '<td style="font-size:0.84rem">' + esc(drTxt) + '</td>' +
+            '<td data-align="end" data-value="' + r.t + '"><span class="cell-val"><strong>#' + r.t + '</strong></span></td>' +
+            '<th scope="row" data-value="' + esc(r.npcName) + '"><div class="npc-cell"><div class="npc-cell-top"><button type="button" class="link-btn" data-npc="' + esc(r.npcId) + '">' + esc(r.npcName) + '</button><span class="badge">Lv.' + (r.lv || '-') + '</span></div><div><span class="badge card-' + esc(r.cardTier || 'white') + '">' + esc(r.cardZh || r.card || '白卡') + ' · 群×' + (r.aoe || 1) + '</span></div></div></th>' +
+            '<td data-value="' + esc(r.seg) + '"><div class="cell-val"><strong>' + esc(r.seg) + '</strong><br><span class="badge">' + esc(r.diff) + '</span> <span class="badge ' + (r.win ? 'res-win' : 'res-wipe') + '">' + (r.win ? '通關' : esc(r.stop || '撤退')) + '</span></div></td>' +
+            '<td><div class="cell-val"><div class="combat-floors">' + flHtml + '</div></div></td>' +
+            '<td data-align="end" data-value="' + r.k + '"><div class="cell-val">' + fmtNum(r.k) + ' 隻<br><span style="color:var(--muted);font-size:0.78rem">EXP +' + fmtNum(r.exp) + '</span></div></td>' +
+            '<td data-align="end" data-value="' + r.g + '"><span class="cell-val"><strong style="color:' + (r.g >= 0 ? 'var(--accent)' : 'var(--warn)') + '">' + fmtNum(r.g) + '</strong></span></td>' +
+            '<td style="font-size:0.84rem"><span class="cell-val">' + esc(drTxt) + '</span></td>' +
             '</tr>';
         }).join('');
         renderPager('pgCombat', 'combat', pg, renderCombat);
@@ -1778,13 +1959,13 @@
         document.getElementById('tbTrades').innerHTML = pg.slice.map(tr => {
           const disp = (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm;
           return '<tr>' +
-            '<td data-align="end" data-value="' + tr.t + '"><strong>#' + tr.t + '</strong></td>' +
-            '<td data-value="' + esc(tr.b) + '"><button type="button" class="link-btn" data-npc="' + esc(tr.bId) + '">' + esc(tr.b) + '</button> <span class="badge ' + esc(tr.bt) + '">' + esc(TIER_ZH[tr.bt] || '') + '</span></td>' +
-            '<td data-value="' + esc(tr.s) + '"><button type="button" class="link-btn" data-npc="' + esc(tr.sId) + '">' + esc(tr.s) + '</button> <span class="badge ' + esc(tr.st) + '">' + esc(TIER_ZH[tr.st] || '') + '</span></td>' +
+            '<td data-align="end" data-value="' + tr.t + '"><span class="cell-val"><strong>#' + tr.t + '</strong></span></td>' +
+            '<td data-value="' + esc(tr.b) + '"><div class="cell-val"><button type="button" class="link-btn" data-npc="' + esc(tr.bId) + '">' + esc(tr.b) + '</button> <span class="badge ' + esc(tr.bt) + '">' + esc(TIER_ZH[tr.bt] || '') + '</span></div></td>' +
+            '<td data-value="' + esc(tr.s) + '"><div class="cell-val"><button type="button" class="link-btn" data-npc="' + esc(tr.sId) + '">' + esc(tr.s) + '</button> <span class="badge ' + esc(tr.st) + '">' + esc(TIER_ZH[tr.st] || '') + '</span></div></td>' +
             '<th scope="row" data-value="' + esc(disp) + '"><span class="item-cell">' + iconHtml(tr.id) + '<span>' + esc(disp) + (tr.aff ? ' <span class="affix">[' + esc(tr.aff) + ']</span>' : '') + '</span></span></th>' +
-            '<td data-align="end" data-value="' + (tr.n || 1) + '">' + fmtNum(tr.n || 1) + '</td>' +
-            '<td data-align="end" data-value="' + tr.p + '"><strong style="color:var(--accent)">' + fmtNum(tr.p) + '</strong><br><span style="color:var(--muted);font-size:0.78rem">稅 -' + fmtNum(tr.tax || 0) + '</span></td>' +
-            '<td data-align="end" data-value="' + (tr.r || 1) + '">' + Math.round((tr.r || 1) * 100) + '%</td>' +
+            '<td data-align="end" data-value="' + (tr.n || 1) + '"><span class="cell-val">' + fmtNum(tr.n || 1) + '</span></td>' +
+            '<td data-align="end" data-value="' + tr.p + '"><div class="cell-val"><strong style="color:var(--accent)">' + fmtNum(tr.p) + '</strong><br><span style="color:var(--muted);font-size:0.78rem">稅 -' + fmtNum(tr.tax || 0) + '</span></div></td>' +
+            '<td data-align="end" data-value="' + (tr.r || 1) + '"><span class="cell-val">' + Math.round((tr.r || 1) * 100) + '%</span></td>' +
             '</tr>';
         }).join('');
         renderPager('pgTrades', 'trades', pg, renderTrades);
