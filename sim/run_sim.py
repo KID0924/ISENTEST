@@ -2606,7 +2606,7 @@ def simulate_tick(
     for i, npc in enumerate(npcs):
         if npc["lv"] >= retire_lv:
             npc["maxLvTicks"] = npc.get("maxLvTicks", 0) + 1
-        # 滿級與非肝帝分級／高齡自然退坑循環（肝帝與 2 位傳奇大商人不吃年齡與35~45等退坑，僅滿級後 7% 退坑）
+        # 滿級與非肝帝分級／高齡自然退坑循環（肝帝與 9 位元老角不吃年齡與 35~45 等退坑，僅滿級後 7% 退坑；其餘高齡為 1000 ticks）
         is_whale_retire = (npc["tier"] == "whale") or bool(npc.get("whaleRetire"))
         retire_prob = 0.0
         if npc["maxLvTicks"] >= 18:
@@ -2618,7 +2618,7 @@ def simulate_tick(
                 retire_prob = max(retire_prob, 0.0125)
             elif npc["lv"] > 35:
                 retire_prob = max(retire_prob, 0.01)
-            if npc.get("ageTicks", 0) > 500:
+            if npc.get("ageTicks", 0) > 1000:
                 retire_prob = max(retire_prob, 0.012)
         if retire_prob > 0 and rng.random() < retire_prob:
             retired_total += 1
