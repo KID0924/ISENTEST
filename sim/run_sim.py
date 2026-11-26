@@ -1436,7 +1436,15 @@ def pick_unused_name(used: set[str], rng: random.Random, tier: str = "regular") 
     return f"冒險者{rng.randint(1000,9999)}"
 
 
-def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: GameDatabase, rng: random.Random) -> dict[str, Any]:
+def create_new_npc(
+    idx: int,
+    cls: str,
+    tier: str,
+    used_names: set[str],
+    db: GameDatabase,
+    rng: random.Random,
+    whale_retire: bool = False,
+) -> dict[str, Any]:
     name = pick_unused_name(used_names, rng, tier)
     base_st = dict(CLASS_BASE_STATS[cls])
     for k in base_st:
@@ -1445,7 +1453,7 @@ def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: Game
     eq = {"weapon": {"id": start_w, "ench": 0, "n": 1}}
     gold = 0
 
-    return {
+    npc_obj: dict[str, Any] = {
         "id": f"npc_{idx:02d}",
         "name": name,
         "cls": cls,
@@ -1468,6 +1476,25 @@ def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: Game
         "lastEvent": f"剛加入奇岩冒險的小{CLS_ZH[cls]}",
         "state": "village",
     }
+    if tier == "scalper" and whale_retire:
+        npc_obj["whaleRetire"] = True
+    return npc_obj
+
+
+def ensure_elite_scalpers(npcs: list[dict[str, Any]], target: int = 2) -> None:
+    """確保 10 位商人中有固定 2 位套用肝帝退坑機制（不吃年齡/35~45等退坑）"""
+    scalpers = [n for n in npcs if n.get("tier") == "scalper"]
+    marked = [n for n in scalpers if n.get("whaleRetire")]
+    if len(marked) > target:
+        for extra in marked[target:]:
+            extra.pop("whaleRetire", None)
+        return
+    if len(marked) < target:
+        need = target - len(marked)
+        cands = [n for n in scalpers if not n.get("whaleRetire")]
+        cands.sort(key=lambda n: (-int(n.get("gold", 0)), str(n.get("id", ""))))
+        for n in cands[:need]:
+            n["whaleRetire"] = True
 
 
 def init_npc_card(tier: str, lv: int, rng: random.Random) -> dict[str, str]:
@@ -1810,10 +1837,15 @@ def make_npc_roster(db: GameDatabase, rng: random.Random) -> list[dict[str, Any]
     used_names: set[str] = set()
     npcs: list[dict[str, Any]] = []
     idx = 1
+    scalper_elite_left = 2
     for ci, cls in enumerate(CLASSES):
         for j in range(10):
             tier = tier_deck[ci * 10 + j]
-            npcs.append(create_new_npc(idx, cls, tier, used_names, db, rng))
+            wr = False
+            if tier == "scalper" and scalper_elite_left > 0:
+                wr = True
+                scalper_elite_left -= 1
+            npcs.append(create_new_npc(idx, cls, tier, used_names, db, rng, whale_retire=wr))
             idx += 1
     return npcs
 
@@ -2512,11 +2544,12 @@ def simulate_tick(
     for i, npc in enumerate(npcs):
         if npc["lv"] >= retire_lv:
             npc["maxLvTicks"] = npc.get("maxLvTicks", 0) + 1
-        # 滿級與非肝帝分級／高齡自然退坑循環（僅肝帝保留滿級後 7% 退坑）
+        # 滿級與非肝帝分級／高齡自然退坑循環（肝帝與 2 位傳奇大商人不吃年齡與35~45等退坑，僅滿級後 7% 退坑）
+        is_whale_retire = (npc["tier"] == "whale") or bool(npc.get("whaleRetire"))
         retire_prob = 0.0
         if npc["maxLvTicks"] >= 18:
-            retire_prob = 0.07 if npc["tier"] == "whale" else 0.05
-        if npc["tier"] != "whale":
+            retire_prob = 0.07 if is_whale_retire else 0.05
+        if not is_whale_retire:
             if npc["lv"] > 45:
                 retire_prob = max(retire_prob, 0.02)
             elif npc["lv"] > 40:
@@ -2533,7 +2566,9 @@ def simulate_tick(
             retired_by_tier[old_tier] = retired_by_tier.get(old_tier, 0) + 1
             old_lv = npc["lv"]
             used_names.discard(old_name)
-            fresh = create_new_npc(i + 1, old_cls, old_tier, used_names, db, rng)
+            fresh = create_new_npc(
+                i + 1, old_cls, old_tier, used_names, db, rng, whale_retire=bool(npc.get("whaleRetire"))
+            )
             npcs[i] = fresh
             ticker.append(
                 f"🌟【傳承交棒】Lv.{old_lv} {CLS_ZH[old_cls]}「{old_name}」功成身退！新人「{fresh['name']}」加入冒險！"
@@ -3243,6 +3278,8 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
             npc_pub_row["msock"] = msock_pub
         if mc_sum.get("t", 0) > 0:
             npc_pub_row["mcSum"] = mc_sum
+        if npc.get("whaleRetire"):
+            npc_pub_row["whaleRetire"] = True
         npcs_pub.append(npc_pub_row)
 
     # 輸出全服部分關鍵物價行情給前端「向 NPC 兜售」查價用（已套用當日事件 × 股市 × 天氣倍率）
@@ -3346,6 +3383,7 @@ def main() -> None:
         state = json.loads(state_file.read_text(encoding="utf-8"))
         for _npc in state.get("npcs", []):
             ensure_npc_mcards(_npc, db, rng)
+        ensure_elite_scalpers(state.get("npcs", []))
 
     run_ticks = int(round(args.days * 24)) if args.days > 0 else max(0, args.ticks)
     if not is_fresh or args.days > 0 or args.warmup_ticks == 0:
