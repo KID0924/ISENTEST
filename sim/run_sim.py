@@ -1539,14 +1539,14 @@ def npc_combat_profile(npc: dict[str, Any], db: GameDatabase) -> dict[str, float
     aoe_cap = w_aoe * c_def["aoe"] * (0.92 + lv * 0.015)
 
     # 1) 單體輸出（吃等級、武器、攻撃詞綴、變身卡增傷與攻速）
-    single_dps = (lv * 1.95 + w_pts * 0.82 + a_pts * 0.08 + aff_off * 3.8 + 8.5) * c_def["dmg"] * c_def["aspd"] * skill_mult
+    single_dps = (lv * 1.45 + w_pts * 0.65 + a_pts * 0.06 + aff_off * 3.0 + 6.5) * c_def["dmg"] * c_def["aspd"] * skill_mult
 
     # 2) 對群清場產能（單體 × 對群擴散的 0.72 次方平滑，反映從 1 隻到 8 隻的清怪差距）
-    aoe_power = single_dps * (min(9.5, max(1.0, aoe_cap)) ** 0.72) * 0.98
+    aoe_power = single_dps * (min(9.5, max(1.0, aoe_cap)) ** 0.72) * 0.90
 
     # 3) 血防坦度（防具積分＋基礎HP成長＋變身卡 HP/AC＋吸血/減傷詞綴）
     hp_g, _ = npc_base_hp_mp(cls, lv, npc.get("stats") or CLASS_BASE_STATS[cls])
-    tank_power = (lv * 1.45 + a_pts * 0.36 + hp_g * 0.028 + c_def["hp"] * 0.10 + abs(c_def["ac"]) * 0.85 + aff_def * 4.5 + 9.0) * skill_mult
+    tank_power = (lv * 1.15 + a_pts * 0.28 + hp_g * 0.022 + c_def["hp"] * 0.08 + abs(c_def["ac"]) * 0.70 + aff_def * 3.5 + 7.0) * skill_mult
 
     return {
         "single_dps": single_dps,
@@ -1634,52 +1634,55 @@ def choose_segment_and_diff(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     lv = npc["lv"]
     tier = npc["tier"]
-    tier_offset = 8 if tier == "whale" else 3 if tier == "regular" else -1 if tier == "casual" else 1
+    tier_offset = 3 if tier == "whale" else 1 if tier == "regular" else -1 if tier == "casual" else 0
     target_entry = max(9, lv + tier_offset)
+    max_entry = max(9, lv + (3 if tier == "whale" else 2 if tier == "regular" else 1))
 
-    # 只要起始門檻達標就可挑戰整段路線（例如海音 3F=30 就可進含法利昂的路線，但能否走到尾王要看實力）
-    cands = [g for g in db.segments if g["entryRec"] <= target_entry + 6]
+    # 嚴格依目前等級挑選合理入口路線，禁止 Lv.1~5 直接排進奇岩/海音/龍谷越級賭運氣
+    cands = [g for g in db.segments if g["entryRec"] <= max_entry]
     if not cands:
         cands = [db.segments[0]]
     cands.sort(key=lambda g: (abs(g["entryRec"] - target_entry), abs(g["peakRec"] - target_entry)))
-    seg = rng.choice(cands[: min(4, len(cands))])
+    seg = rng.choice(cands[: min(3, len(cands))])
 
-    # 依自身戰力相對於該路線的需求選擇難易度（簡單 / 普通 / 困難 / 惡夢）
-    pwr = npc_combat_power(npc, db)
-    entry_req = stage_power_req(seg["stages"][0])
-    rel = pwr / max(8.0, entry_req)
+    # 直接用起始層在「普通難度」的清怪/坦度實戰比決定難度，打不過就不亂開困難／惡夢
+    prof = npc_combat_profile(npc, db)
+    norm_diff = db.diffs[1] if len(db.diffs) > 1 else db.diffs[0]
+    norm_eval = eval_floor_combat(prof, seg["stages"][0], norm_diff, 1.0)
+    rel = 0.48 * norm_eval["clr"] + 0.52 * norm_eval["tank"]
 
-    if tier == "casual":
-        weights = [0.62, 0.35, 0.03, 0.0] if rel < 1.35 else [0.35, 0.55, 0.10, 0.0]
+    if rel < 0.72:
+        weights = [0.78, 0.22, 0.0, 0.0]
+    elif tier == "casual":
+        weights = [0.68, 0.30, 0.02, 0.0] if rel < 1.25 else [0.40, 0.52, 0.08, 0.0]
     elif tier == "scalper":
-        weights = [0.25, 0.65, 0.10, 0.0] if rel < 1.4 else [0.10, 0.65, 0.25, 0.0]
+        weights = [0.35, 0.60, 0.05, 0.0] if rel < 1.25 else [0.15, 0.65, 0.20, 0.0]
     elif tier == "regular":
         if rel < 1.05:
-            weights = [0.40, 0.55, 0.05, 0.0]
-        elif rel < 1.45:
-            weights = [0.10, 0.58, 0.30, 0.02]
+            weights = [0.42, 0.53, 0.05, 0.0]
+        elif rel < 1.40:
+            weights = [0.12, 0.58, 0.28, 0.02]
         else:
-            weights = [0.05, 0.35, 0.48, 0.12]
+            weights = [0.05, 0.38, 0.47, 0.10]
     else:  # whale
-        if rel < 1.10:
-            weights = [0.10, 0.55, 0.32, 0.03]
-        elif rel < 1.50:
-            weights = [0.02, 0.25, 0.55, 0.18]
+        if rel < 1.05:
+            weights = [0.25, 0.58, 0.17, 0.0]
+        elif rel < 1.40:
+            weights = [0.05, 0.35, 0.48, 0.12]
         else:
-            weights = [0.0, 0.12, 0.45, 0.43]
+            weights = [0.0, 0.18, 0.48, 0.34]
 
-    if force_hard and tier in ("whale", "regular"):
+    if force_hard and tier in ("whale", "regular") and rel >= 0.85:
         weights = [0.0, 0.25 * weights[0], weights[1] * 0.6 + weights[2], weights[3] + weights[1] * 0.4 + weights[0] * 0.75]
     diff = rng.choices(db.diffs, weights=weights, k=1)[0]
     return seg, diff
 
 
 def survival_prob(eff_power: float, req: float) -> float:
-    """硬核真實通關機率曲線：實力相當約 58%，越級或選高難度會明顯容易翻車"""
+    """硬核真實通關機率曲線：實力相當約 58%，嚴重越級或戰力不足低至 0.5%"""
     ratio = eff_power / max(6.0, req)
-    # logit 在 ratio=1.0 時約 58%，0.70 時 ~18%，1.35 時 ~89%
     z = 4.6 * (ratio - 1.0) + 0.32
-    return max(0.06, min(0.97, 1.0 / (1.0 + math.exp(-z))))
+    return max(0.005, min(0.97, 1.0 / (1.0 + math.exp(-z))))
 
 
 def simulate_tick(
@@ -1737,13 +1740,13 @@ def simulate_tick(
 
             floors = seg["stages"]
             if tier == "whale":
-                power_factor = min(3.4, 0.95 + npc["lv"] * 0.055)
+                power_factor = min(2.35, 0.72 + npc["lv"] * 0.038)
             elif tier == "regular":
-                power_factor = min(2.1, 0.62 + npc["lv"] * 0.032)
+                power_factor = min(1.65, 0.52 + npc["lv"] * 0.025)
             elif tier == "scalper":
-                power_factor = min(1.7, 0.52 + npc["lv"] * 0.023)
+                power_factor = min(1.35, 0.45 + npc["lv"] * 0.019)
             else:
-                power_factor = min(1.2, 0.35 + npc["lv"] * 0.017)
+                power_factor = min(1.05, 0.32 + npc["lv"] * 0.014)
 
             # 單場多關卡時，每層的清怪密度縮放，避免多層圖經驗與道具過度暴衝
             floor_scale = 0.62 if len(floors) >= 3 else 0.78 if len(floors) == 2 else 1.0
@@ -1768,16 +1771,17 @@ def simulate_tick(
                 upkeep_fl = 850 + st["recLv"] * (210 if tier == "whale" else 135 if tier == "regular" else 70)
 
                 if not st.get("nopool") and pool:
-                    # 1) 小怪推進與掉落預骰（先決定怪物數量清怪比與坦度）
+                    # 1) 小怪推進與掉落預骰（擊殺數與經驗連動實際清怪比，清不動就不會虛高暴升）
                     fl_res = eval_floor_combat(prof, st, diff, run_luck)
                     surv_p = fl_res["surv_p"]
-                    kills = int(rng.randint(950, 1850) * power_factor * floor_scale)
+                    kill_eff = max(0.15, min(1.05, fl_res["clr"] * 0.90))
+                    kills = int(rng.randint(850, 1550) * power_factor * floor_scale * kill_eff)
                     sample_mons = [db.monsters_by_id[rng.choice(pool)] for _ in range(10)]
                     avg_mexp = sum(db.mexp.get(int(m["id"]), 2) for m in sample_mons) / max(1, len(sample_mons))
-                    exp_gain = int(kills * avg_mexp * 1.09 * diff["exp"])
+                    exp_gain = int(kills * avg_mexp * 0.78 * diff["exp"])
 
-                    drop_rolls = max(7, min(18, int((8 + npc["lv"] // 3) * floor_scale)))
-                    fl_gold = int((rng.randint(3800, 9200) + st["recLv"] * rng.randint(420, 880)) * diff_gold_mult * floor_scale)
+                    drop_rolls = max(4, min(16, int((7 + npc["lv"] // 4) * floor_scale * max(0.45, kill_eff))))
+                    fl_gold = int((rng.randint(3200, 7800) + st["recLv"] * rng.randint(360, 720)) * diff_gold_mult * floor_scale * max(0.35, kill_eff))
                     rolled_loot: list[tuple[int, int, int, dict[str, str] | None]] = []
                     for _r in range(drop_rolls):
                         mon = db.monsters_by_id[rng.choice(pool)]
@@ -1805,17 +1809,17 @@ def simulate_tick(
                                     qty = rng.randint(int(dr.get("min", 1)), int(dr.get("max", 1)))
                                     rolled_loot.append((iid, 0, qty, None))
 
-                    # 小怪層撐不撐得過檢定（沒撐過就半途翻車：擊殺／經驗／金幣／掉落顯著減少）
+                    # 小怪層撐不撐得過檢定（沒撐過就半途翻車：擊殺／經驗／金幣／掉落嚴格懲罰）
                     if rng.random() > surv_p:
-                        kills_kept = int(kills * 0.30)
+                        kills_kept = int(kills * 0.25)
                         npc["kills"] = npc.get("kills", 0) + kills_kept
                         run_kills_acc += kills_kept
-                        exp_gain = int(exp_gain * 0.40)
+                        exp_gain = int(exp_gain * 0.30)
                         run_exp_acc += exp_gain
-                        fl_gold_net = max(0, int(fl_gold * 0.25) - upkeep_fl)
+                        fl_gold_net = max(0, int(fl_gold * 0.20) - upkeep_fl)
                         run_gold_acc += fl_gold_net
                         for iid_l, e_l, q_l, aff_l in rolled_loot:
-                            if rng.random() < 0.25:
+                            if rng.random() < 0.20:
                                 self_bag_add(npc, iid_l, e_l, q_l, aff_l)
                                 _rec_drop(iid_l, e_l, q_l)
                         wiped = True
