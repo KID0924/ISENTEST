@@ -78,7 +78,7 @@ TIER_GOLD_CAP = {
     "casual": 7_500_000,
 }
 TIER_SINK_CAP = {
-    "scalper": 100_000_000,
+    "scalper": 160_000_000,
     "whale": 44_000_000,
     "regular": 18_000_000,
     "casual": 6_000_000,
@@ -2007,7 +2007,7 @@ def simulate_tick(
         if clog:
             npc["combatLog"] = [r for r in clog if r.get("t", 0) > cutoff_tick]
 
-        # 高金幣 NPC 超過開箱門檻開始開曼孟裝備箱；奇岩商人 (1億起) 還會直接去商店買武防捲硬衝過安定+2起跳、上不封頂
+        # 高金幣 NPC 超過開箱門檻開始開曼孟裝備箱；奇岩商人 (1.6億起) 還會直接去商店買武防捲硬衝過安定+2起跳、上不封頂
         sink_cap = TIER_SINK_CAP[tier]
         if npc["gold"] > sink_cap:
             spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < (0.45 if tier == "scalper" else 0.35) else 1_000_000)
