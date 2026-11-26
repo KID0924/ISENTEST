@@ -89,9 +89,11 @@
       }).catch(() => { });
     } catch (e) { }
   }
+  const _assetVer = (() => { try { return localStorage.getItem('__asset_cache_v') || ''; } catch (e) { return ''; } })();
+  const _assetQ = _assetVer ? ('?v=' + _assetVer) : '';
   function sprLoad(im, g, f) {   // 讀怪物／角色圖：有手機小圖就讀小圖（讀失敗自動改讀原圖）；78 組外連影子走 GitHub 圖床
-    if (BACKUP_SHADOW_IDS.has(String(g))) { im.crossOrigin = 'anonymous'; im.src = GH_ASSETS + g + '/' + g + '-' + f + '.png'; return im; }
-    const png = 'assets/' + g + '/' + g + '-' + f + '.png', m = META[g] && META[g][f];
+    if (BACKUP_SHADOW_IDS.has(String(g))) { im.crossOrigin = 'anonymous'; im.src = GH_ASSETS + g + '/' + g + '-' + f + '.png' + _assetQ; return im; }
+    const png = 'assets/' + g + '/' + g + '-' + f + '.png' + _assetQ, m = META[g] && META[g][f];
     im.addEventListener('error', () => {
       if (im._fw) { im._fw = 0; im.src = png; return; }
       const sg = String(g);
@@ -102,7 +104,7 @@
         try { addChat('讀不到本地圖片：' + png, 'warn'); } catch (e) { }
       }
     });
-    if (m && mresOn() && MRES.gfx.has(String(g))) { im._fw = m.cols * m.cellW; im.src = 'assets/' + g + '_m/' + g + '-' + f + '.webp'; }
+    if (m && mresOn() && MRES.gfx.has(String(g))) { im._fw = m.cols * m.cellW; im.src = 'assets/' + g + '_m/' + g + '-' + f + '.webp' + _assetQ; }
     else im.src = png;
     return im;
   }
@@ -365,7 +367,7 @@
         if (im._cbs) { const a = im._cbs; im._cbs = null; for (const fn of a) fn(); }
       };
       im.onload = () => { if (im.decode) im.decode().then(done, done); else done(); };
-      im.src = (useM ? MAPBASE.replace(/\/$/, '_m/') : MAPBASE) + k + '.webp?t=' + (window.__bt || (window.__bt = '548'));
+      im.src = (useM ? MAPBASE.replace(/\/$/, '_m/') : MAPBASE) + k + '.webp?t=' + (_assetVer || window.__bt || (window.__bt = '548'));
       chunkImgs[k] = im;
     }
     return im;
