@@ -741,6 +741,70 @@
       padding: 7px 8px;
       border-block-end: 1px solid var(--border);
     }
+
+    .pager {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-block-start: 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      font-size: 0.86rem;
+    }
+
+    .pager-btns {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pager button {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .pager button:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pager button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .pager-info {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pager select {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .dlg-tabs {
+      margin-block: 6px 12px;
+    }
+
+    .dlg-tabs button[role="tab"] {
+      padding: 7px 12px;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 
@@ -910,6 +974,7 @@
           <tbody id="tbShops"></tbody>
         </table>
       </div>
+      <div class="pager" id="pgShops" aria-label="個人商店分頁"></div>
     </section>
 
     <!-- Panel 2: NPCs -->
@@ -964,6 +1029,7 @@
           <tbody id="tbNpcs"></tbody>
         </table>
       </div>
+      <div class="pager" id="pgNpcs" aria-label="冒險者清單分頁"></div>
     </section>
 
     <!-- Panel 3: MarketRef -->
@@ -1015,6 +1081,7 @@
           <tbody id="tbMarket"></tbody>
         </table>
       </div>
+      <div class="pager" id="pgMarket" aria-label="全服行情分頁"></div>
     </section>
 
     <!-- Panel 4: Combat Logs (last 66 ticks from sim/npc_state.json) -->
@@ -1064,6 +1131,7 @@
           <tbody id="tbCombat"></tbody>
         </table>
       </div>
+      <div class="pager" id="pgCombat" aria-label="戰鬥紀錄分頁"></div>
     </section>
 
     <!-- Panel 5: NPC Trade Logs (last 66 ticks from sim/npc_state.json) -->
@@ -1110,6 +1178,7 @@
           <tbody id="tbTrades"></tbody>
         </table>
       </div>
+      <div class="pager" id="pgTrades" aria-label="NPC交易紀錄分頁"></div>
     </section>
   </div>
 
@@ -1212,9 +1281,9 @@
         return '<img class="item-icon" src="assets/icons/' + Number(id) + '.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
       }
 
-      // Tabs
-      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-      const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+      // Tabs (top-level only so modal inner tabs stay isolated)
+      const tabs = Array.from(document.querySelectorAll('.wrap > .tablist [role="tab"]'));
+      const panels = Array.from(document.querySelectorAll('.wrap > section[role="tabpanel"]'));
       function selectTab(tab) {
         const targetId = tab.id.replace('tab-', 'panel-');
         for (const t of tabs) t.setAttribute('aria-selected', String(t === tab));
@@ -1235,37 +1304,102 @@
         });
       }
 
-      // Sortable Tables (Invoker commands + Fallback click listener + Quick Select Sort)
+      // Pagination & Global Sort State per Main Table
       const sortStatus = document.getElementById('sortStatus');
       const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket', tblCombat: 'sCombat', tblTrades: 'sTrades' };
-      function applyTableSort(table, idx, dir, announce) {
-        const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[idx];
-        if (!th || !table.tBodies.length) return;
-        const tbody = table.tBodies[0];
-        for (const h of table.tHead.rows[0].cells) h.removeAttribute('aria-sort');
-        th.setAttribute('aria-sort', dir);
+      const PAGE_STATE = {
+        shops:  { page: 1, size: 20 },
+        npcs:   { page: 1, size: 15 },
+        market: { page: 1, size: 25 },
+        combat: { page: 1, size: 20 },
+        trades: { page: 1, size: 25 },
+      };
+      const SORT_STATE = {
+        tblShops:  { idx: 3, dir: 'descending' },
+        tblNpcs:   { idx: 2, dir: 'descending' },
+        tblMarket: { idx: 3, dir: 'descending' },
+        tblCombat: { idx: 0, dir: 'descending' },
+        tblTrades: { idx: 0, dir: 'descending' },
+      };
+      let TABLE_RERENDER = {};
 
-        const type = th.dataset.type || 'text';
-        const factor = dir === 'ascending' ? 1 : -1;
-        const rows = Array.from(tbody.rows);
-        const keyed = rows.map(r => {
-          const cell = r.cells[idx];
-          const raw = cell ? (cell.dataset.value ?? cell.textContent.trim()) : '';
-          return { r, val: type === 'number' ? Number(raw) : raw };
-        });
-        keyed.sort((a, b) => factor * (type === 'number' ? (a.val - b.val) : collator.compare(a.val, b.val)));
-        for (const item of keyed) {
-          if (typeof tbody.moveBefore === 'function') tbody.moveBefore(item.r, null);
-          else tbody.appendChild(item.r);
-        }
+      function syncTableSortHeader(table, idx, dir) {
+        if (!table || !table.tHead || !table.tHead.rows[0]) return;
+        const cells = table.tHead.rows[0].cells;
+        for (const h of cells) h.removeAttribute('aria-sort');
+        if (cells[idx]) cells[idx].setAttribute('aria-sort', dir);
         const selId = TABLE_SORT_SELECT[table.id];
         const selEl = selId && document.getElementById(selId);
         if (selEl) {
           const optVal = idx + ':' + dir;
           if (Array.from(selEl.options).some(o => o.value === optVal)) selEl.value = optVal;
         }
+      }
+
+      function sortRowsData(rows, keyFn, type, dir) {
+        const factor = dir === 'ascending' ? 1 : -1;
+        return rows.slice().sort((a, b) => {
+          const va = keyFn(a), vb = keyFn(b);
+          return factor * (type === 'number' ? (Number(va) - Number(vb)) : collator.compare(String(va), String(vb)));
+        });
+      }
+
+      function paginateSlice(rows, key) {
+        const st = PAGE_STATE[key];
+        const total = rows.length;
+        const pages = Math.max(1, Math.ceil(total / st.size));
+        if (st.page > pages) st.page = pages;
+        if (st.page < 1) st.page = 1;
+        const start = (st.page - 1) * st.size;
+        return { slice: rows.slice(start, start + st.size), page: st.page, pages, total, start, size: st.size };
+      }
+
+      function renderPager(pgId, key, info, rerenderFn) {
+        const el = document.getElementById(pgId);
+        if (!el) return;
+        const { page, pages, total, start, slice, size } = info;
+        const from = total ? (start + 1) : 0;
+        const to = start + slice.length;
+        el.innerHTML =
+          '<div class="pager-info">顯示第 <strong>' + fmtNum(from) + ' ~ ' + fmtNum(to) + '</strong> 筆（共 ' + fmtNum(total) + ' 筆 · 第 ' + page + ' / ' + pages + ' 頁）</div>' +
+          '<div class="pager-btns">' +
+          '<label style="display:inline-flex;align-items:center;gap:4px">每頁 <select data-psize="' + key + '">' +
+          [15, 20, 25, 50, 100].map(n => '<option value="' + n + '"' + (n === size ? ' selected' : '') + '>' + n + '</option>').join('') +
+          '</select> 筆</label>' +
+          '<button type="button" data-pg="' + key + '" data-to="1"' + (page <= 1 ? ' disabled' : '') + '>« 首頁</button>' +
+          '<button type="button" data-pg="' + key + '" data-to="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>‹ 上一頁</button>' +
+          '<button type="button" data-pg="' + key + '" data-to="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>下一頁 ›</button>' +
+          '<button type="button" data-pg="' + key + '" data-to="' + pages + '"' + (page >= pages ? ' disabled' : '') + '>末頁 »</button>' +
+          '</div>';
+        el.querySelectorAll('button[data-pg]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            PAGE_STATE[key].page = Number(btn.dataset.to);
+            rerenderFn();
+          });
+        });
+        const sel = el.querySelector('select[data-psize]');
+        if (sel) {
+          sel.addEventListener('change', () => {
+            PAGE_STATE[key].size = Number(sel.value);
+            PAGE_STATE[key].page = 1;
+            rerenderFn();
+          });
+        }
+      }
+
+      function applyTableSort(table, idx, dir, announce) {
+        const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[idx];
+        if (!th) return;
+        SORT_STATE[table.id] = { idx, dir };
+        syncTableSortHeader(table, idx, dir);
+        const fn = TABLE_RERENDER[table.id];
+        if (fn) {
+          const pKey = table.id.replace('tbl', '').toLowerCase();
+          if (PAGE_STATE[pKey]) PAGE_STATE[pKey].page = 1;
+          fn();
+        }
         if (announce) {
-          sortStatus.textContent = '已依「' + th.textContent.trim() + '」' + (dir === 'ascending' ? '遞增' : '遞減') + '排序，共 ' + rows.length + ' 筆';
+          sortStatus.textContent = '已依「' + th.textContent.trim() + '」' + (dir === 'ascending' ? '遞增' : '遞減') + '排序';
         }
       }
       function sortTableByButton(table, button) {
@@ -1274,19 +1408,8 @@
         const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
         applyTableSort(table, th.cellIndex, dir, true);
       }
-      function applyActiveSort(table) {
-        const selId = TABLE_SORT_SELECT[table.id];
-        const selEl = selId && document.getElementById(selId);
-        if (selEl && selEl.value.includes(':')) {
-          const [i, d] = selEl.value.split(':');
-          applyTableSort(table, Number(i), d, false);
-          return;
-        }
-        const activeTh = table.tHead && table.tHead.querySelector('th[aria-sort]');
-        if (activeTh) applyTableSort(table, activeTh.cellIndex, activeTh.getAttribute('aria-sort'), false);
-      }
 
-      for (const tbl of document.querySelectorAll('table')) {
+      for (const tbl of document.querySelectorAll('table[id^="tbl"]')) {
         tbl.addEventListener('command', (e) => {
           if (e.command === '--sort' && e.source) sortTableByButton(tbl, e.source);
         });
@@ -1317,9 +1440,24 @@
         });
       }
 
-      function openNpcModal(npcId) {
-        if (!WORLD) return;
-        const n = WORLD.npcs.find(x => x.id === npcId);
+      let _dlgNpcId = null;
+      let _dlgTab = 'gear';
+      let _dlgPg = { bag: 1, trade: 1, combat: 1 };
+      const DLG_PAGE_SIZE = 15;
+
+      function dlgPagerHtml(subKey, page, pages, total) {
+        if (total <= DLG_PAGE_SIZE) return '';
+        return '<div class="pager" style="margin-top:8px"><div class="pager-info">第 ' + page + ' / ' + pages + ' 頁（共 ' + fmtNum(total) + ' 筆）</div><div class="pager-btns">' +
+          '<button type="button" data-dpg="' + subKey + '" data-to="1"' + (page <= 1 ? ' disabled' : '') + '>« 首頁</button>' +
+          '<button type="button" data-dpg="' + subKey + '" data-to="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>‹ 上一頁</button>' +
+          '<button type="button" data-dpg="' + subKey + '" data-to="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>下一頁 ›</button>' +
+          '<button type="button" data-dpg="' + subKey + '" data-to="' + pages + '"' + (page >= pages ? ' disabled' : '') + '>末頁 »</button>' +
+          '</div></div>';
+      }
+
+      function renderNpcModalBody() {
+        if (!WORLD || !_dlgNpcId) return;
+        const n = WORLD.npcs.find(x => x.id === _dlgNpcId);
         if (!n) return;
         dlgTitle.textContent = n.name + ' · Lv.' + n.lv + ' ' + (CLS_ZH[n.cls] || n.cls) + '（' + (TIER_ZH[n.tier] || n.tier) + '）';
         const eqHtml = (n.eq || []).map(e => {
@@ -1335,16 +1473,24 @@
         }).join('');
 
         const bagInfo = BAG_MAP.get(n.id);
-        const bagRows = bagInfo ? bagInfo.items.map(b =>
+        const bagAll = bagInfo ? bagInfo.items : [];
+        const bagPages = Math.max(1, Math.ceil(bagAll.length / DLG_PAGE_SIZE));
+        if (_dlgPg.bag > bagPages) _dlgPg.bag = bagPages;
+        const bagSlice = bagAll.slice((_dlgPg.bag - 1) * DLG_PAGE_SIZE, _dlgPg.bag * DLG_PAGE_SIZE);
+        const bagRows = bagSlice.map(b =>
           '<tr><td><span class="item-cell">' + iconHtml(b.id) + '<span>' + esc(b.disp) + ' <span class="badge">' + esc(b.catLabel) + '</span></span></span></td><td data-align="end">×' + fmtNum(b.qty) + '</td><td data-align="end">' + fmtNum(b.val) + ' 金</td></tr>'
-        ).join('') : '';
+        ).join('');
 
         const card = CARD_MAP.get(n.id);
         const cardBadge = card ? ('<span class="badge card-' + esc(card.tier || 'white') + '">' + esc(card.zh) + ' · ' + esc(card.name) + '</span>') : '<span style="color:var(--muted)">尚未同步</span>';
+
         const cLogs = COMBAT_MAP.get(n.id) || [];
         const cWins = cLogs.filter(x => x.win).length;
         const cRate = cLogs.length ? Math.round(cWins * 100 / cLogs.length) : 0;
-        const combatRows = cLogs.map(r => {
+        const cPages = Math.max(1, Math.ceil(cLogs.length / DLG_PAGE_SIZE));
+        if (_dlgPg.combat > cPages) _dlgPg.combat = cPages;
+        const cSlice = cLogs.slice((_dlgPg.combat - 1) * DLG_PAGE_SIZE, _dlgPg.combat * DLG_PAGE_SIZE);
+        const combatRows = cSlice.map(r => {
           const flHtml = (r.fl || []).map(f => {
             const cls = f.ok ? (f.bok === false ? 'fail' : 'ok') : 'fail';
             const mobTxt = f.n === 1 ? '單王' : (f.n + '怪');
@@ -1365,7 +1511,10 @@
         const tLogs = TRADE_MAP.get(n.id) || [];
         const tBuyCnt = tLogs.filter(x => x.bId === n.id).length;
         const tSellCnt = tLogs.length - tBuyCnt;
-        const tradeRows = tLogs.slice(0, 80).map(tr => {
+        const tPages = Math.max(1, Math.ceil(tLogs.length / DLG_PAGE_SIZE));
+        if (_dlgPg.trade > tPages) _dlgPg.trade = tPages;
+        const tSlice = tLogs.slice((_dlgPg.trade - 1) * DLG_PAGE_SIZE, _dlgPg.trade * DLG_PAGE_SIZE);
+        const tradeRows = tSlice.map(tr => {
           const isBuy = tr.bId === n.id;
           const disp = (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm + (tr.aff ? ' [' + tr.aff + ']' : '');
           const otherId = isBuy ? tr.sId : tr.bId;
@@ -1380,39 +1529,80 @@
 
         const st = n.stats || {};
         dlgBody.innerHTML =
-          '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px;font-size:0.92rem">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:8px;font-size:0.92rem">' +
           '<span>狀態：<strong>' + (n.state === 'village' ? '奇岩村擺攤' : '練功打寶中') + '</strong></span>' +
           '<span>變身卡：' + cardBadge + '</span>' +
           '<span>持有金幣：<strong style="color:var(--accent)">' + fmtNum(n.gold) + '</strong></span>' +
           '<span>力' + (st.str || 0) + ' 敏' + (st.dex || 0) + ' 體' + (st.con || 0) + ' 精' + (st.wis || 0) + ' 魅' + (st.cha || 0) + ' 智' + (st.int || 0) + '</span>' +
           '</div>' +
-          (n.shout || n.talk ? '<p style="margin:6px 0 12px;padding:8px 12px;border-radius:8px;background:var(--surface-2);font-size:0.9rem">💬「' + esc(n.shout || n.talk) + '」</p>' : '') +
-          '<h3 style="margin:12px 0 6px;font-size:0.98rem">身上穿戴裝備 (' + (n.eq || []).length + ' 件)</h3>' +
+          (n.shout || n.talk ? '<p style="margin:4px 0 10px;padding:7px 11px;border-radius:8px;background:var(--surface-2);font-size:0.88rem">💬「' + esc(n.shout || n.talk) + '」</p>' : '') +
+          '<div class="tablist dlg-tabs" role="tablist" aria-label="冒險者細項分頁">' +
+          '<button type="button" role="tab" data-dtab="gear" aria-selected="' + (_dlgTab === 'gear') + '">裝備與商店 (' + (n.eq || []).length + '/' + (n.shop || []).length + ')</button>' +
+          '<button type="button" role="tab" data-dtab="bag" aria-selected="' + (_dlgTab === 'bag') + '">背包物品 (' + bagAll.length + '種)</button>' +
+          '<button type="button" role="tab" data-dtab="trade" aria-selected="' + (_dlgTab === 'trade') + '">交易紀錄 (' + tLogs.length + ')</button>' +
+          '<button type="button" role="tab" data-dtab="combat" aria-selected="' + (_dlgTab === 'combat') + '">戰鬥紀錄 (' + cLogs.length + '場·' + cRate + '%)</button>' +
+          '</div>' +
+          '<section data-dpanel="gear"' + (_dlgTab === 'gear' ? '' : ' hidden') + '>' +
+          '<h3 style="margin:6px 0;font-size:0.96rem">身上穿戴裝備 (' + (n.eq || []).length + ' 件)</h3>' +
           '<div class="eq-grid">' + (eqHtml || '<span style="color:var(--muted)">無穿戴裝備</span>') + '</div>' +
-          '<h3 style="margin:12px 0 6px;font-size:0.98rem">個人商店貨架 (' + (n.shop || []).length + ' 件)</h3>' +
+          '<h3 style="margin:10px 0 6px;font-size:0.96rem">個人商店貨架 (' + (n.shop || []).length + ' 件)</h3>' +
           ((n.shop || []).length
             ? '<table class="dlg-shop"><thead><tr><th>商品</th><th data-align="end">數量</th><th data-align="end">售價</th></tr></thead><tbody>' + shopRows + '</tbody></table>'
             : '<p style="color:var(--muted);margin:4px 0">目前個人商店空空如也。</p>') +
-          '<h3 style="margin:16px 0 6px;font-size:0.98rem">背包物品 (' + (bagInfo ? (bagInfo.items.length + ' 種 / 合計 ' + fmtNum(bagInfo.totalQty) + ' 件 · 估值 ' + fmtNum(bagInfo.totalVal) + ' 金') : '尚未載入 npc_state.json') + ')</h3>' +
-          (bagInfo && bagInfo.items.length
-            ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>'
+          '</section>' +
+          '<section data-dpanel="bag"' + (_dlgTab === 'bag' ? '' : ' hidden') + '>' +
+          '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">' + (bagInfo ? ('合計 ' + fmtNum(bagInfo.totalQty) + ' 件 · 總估值 ' + fmtNum(bagInfo.totalVal) + ' 金') : '尚未載入 npc_state.json') + '</div>' +
+          (bagAll.length
+            ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>' + dlgPagerHtml('bag', _dlgPg.bag, bagPages, bagAll.length)
             : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>') +
-          '<h3 style="margin:16px 0 6px;font-size:0.98rem">最近 66 ticks 交易紀錄 (買入 ' + tBuyCnt + ' / 賣出 ' + tSellCnt + ')</h3>' +
+          '</section>' +
+          '<section data-dpanel="trade"' + (_dlgTab === 'trade' ? '' : ' hidden') + '>' +
+          '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">最近 66 ticks：買入 ' + tBuyCnt + ' 筆 ／ 賣出 ' + tSellCnt + ' 筆</div>' +
           (tLogs.length
-            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>買賣對象</th><th>商品</th><th data-align="end">成交額</th></tr></thead><tbody>' + tradeRows + '</tbody></table>'
+            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>買賣對象</th><th>商品</th><th data-align="end">成交額</th></tr></thead><tbody>' + tradeRows + '</tbody></table>' + dlgPagerHtml('trade', _dlgPg.trade, tPages, tLogs.length)
             : '<p style="color:var(--muted);margin:4px 0">尚無最近市場成交紀錄。</p>') +
-          '<h3 style="margin:16px 0 6px;font-size:0.98rem">最近 66 ticks 戰鬥紀錄 (' + cLogs.length + ' 場 · 通關率 ' + cRate + '%)</h3>' +
+          '</section>' +
+          '<section data-dpanel="combat"' + (_dlgTab === 'combat' ? '' : ' hidden') + '>' +
+          '<div style="color:var(--muted);font-size:0.86rem;margin-bottom:6px">最近 66 ticks：共 ' + cLogs.length + ' 場 · 完整通關率 ' + cRate + '%</div>' +
           (cLogs.length
-            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table>'
-            : '<p style="color:var(--muted);margin:4px 0">尚無最近戰鬥紀錄（推進模擬 tick 後會即時更新於後台）。</p>');
-        dlg.showModal();
+            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table>' + dlgPagerHtml('combat', _dlgPg.combat, cPages, cLogs.length)
+            : '<p style="color:var(--muted);margin:4px 0">尚無最近戰鬥紀錄。</p>') +
+          '</section>';
+
+        dlgBody.querySelectorAll('button[data-dtab]').forEach(b => {
+          b.addEventListener('click', () => {
+            _dlgTab = b.dataset.dtab;
+            renderNpcModalBody();
+            dlgBody.scrollTop = 0;
+          });
+        });
+        dlgBody.querySelectorAll('button[data-dpg]').forEach(b => {
+          b.addEventListener('click', () => {
+            _dlgPg[b.dataset.dpg] = Number(b.dataset.to);
+            renderNpcModalBody();
+            dlgBody.scrollTop = 0;
+          });
+        });
       }
 
-      // Render functions
+      function openNpcModal(npcId) {
+        if (!WORLD) return;
+        const n = WORLD.npcs.find(x => x.id === npcId);
+        if (!n) return;
+        if (_dlgNpcId !== npcId) {
+          _dlgNpcId = npcId;
+          _dlgPg = { bag: 1, trade: 1, combat: 1 };
+        }
+        renderNpcModalBody();
+        dlgBody.scrollTop = 0;
+        if (!dlg.open) dlg.showModal();
+      }
+
+      // Render functions (full sort first, then paginate)
       function renderShops() {
         const q = document.getElementById('qShop').value.trim().toLowerCase();
         const cat = document.getElementById('fShopCat').value;
-        const rows = ALL_SHOPS.filter(r => {
+        const filtered = ALL_SHOPS.filter(r => {
           if (cat !== 'all') {
             if (cat === 'consumable') { if (r.catKey !== 'potion') return false; }
             else if (r.catKey !== cat) return false;
@@ -1420,9 +1610,15 @@
           if (q && !r.searchText.includes(q)) return false;
           return true;
         });
-        document.getElementById('nShop').textContent = '顯示 ' + fmtNum(rows.length) + ' / ' + fmtNum(ALL_SHOPS.length) + ' 筆';
-        const tb = document.getElementById('tbShops');
-        tb.innerHTML = rows.map(r =>
+        const s = SORT_STATE.tblShops;
+        const keySpec = [
+          [r => r.name, 'text'], [r => r.catLabel, 'text'], [r => r.n, 'number'],
+          [r => r.price, 'number'], [r => r.refTotal, 'number'], [r => r.sellerName, 'text'],
+        ][s.idx] || [r => r.price, 'number'];
+        const sorted = sortRowsData(filtered, keySpec[0], keySpec[1], s.dir);
+        const pg = paginateSlice(sorted, 'shops');
+        document.getElementById('nShop').textContent = '符合 ' + fmtNum(pg.total) + ' / ' + fmtNum(ALL_SHOPS.length) + ' 筆';
+        document.getElementById('tbShops').innerHTML = pg.slice.map(r =>
           '<tr>' +
           '<th scope="row" data-value="' + esc(r.name) + '"><span class="item-cell">' + iconHtml(r.item) + '<span>' + esc(r.name) + (r.aff ? ' <span class="affix">[' + esc(r.aff.name) + ']</span>' : '') + '</span></span></th>' +
           '<td><span class="badge">' + esc(r.catLabel) + '</span></td>' +
@@ -1432,7 +1628,7 @@
           '<td data-value="' + esc(r.sellerName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.sellerId) + '">' + esc(r.sellerName) + '</button> <span class="badge ' + esc(r.tier) + '">' + esc(TIER_ZH[r.tier] || '') + '</span></td>' +
           '</tr>'
         ).join('');
-        applyActiveSort(document.getElementById('tblShops'));
+        renderPager('pgShops', 'shops', pg, renderShops);
       }
 
       function renderNpcs() {
@@ -1440,7 +1636,7 @@
         const q = document.getElementById('qNpc').value.trim().toLowerCase();
         const tier = document.getElementById('fNpcTier').value;
         const st = document.getElementById('fNpcState').value;
-        const list = WORLD.npcs.filter(n => {
+        const filtered = WORLD.npcs.filter(n => {
           if (tier !== 'all' && n.tier !== tier) return false;
           if (st !== 'all' && n.state !== st) return false;
           if (q) {
@@ -1450,18 +1646,31 @@
             if (!blob.includes(q)) return false;
           }
           return true;
-        }).slice().sort((a, b) => b.lv - a.lv || b.gold - a.gold);
-
-        document.getElementById('nNpc').textContent = '顯示 ' + list.length + ' / ' + WORLD.npcs.length + ' 人';
-        document.getElementById('tbNpcs').innerHTML = list.map(n => {
+        });
+        const s = SORT_STATE.tblNpcs;
+        const keySpec = [
+          [n => n.name, 'text'],
+          [n => CLS_ZH[n.cls] || n.cls, 'text'],
+          [n => n.lv, 'number'],
+          [n => n.gold, 'number'],
+          [n => (n.shop || []).length, 'number'],
+          [n => (BAG_MAP.get(n.id) ? BAG_MAP.get(n.id).items.length : 0), 'number'],
+          [n => (n.state === 'village' ? '村莊' : '練功'), 'text'],
+        ][s.idx] || [n => n.lv, 'number'];
+        const sorted = sortRowsData(filtered, keySpec[0], keySpec[1], s.dir);
+        const pg = paginateSlice(sorted, 'npcs');
+        document.getElementById('nNpc').textContent = '符合 ' + pg.total + ' / ' + WORLD.npcs.length + ' 人';
+        document.getElementById('tbNpcs').innerHTML = pg.slice.map(n => {
           const w = n.weapon || {};
           const wd = itemDef(w.id);
           const wTxt = (w.ench > 0 ? '+' + w.ench + ' ' : '') + ((wd && wd.name) || '空手');
           const shopCnt = (n.shop || []).length;
           const bagInfo = BAG_MAP.get(n.id);
           const bagTypes = bagInfo ? bagInfo.items.length : 0;
+          const card = CARD_MAP.get(n.id);
+          const cardTag = card ? (' <span class="badge card-' + esc(card.tier) + '">' + esc(card.zh) + '</span>') : '';
           return '<tr>' +
-            '<th scope="row" data-value="' + esc(n.name) + '"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button></th>' +
+            '<th scope="row" data-value="' + esc(n.name) + '"><button type="button" class="link-btn" data-npc="' + esc(n.id) + '">' + esc(n.name) + '</button>' + cardTag + '</th>' +
             '<td data-value="' + esc(CLS_ZH[n.cls] || n.cls) + '">' + esc(CLS_ZH[n.cls] || n.cls) + ' <span class="badge ' + esc(n.tier) + '">' + esc(TIER_ZH[n.tier] || n.tier) + '</span></td>' +
             '<td data-align="end" data-value="' + n.lv + '"><strong>Lv.' + n.lv + '</strong></td>' +
             '<td data-align="end" data-value="' + n.gold + '">' + fmtNum(n.gold) + '</td>' +
@@ -1470,21 +1679,28 @@
             '<td><span class="badge ' + (n.state === 'village' ? 'village' : '') + '">' + (n.state === 'village' ? '村莊' : '練功') + '</span> ' + esc(wTxt) + '</td>' +
             '</tr>';
         }).join('');
-        applyActiveSort(document.getElementById('tblNpcs'));
+        renderPager('pgNpcs', 'npcs', pg, renderNpcs);
       }
 
       function renderMarket() {
         const q = document.getElementById('qMarket').value.trim().toLowerCase();
         const cat = document.getElementById('fMktCat').value;
         const onlyStock = document.getElementById('chkMktStock').checked;
-        const rows = ALL_MKT.filter(m => {
+        const filtered = ALL_MKT.filter(m => {
           if (cat !== 'all' && m.catKey !== cat) return false;
           if (onlyStock && m.supply <= 0) return false;
           if (q && !m.searchText.includes(q)) return false;
           return true;
         });
-        document.getElementById('nMkt').textContent = '顯示 ' + fmtNum(rows.length) + ' / ' + fmtNum(ALL_MKT.length) + ' 項';
-        document.getElementById('tbMarket').innerHTML = rows.map(m =>
+        const s = SORT_STATE.tblMarket;
+        const keySpec = [
+          [m => m.disp, 'text'], [m => m.key, 'text'], [m => m.catLabel, 'text'],
+          [m => m.price, 'number'], [m => m.supply, 'number'], [m => m.bagSupply, 'number'],
+        ][s.idx] || [m => m.price, 'number'];
+        const sorted = sortRowsData(filtered, keySpec[0], keySpec[1], s.dir);
+        const pg = paginateSlice(sorted, 'market');
+        document.getElementById('nMkt').textContent = '符合 ' + fmtNum(pg.total) + ' / ' + fmtNum(ALL_MKT.length) + ' 項';
+        document.getElementById('tbMarket').innerHTML = pg.slice.map(m =>
           '<tr>' +
           '<th scope="row" data-value="' + esc(m.disp) + '"><span class="item-cell">' + iconHtml(m.id) + '<span>' + esc(m.disp) + '</span></span></th>' +
           '<td data-value="' + esc(m.key) + '"><code>' + m.id + '</code>' + (m.ench > 0 ? ' <span class="badge">+' + m.ench + '</span>' : '') + '</td>' +
@@ -1494,26 +1710,31 @@
           '<td data-align="end" data-value="' + m.bagSupply + '">' + (m.bagSupply > 0 ? fmtNum(m.bagSupply) + ' 個' : '<span style="color:var(--muted)">0</span>') + '</td>' +
           '</tr>'
         ).join('');
-        applyActiveSort(document.getElementById('tblMarket'));
+        renderPager('pgMarket', 'market', pg, renderMarket);
       }
 
       function renderCombat() {
         const q = document.getElementById('qCombat').value.trim().toLowerCase();
         const resF = document.getElementById('fCombatRes').value;
         const diffF = document.getElementById('fCombatDiff').value;
-        const rows = ALL_COMBAT.filter(r => {
+        const filtered = ALL_COMBAT.filter(r => {
           if (resF === 'win' && !r.win) return false;
           if (resF === 'wipe' && r.win) return false;
           if (diffF !== 'all' && r.diff !== diffF) return false;
           if (q && !r.searchText.includes(q)) return false;
           return true;
         });
-        const shown = rows.slice(0, 300);
-        const winCnt = rows.filter(r => r.win).length;
-        const winPct = rows.length ? Math.round(winCnt * 100 / rows.length) : 0;
-        document.getElementById('nCombat').textContent =
-          (rows.length > 300 ? '顯示前 300 / ' : '顯示 ') + fmtNum(rows.length) + ' 場（通關率 ' + winPct + '%）';
-        document.getElementById('tbCombat').innerHTML = shown.map(r => {
+        const winCnt = filtered.filter(r => r.win).length;
+        const winPct = filtered.length ? Math.round(winCnt * 100 / filtered.length) : 0;
+        const s = SORT_STATE.tblCombat;
+        const keySpec = [
+          [r => r.t, 'number'], [r => r.npcName, 'text'], [r => r.seg, 'text'],
+          [r => r.seg, 'text'], [r => r.k, 'number'], [r => r.g, 'number'], [r => r.t, 'number'],
+        ][s.idx] || [r => r.t, 'number'];
+        const sorted = sortRowsData(filtered, keySpec[0], keySpec[1], s.dir);
+        const pg = paginateSlice(sorted, 'combat');
+        document.getElementById('nCombat').textContent = '符合 ' + fmtNum(pg.total) + ' 場（通關率 ' + winPct + '%）';
+        document.getElementById('tbCombat').innerHTML = pg.slice.map(r => {
           const flHtml = (r.fl || []).map(f => {
             const cls = f.ok ? (f.bok === false ? 'fail' : 'ok') : 'fail';
             const mobTxt = f.n === 1 ? '單王' : (f.n + '怪');
@@ -1531,23 +1752,30 @@
             '<td style="font-size:0.84rem">' + esc(drTxt) + '</td>' +
             '</tr>';
         }).join('');
-        applyActiveSort(document.getElementById('tblCombat'));
+        renderPager('pgCombat', 'combat', pg, renderCombat);
       }
 
       function renderTrades() {
         const q = document.getElementById('qTrades').value.trim().toLowerCase();
         const bt = document.getElementById('fTradeBuyerTier').value;
-        const rows = ALL_TRADES.filter(r => {
+        const filtered = ALL_TRADES.filter(r => {
           if (bt !== 'all' && r.bt !== bt) return false;
           if (q && !r.searchText.includes(q)) return false;
           return true;
         });
-        const totalVol = rows.reduce((a, b) => a + (b.p || 0), 0);
-        const totalTax = rows.reduce((a, b) => a + (b.tax || 0), 0);
-        const shown = rows.slice(0, 400);
+        const totalVol = filtered.reduce((a, b) => a + (b.p || 0), 0);
+        const totalTax = filtered.reduce((a, b) => a + (b.tax || 0), 0);
+        const s = SORT_STATE.tblTrades;
+        const keySpec = [
+          [tr => tr.t, 'number'], [tr => tr.b, 'text'], [tr => tr.s, 'text'],
+          [tr => (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm, 'text'],
+          [tr => tr.n || 1, 'number'], [tr => tr.p, 'number'], [tr => tr.r || 1, 'number'],
+        ][s.idx] || [tr => tr.t, 'number'];
+        const sorted = sortRowsData(filtered, keySpec[0], keySpec[1], s.dir);
+        const pg = paginateSlice(sorted, 'trades');
         document.getElementById('nTrades').textContent =
-          (rows.length > 400 ? '顯示前 400 / ' : '顯示 ') + fmtNum(rows.length) + ' 筆（交易額 ' + fmtNum(totalVol) + ' 金 · 銷毀稅 ' + fmtNum(totalTax) + ' 金）';
-        document.getElementById('tbTrades').innerHTML = shown.map(tr => {
+          '符合 ' + fmtNum(pg.total) + ' 筆（交易額 ' + fmtNum(totalVol) + ' 金 · 銷毀稅 ' + fmtNum(totalTax) + ' 金）';
+        document.getElementById('tbTrades').innerHTML = pg.slice.map(tr => {
           const disp = (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm;
           return '<tr>' +
             '<td data-align="end" data-value="' + tr.t + '"><strong>#' + tr.t + '</strong></td>' +
@@ -1559,8 +1787,16 @@
             '<td data-align="end" data-value="' + (tr.r || 1) + '">' + Math.round((tr.r || 1) * 100) + '%</td>' +
             '</tr>';
         }).join('');
-        applyActiveSort(document.getElementById('tblTrades'));
+        renderPager('pgTrades', 'trades', pg, renderTrades);
       }
+
+      TABLE_RERENDER = {
+        tblShops: renderShops,
+        tblNpcs: renderNpcs,
+        tblMarket: renderMarket,
+        tblCombat: renderCombat,
+        tblTrades: renderTrades,
+      };
 
       // Click delegation for NPC buttons
       document.addEventListener('click', (e) => {
@@ -1568,11 +1804,11 @@
         if (btn) openNpcModal(btn.dataset.npc);
       });
 
-      for (const id of ['qShop', 'fShopCat']) document.getElementById(id).addEventListener('input', renderShops);
-      for (const id of ['qNpc', 'fNpcTier', 'fNpcState']) document.getElementById(id).addEventListener('input', renderNpcs);
-      for (const id of ['qMarket', 'fMktCat', 'chkMktStock']) document.getElementById(id).addEventListener('input', renderMarket);
-      for (const id of ['qCombat', 'fCombatRes', 'fCombatDiff']) document.getElementById(id).addEventListener('input', renderCombat);
-      for (const id of ['qTrades', 'fTradeBuyerTier']) document.getElementById(id).addEventListener('input', renderTrades);
+      for (const id of ['qShop', 'fShopCat']) document.getElementById(id).addEventListener('input', () => { PAGE_STATE.shops.page = 1; renderShops(); });
+      for (const id of ['qNpc', 'fNpcTier', 'fNpcState']) document.getElementById(id).addEventListener('input', () => { PAGE_STATE.npcs.page = 1; renderNpcs(); });
+      for (const id of ['qMarket', 'fMktCat', 'chkMktStock']) document.getElementById(id).addEventListener('input', () => { PAGE_STATE.market.page = 1; renderMarket(); });
+      for (const id of ['qCombat', 'fCombatRes', 'fCombatDiff']) document.getElementById(id).addEventListener('input', () => { PAGE_STATE.combat.page = 1; renderCombat(); });
+      for (const id of ['qTrades', 'fTradeBuyerTier']) document.getElementById(id).addEventListener('input', () => { PAGE_STATE.trades.page = 1; renderTrades(); });
 
       async function loadWorld() {
         const btn = document.getElementById('btnReload');
