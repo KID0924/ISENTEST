@@ -2795,81 +2795,113 @@ def upgrade_npc_gear_and_enchant(
                 new_eq["aff"] = aff_k
             eq[slot] = new_eq
 
-    # B. 用打到/買到的卷軸衝裝（核心爆裝回收水池）
+    # B. 用打到/買到的卷軸衝裝：所有階層全身安定值以內皆一次補滿；過安定維持每 tick 各 1 次高風險衝裝
     w_scr = f"{SCROLL_WEAPON_NORMAL}:0:"
     bw_scr = f"{SCROLL_WEAPON_BLESSED}:0:"
     a_scr = f"{SCROLL_ARMOR_NORMAL}:0:"
     ba_scr = f"{SCROLL_ARMOR_BLESSED}:0:"
 
-    # 肝帝 / 一般玩家 / 富商會自己買卷軸把武器至少衝到安定值 (+6)
     is_rich_scalper = (npc["tier"] == "scalper" and npc["gold"] >= 30_000_000)
     self_over = 2 if (npc["tier"] == "whale" or (npc["tier"] == "scalper" and npc["gold"] >= 60_000_000)) else 1 if (npc["tier"] == "regular" or is_rich_scalper) else 0
-    w_obj = eq.get("weapon")
-    if w_obj and (npc["tier"] in ("whale", "regular") or is_rich_scalper) and npc["gold"] >= 90000:
-        w_it = db.items[w_obj["id"]]
-        safe = max(0, int(w_it.get("safe", 6)))
-        if w_obj.get("ench", 0) < safe and bag.get(w_scr, 0) == 0 and npc["gold"] >= 95000:
-            npc["gold"] -= 85000  # 商店/系統回收買卷
-            bag[w_scr] = 1
+    gold_reserve = 150_000 if npc["tier"] == "scalper" else 50_000
 
-    # 試圖強化武器
-    if w_obj:
-        w_it = db.items[w_obj["id"]]
-        safe = max(0, int(w_it.get("safe", 6)))
-        max_try = min(ENCH_MAX, safe + self_over + ench_bonus)
-        cur_e = w_obj.get("ench", 0)
-        if cur_e < max_try:
-            use_key = bw_scr if (cur_e >= safe and bag.get(bw_scr, 0) > 0) else w_scr if bag.get(w_scr, 0) > 0 else None
-            if use_key:
-                blessed = use_key == bw_scr
-                bag[use_key] -= 1
-                if bag[use_key] <= 0:
-                    del bag[use_key]
-                p = _npc_enchant_step_prob("weapon", cur_e, safe, blessed=blessed)
-                if rng.random() < p:
-                    w_obj["ench"] = cur_e + 1
-                    if w_obj["ench"] >= 7:
-                        ticker.append(f"🔥【衝裝成功】「{npc['name']}」將【+{w_obj['ench']} {w_it['name']}】強化成功！")
-                        new_events.append(f"剛把 {w_it['name']} 衝到 +{w_obj['ench']}，心情超好！")
-                else:
-                    # 過安定失敗爆裝！武器降回備用白武（插在上面的怪物卡一併消失）
-                    if cur_e >= safe:
-                        ticker.append(f"💥【化為光影】「{npc['name']}」衝 +{cur_e+1} {w_it['name']} 失敗爆掉了……")
-                        new_events.append(f"剛衝 +{cur_e+1} {w_it['name']} 爆了，正在奇岩發呆療傷…")
-                        eq["weapon"] = {"id": db.startw.get(cls, 172), "ench": 0, "n": 1}
-                        ((npc.get("mcards") or {}).get("sock") or {}).pop("weapon", None)
+    def _take_or_buy_pre_safe_scroll(kind: str) -> tuple[bool, bool]:
+        n_k = w_scr if kind == "weapon" else a_scr
+        b_k = bw_scr if kind == "weapon" else ba_scr
+        scr_cost = 85_000 if kind == "weapon" else 41_000
+        if bag.get(n_k, 0) > 0:
+            bag[n_k] -= 1
+            if bag[n_k] <= 0:
+                del bag[n_k]
+            return True, False
+        if npc["gold"] >= scr_cost + gold_reserve:
+            npc["gold"] -= scr_cost
+            return True, False
+        if bag.get(b_k, 0) > 0:
+            bag[b_k] -= 1
+            if bag[b_k] <= 0:
+                del bag[b_k]
+            return True, True
+        return False, False
 
-    # 試圖強化隨機一件防具（富商亦自動補防捲至安定值）
-    arm_slots = [s for s in eq.keys() if s != "weapon"]
-    if arm_slots and is_rich_scalper and bag.get(a_scr, 0) == 0 and bag.get(ba_scr, 0) == 0 and npc["gold"] >= 100_000:
-        for _sl in arm_slots:
-            _asafe = int(db.items.get(eq[_sl]["id"], {}).get("safe", 4))
-            if _asafe > 0 and eq[_sl].get("ench", 0) < _asafe:
-                npc["gold"] -= 41000
-                bag[a_scr] = 1
+    def _enchant_to_safe(obj: dict[str, Any], kind: str, safe: int) -> None:
+        while safe > 0 and obj.get("ench", 0) < safe:
+            ok, blessed = _take_or_buy_pre_safe_scroll(kind)
+            if not ok:
                 break
-    if arm_slots and (bag.get(a_scr, 0) > 0 or bag.get(ba_scr, 0) > 0):
-        slot = rng.choice(arm_slots)
-        a_obj = eq[slot]
-        a_it = db.items.get(a_obj["id"], {})
-        safe = int(a_it.get("safe", 4))
-        cur_e = a_obj.get("ench", 0)
+            cur_e = obj.get("ench", 0)
+            p = _npc_enchant_step_prob(kind, cur_e, safe, blessed=blessed)
+            if rng.random() < p:
+                obj["ench"] = cur_e + 1
+            else:
+                break
+
+    def _try_oversafe_slot(slot_key: str, kind: str) -> None:
+        obj = eq.get(slot_key)
+        if not obj:
+            return
+        it = db.items.get(obj["id"], {})
+        default_safe = 6 if kind == "weapon" else 4
+        safe = max(0, int(it.get("safe", default_safe)))
+        cur_e = obj.get("ench", 0)
         max_try = min(ENCH_MAX, safe + self_over + ench_bonus)
-        if safe > 0 and cur_e < max_try:
-            use_key = ba_scr if (cur_e >= safe and bag.get(ba_scr, 0) > 0) else a_scr if bag.get(a_scr, 0) > 0 else None
-            if use_key:
-                blessed = use_key == ba_scr
-                bag[use_key] -= 1
-                if bag[use_key] <= 0:
-                    del bag[use_key]
-                p = _npc_enchant_step_prob("armor", cur_e, safe, blessed=blessed)
-                if rng.random() < p:
-                    a_obj["ench"] = cur_e + 1
-                    if a_obj["ench"] >= 7:
-                        ticker.append(f"✨【防具神話】「{npc['name']}」強化出【+{a_obj['ench']} {a_it.get('name','防具')}】！")
-                elif cur_e >= safe:
-                    del eq[slot]
-                    ((npc.get("mcards") or {}).get("sock") or {}).pop(slot, None)
+        if safe <= 0 or cur_e < safe or cur_e >= max_try:
+            return
+        n_k = w_scr if kind == "weapon" else a_scr
+        b_k = bw_scr if kind == "weapon" else ba_scr
+        use_key = b_k if bag.get(b_k, 0) > 0 else n_k if bag.get(n_k, 0) > 0 else None
+        if not use_key:
+            return
+        blessed = use_key == b_k
+        bag[use_key] -= 1
+        if bag[use_key] <= 0:
+            del bag[use_key]
+        p = _npc_enchant_step_prob(kind, cur_e, safe, blessed=blessed)
+        if rng.random() < p:
+            obj["ench"] = cur_e + 1
+            if obj["ench"] >= 7:
+                if kind == "weapon":
+                    ticker.append(f"🔥【衝裝成功】「{npc['name']}」將【+{obj['ench']} {it['name']}】強化成功！")
+                    new_events.append(f"剛把 {it['name']} 衝到 +{obj['ench']}，心情超好！")
+                else:
+                    ticker.append(f"✨【防具神話】「{npc['name']}」強化出【+{obj['ench']} {it.get('name', '防具')}】！")
+        else:
+            if kind == "weapon":
+                ticker.append(f"💥【化為光影】「{npc['name']}」衝 +{cur_e+1} {it['name']} 失敗爆掉了……")
+                new_events.append(f"剛衝 +{cur_e+1} {it['name']} 爆了，正在奇岩發呆療傷…")
+                eq["weapon"] = {"id": db.startw.get(cls, 172), "ench": 0, "n": 1}
+            else:
+                del eq[slot_key]
+            ((npc.get("mcards") or {}).get("sock") or {}).pop(slot_key, None)
+
+    # B1. 先將身上武器與所有可安全強化防具補滿至安定值（全員皆點滿）
+    w_obj = eq.get("weapon")
+    if w_obj:
+        w_safe = max(0, int(db.items.get(w_obj["id"], {}).get("safe", 6)))
+        _enchant_to_safe(w_obj, "weapon", w_safe)
+
+    arm_slots = [s for s in eq.keys() if s != "weapon"]
+    for _sl in arm_slots:
+        _a_obj = eq.get(_sl)
+        if not _a_obj:
+            continue
+        _asafe = max(0, int(db.items.get(_a_obj["id"], {}).get("safe", 4)))
+        if _asafe > 0:
+            _enchant_to_safe(_a_obj, "armor", _asafe)
+
+    # B2. 過安定高風險強化：武器 1 次＋從已達安定值且未滿上限的防具中挑 1 件衝過安定
+    _try_oversafe_slot("weapon", "weapon")
+    over_arm_slots = []
+    for _sl in arm_slots:
+        _a_obj = eq.get(_sl)
+        if not _a_obj:
+            continue
+        _asafe = max(0, int(db.items.get(_a_obj["id"], {}).get("safe", 4)))
+        _amax = min(ENCH_MAX, _asafe + self_over + ench_bonus)
+        if _asafe > 0 and _asafe <= _a_obj.get("ench", 0) < _amax:
+            over_arm_slots.append(_sl)
+    if over_arm_slots and (bag.get(a_scr, 0) > 0 or bag.get(ba_scr, 0) > 0):
+        _try_oversafe_slot(rng.choice(over_arm_slots), "armor")
 
 
 def scalper_gamble_resell_gear(
