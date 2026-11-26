@@ -1294,7 +1294,7 @@
         const cLogs = COMBAT_MAP.get(n.id) || [];
         const cWins = cLogs.filter(x => x.win).length;
         const cRate = cLogs.length ? Math.round(cWins * 100 / cLogs.length) : 0;
-        const combatRows = cLogs.slice(0, 60).map(r => {
+        const combatRows = cLogs.map(r => {
           const flHtml = (r.fl || []).map(f => {
             const cls = f.ok ? (f.bok === false ? 'fail' : 'ok') : 'fail';
             const mobTxt = f.n === 1 ? '單王' : (f.n + '怪');

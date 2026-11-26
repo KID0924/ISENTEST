@@ -1591,18 +1591,19 @@ def eval_floor_combat(
     horde_count = min(80.0, base_mobs * diff_mob_mult)
 
     # 這層怪物群的清場負荷（結合推薦等級、怪物實際血量與 DVHP 樓層硬度、難度倍率）
+    # 對齊 combined=1.0 -> survival_prob=58% 的真實比例刻度
     avg_hp = max(40.0, float(st.get("avgMobHp", rec_lv * 8.0)))
     hp_scale = (avg_hp / max(50.0, rec_lv * 7.5)) ** 0.20
-    horde_hp_load = (rec_lv * 1.48 + 7.5) * ((horde_count / 28.0) ** 0.44) * (dvhp ** 0.24) * (mon_k ** 0.36) * hp_scale
-    clear_ratio = (prof["aoe_power"] * run_luck) / max(8.0, horde_hp_load)
+    horde_hp_load = (rec_lv * 7.80 + 38.0) * ((horde_count / 28.0) ** 0.44) * (dvhp ** 0.24) * (mon_k ** 0.36) * hp_scale
+    clear_ratio = (prof["aoe_power"] * run_luck) / max(15.0, horde_hp_load)
 
     # 清不完而溢出的怪比例：clear_ratio 越低，越多怪衝到臉上圍毆
-    overflow = max(0.18, min(1.95, 0.34 + max(0.0, 1.08 - clear_ratio) * 1.18))
-    mob_dmg_load = (rec_lv * 0.92 + 5.2) * dvdmg * (mon_k ** 0.34) * overflow
-    tank_ratio = (prof["tank_power"] * (0.85 + 0.30 * run_luck)) / max(7.0, mob_dmg_load)
+    overflow = max(0.22, min(2.05, 0.42 + max(0.0, 1.08 - clear_ratio) * 1.15))
+    mob_dmg_load = (rec_lv * 4.25 + 24.0) * dvdmg * (mon_k ** 0.34) * overflow
+    tank_ratio = (prof["tank_power"] * (0.85 + 0.30 * run_luck)) / max(15.0, mob_dmg_load)
 
     combined = 0.48 * clear_ratio + 0.52 * tank_ratio
-    surv_p = survival_prob(combined, 1.0)
+    surv_p = survival_prob(combined * 10.0, 10.0)
     return {
         "mobs": horde_count,
         "clr": clear_ratio,
@@ -1804,17 +1805,17 @@ def simulate_tick(
                                     qty = rng.randint(int(dr.get("min", 1)), int(dr.get("max", 1)))
                                     rolled_loot.append((iid, 0, qty, None))
 
-                    # 小怪層撐不撐得過檢定（沒撐過就半途翻車，當層掉落只帶回一半）
+                    # 小怪層撐不撐得過檢定（沒撐過就半途翻車：擊殺／經驗／金幣／掉落顯著減少）
                     if rng.random() > surv_p:
-                        kills_kept = int(kills * 0.60)
+                        kills_kept = int(kills * 0.30)
                         npc["kills"] = npc.get("kills", 0) + kills_kept
                         run_kills_acc += kills_kept
-                        exp_gain = int(exp_gain * 0.65)
+                        exp_gain = int(exp_gain * 0.40)
                         run_exp_acc += exp_gain
-                        fl_gold_net = max(0, int(fl_gold * 0.55) - upkeep_fl)
+                        fl_gold_net = max(0, int(fl_gold * 0.25) - upkeep_fl)
                         run_gold_acc += fl_gold_net
                         for iid_l, e_l, q_l, aff_l in rolled_loot:
-                            if rng.random() < 0.50:
+                            if rng.random() < 0.25:
                                 self_bag_add(npc, iid_l, e_l, q_l, aff_l)
                                 _rec_drop(iid_l, e_l, q_l)
                         wiped = True
