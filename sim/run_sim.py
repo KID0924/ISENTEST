@@ -12,7 +12,7 @@
    - whale (5): 重課肝帝 35~50 場/天
    - regular (35): 一般冒險者 12~25 場/天
    - casual (20): 新手探險家 8~15 場/天（急售便宜貨 0.65~0.85×）
-   - scalper (10): 奇岩商人 10~17 場/天（低掃 <=0.80×、加價轉賣 1.04~1.16×，金幣上限 2 億）
+   - scalper (10): 奇岩商人 12~25 場/天（低掃 <=0.80×、加價轉賣 1.04~1.16×，金幣上限 2 億）
 3. 具備完整防通膨與資源回收機制：
    - 依真實 enchRate() 衝裝（失敗爆裝消耗裝備與卷軸）
    - 藥水/傳捲消耗、拍賣交易 10% 手續費銷毀
@@ -47,6 +47,7 @@ CLS_ZH = {
     "ill": "幻術師",
 }
 TIER_COUNTS = {"whale": 5, "regular": 35, "casual": 20, "scalper": 10}
+WHALE_RETIRE_QUOTAS = {"scalper": 2, "regular": 4, "casual": 3}
 TIER_ZH = {
     "whale": "重課肝帝",
     "regular": "一般冒險者",
@@ -57,7 +58,7 @@ TIER_RUNS_PER_DAY = {
     "whale": (35, 50),
     "regular": (12, 25),
     "casual": (8, 15),
-    "scalper": (10, 17),
+    "scalper": (12, 25),
 }
 TIER_SELL_MULT = {
     "whale": (1.00, 1.10),
@@ -1477,25 +1478,31 @@ def create_new_npc(
         "lastEvent": f"剛加入奇岩冒險的小{CLS_ZH[cls]}",
         "state": "village",
     }
-    if tier == "scalper" and whale_retire:
+    if tier in WHALE_RETIRE_QUOTAS and whale_retire:
         npc_obj["whaleRetire"] = True
     return npc_obj
 
 
-def ensure_elite_scalpers(npcs: list[dict[str, Any]], target: int = 2) -> None:
-    """確保 10 位商人中有固定 2 位套用肝帝退坑機制（不吃年齡/35~45等退坑）"""
-    scalpers = [n for n in npcs if n.get("tier") == "scalper"]
-    marked = [n for n in scalpers if n.get("whaleRetire")]
-    if len(marked) > target:
-        for extra in marked[target:]:
-            extra.pop("whaleRetire", None)
-        return
-    if len(marked) < target:
-        need = target - len(marked)
-        cands = [n for n in scalpers if not n.get("whaleRetire")]
-        cands.sort(key=lambda n: (-int(n.get("gold", 0)), str(n.get("id", ""))))
-        for n in cands[:need]:
-            n["whaleRetire"] = True
+def ensure_whale_retire_elites(
+    npcs: list[dict[str, Any]], quotas: dict[str, int] | None = None
+) -> None:
+    """確保指定職業層（商人 2、一般 4、新手 3）套用肝帝退坑機制（不吃年齡與35~45等退坑）"""
+    q = quotas if quotas is not None else WHALE_RETIRE_QUOTAS
+    for n in npcs:
+        if n.get("tier") not in q and n.get("whaleRetire"):
+            n.pop("whaleRetire", None)
+    for tier_key, target in q.items():
+        members = [n for n in npcs if n.get("tier") == tier_key]
+        marked = [n for n in members if n.get("whaleRetire")]
+        if len(marked) > target:
+            for extra in marked[target:]:
+                extra.pop("whaleRetire", None)
+        elif len(marked) < target:
+            need = target - len(marked)
+            cands = [n for n in members if not n.get("whaleRetire")]
+            cands.sort(key=lambda n: (-int(n.get("gold", 0)), -int(n.get("lv", 0)), str(n.get("id", ""))))
+            for n in cands[:need]:
+                n["whaleRetire"] = True
 
 
 def init_npc_card(tier: str, lv: int, rng: random.Random) -> dict[str, str]:
@@ -1838,14 +1845,14 @@ def make_npc_roster(db: GameDatabase, rng: random.Random) -> list[dict[str, Any]
     used_names: set[str] = set()
     npcs: list[dict[str, Any]] = []
     idx = 1
-    scalper_elite_left = 2
+    elite_left = dict(WHALE_RETIRE_QUOTAS)
     for ci, cls in enumerate(CLASSES):
         for j in range(10):
             tier = tier_deck[ci * 10 + j]
             wr = False
-            if tier == "scalper" and scalper_elite_left > 0:
+            if elite_left.get(tier, 0) > 0:
                 wr = True
-                scalper_elite_left -= 1
+                elite_left[tier] -= 1
             npcs.append(create_new_npc(idx, cls, tier, used_names, db, rng, whale_retire=wr))
             idx += 1
     return npcs
@@ -3384,7 +3391,7 @@ def main() -> None:
         state = json.loads(state_file.read_text(encoding="utf-8"))
         for _npc in state.get("npcs", []):
             ensure_npc_mcards(_npc, db, rng)
-        ensure_elite_scalpers(state.get("npcs", []))
+        ensure_whale_retire_elites(state.get("npcs", []))
 
     run_ticks = int(round(args.days * 24)) if args.days > 0 else max(0, args.ticks)
     if not is_fresh or args.days > 0 or args.warmup_ticks == 0:
