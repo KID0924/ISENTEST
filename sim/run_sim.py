@@ -2007,10 +2007,19 @@ def simulate_tick(
         if clog:
             npc["combatLog"] = [r for r in clog if r.get("t", 0) > cutoff_tick]
 
-        # 高金幣 NPC 超過開箱門檻開始開曼孟裝備箱；奇岩商人 (1.6億起) 還會直接去商店買武防捲硬衝過安定+2起跳、上不封頂
+        # 高金幣 NPC 超過開箱門檻開始開曼孟裝備箱；奇岩商人達 5,000 萬起有 20% 機率小額開 1 箱賭安定+2以上，超過 1.6 億才啟動高頻抽水
         sink_cap = TIER_SINK_CAP[tier]
-        if npc["gold"] > sink_cap:
-            spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < (0.45 if tier == "scalper" else 0.35) else 1_000_000)
+        box_spend = 0
+        if tier == "scalper":
+            if npc["gold"] > sink_cap:
+                box_spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.45 else 1_000_000)
+            elif npc["gold"] >= 50_000_000 and rng.random() < 0.20:
+                box_spend = 1_000_000
+        elif npc["gold"] > sink_cap:
+            box_spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
+
+        if box_spend > 0:
+            spend = box_spend
             npc["gold"] -= spend
             if spend >= 1_000_000 and db.box_pool:
                 bi = rng.choice(db.box_pool)
@@ -2251,12 +2260,13 @@ def upgrade_npc_gear_and_enchant(
     a_scr = f"{SCROLL_ARMOR_NORMAL}:0:"
     ba_scr = f"{SCROLL_ARMOR_BLESSED}:0:"
 
-    # 肝帝 / 一般玩家會自己買卷軸把武器至少衝到安定值 (+6)
+    # 肝帝 / 一般玩家 / 富商會自己買卷軸把武器至少衝到安定值 (+6)
+    is_rich_scalper = (npc["tier"] == "scalper" and npc["gold"] >= 30_000_000)
+    self_over = 2 if (npc["tier"] == "whale" or (npc["tier"] == "scalper" and npc["gold"] >= 60_000_000)) else 1 if (npc["tier"] == "regular" or is_rich_scalper) else 0
     w_obj = eq.get("weapon")
-    if w_obj and npc["tier"] in ("whale", "regular") and npc["gold"] >= 90000:
+    if w_obj and (npc["tier"] in ("whale", "regular") or is_rich_scalper) and npc["gold"] >= 90000:
         w_it = db.items[w_obj["id"]]
         safe = max(0, int(w_it.get("safe", 6)))
-        target = min(8 if npc["tier"] == "whale" else safe + 1, ENCH_MAX)
         if w_obj.get("ench", 0) < safe and bag.get(w_scr, 0) == 0 and npc["gold"] >= 95000:
             npc["gold"] -= 85000  # 商店/系統回收買卷
             bag[w_scr] = 1
@@ -2265,7 +2275,7 @@ def upgrade_npc_gear_and_enchant(
     if w_obj:
         w_it = db.items[w_obj["id"]]
         safe = max(0, int(w_it.get("safe", 6)))
-        max_try = min(ENCH_MAX, (safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe) + ench_bonus)
+        max_try = min(ENCH_MAX, safe + self_over + ench_bonus)
         cur_e = w_obj.get("ench", 0)
         if cur_e < max_try:
             use_key = bw_scr if (cur_e >= safe and bag.get(bw_scr, 0) > 0) else w_scr if bag.get(w_scr, 0) > 0 else None
@@ -2287,15 +2297,22 @@ def upgrade_npc_gear_and_enchant(
                         new_events.append(f"剛衝 +{cur_e+1} {w_it['name']} 爆了，正在奇岩發呆療傷…")
                         eq["weapon"] = {"id": db.startw.get(cls, 172), "ench": 0, "n": 1}
 
-    # 試圖強化隨機一件防具
+    # 試圖強化隨機一件防具（富商亦自動補防捲至安定值）
     arm_slots = [s for s in eq.keys() if s != "weapon"]
+    if arm_slots and is_rich_scalper and bag.get(a_scr, 0) == 0 and bag.get(ba_scr, 0) == 0 and npc["gold"] >= 100_000:
+        for _sl in arm_slots:
+            _asafe = int(db.items.get(eq[_sl]["id"], {}).get("safe", 4))
+            if _asafe > 0 and eq[_sl].get("ench", 0) < _asafe:
+                npc["gold"] -= 41000
+                bag[a_scr] = 1
+                break
     if arm_slots and (bag.get(a_scr, 0) > 0 or bag.get(ba_scr, 0) > 0):
         slot = rng.choice(arm_slots)
         a_obj = eq[slot]
         a_it = db.items.get(a_obj["id"], {})
         safe = int(a_it.get("safe", 4))
         cur_e = a_obj.get("ench", 0)
-        max_try = min(ENCH_MAX, (safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe) + ench_bonus)
+        max_try = min(ENCH_MAX, safe + self_over + ench_bonus)
         if safe > 0 and cur_e < max_try:
             use_key = ba_scr if (cur_e >= safe and bag.get(ba_scr, 0) > 0) else a_scr if bag.get(a_scr, 0) > 0 else None
             if use_key:
@@ -2331,7 +2348,7 @@ def restock_npc_shop(
             state.setdefault("unsoldPress", {})[mk] = state.get("unsoldPress", {}).get(mk, 0) + 1
             if age < 60:
                 est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
-                floor_r = 0.85 if npc["tier"] == "scalper" else 0.72
+                floor_r = 0.75 if npc["tier"] == "scalper" else 0.72
                 floor_p = max(50, int(est_l * floor_r))
                 lst["price"] = max(floor_p, int(lst["price"] * 0.90))
                 kept.append(lst)
@@ -2410,8 +2427,9 @@ def restock_npc_shop(
         if it.get("kind") == "etc" and not it.get("stack", 1):
             sell_n = 1
 
-        # 防止同一 NPC 同品項擺太多格
-        if any(s["item"] == iid and s.get("ench", 0) == ench for s in shop) and it.get("kind") == "etc":
+        # 防止同一 NPC 同品項擺太多格（消耗品與+0裝備最多 1 格；高強化裝最多 2 格，避免重複戒指/白裝佔死 15 格）
+        same_cnt = sum(1 for s in shop if s["item"] == iid and s.get("ench", 0) == ench)
+        if same_cnt >= (1 if (it.get("kind") == "etc" or ench == 0) else 2):
             continue
 
         mult = rng.uniform(lo_m, hi_m)
@@ -2472,9 +2490,8 @@ def run_npc_market_clearing(
     for buyer in npcs[:35]:  # 每輪約半數活躍買家逛街
         tier = buyer["tier"]
         tol = TIER_BUY_TOL[tier]
-        # 若商人貨架已經近滿 (13+ 格)，暫停進貨等貨架消化
-        if tier == "scalper" and len(buyer.get("shop", [])) >= 13:
-            continue
+        # 若商人貨架已經近滿 (13+ 格)，暫停低價囤貨但富商仍可買自用升級裝
+        scalper_arbitrage_ok = not (tier == "scalper" and len(buyer.get("shop", [])) >= 13)
         # 買家每次看 24~32 件（商人看 32~44 件），提供更活躍的逛街成交量
         view_n = rng.randint(32, 44) if tier == "scalper" else rng.randint(24, 32)
         max_buys = 3 if tier == "whale" else 2 if tier == "regular" else 1
@@ -2492,20 +2509,32 @@ def run_npc_market_clearing(
             ratio = cost / max(1, est)
 
             want = False
-            if tier == "scalper" and ratio <= scalper_buy_max:
+            if tier == "scalper" and scalper_arbitrage_ok and ratio <= scalper_buy_max:
                 it_sc = db.items.get(iid, {})
                 if it_sc.get("type") in ("material", "gem", "scroll", "spellbook", "potion") or est >= 30_000:
                     want = True
-            elif tier in ("whale", "regular") and ratio <= tol:
+            elif tier in ("whale", "regular") or (tier == "scalper" and buyer["gold"] >= 30_000_000):
                 it = db.items.get(iid, {})
-                if it.get("kind") in ("weapon", "armor") and db.can_equip(buyer["cls"], iid):
-                    slot = "weapon" if it["kind"] == "weapon" else it.get("slot", "armor")
-                    cur = buyer["eq"].get(slot)
-                    cur_s = db.item_power_score(buyer["cls"], cur["id"], cur.get("ench", 0)) if cur else 0
-                    if db.item_power_score(buyer["cls"], iid, ench) > cur_s + 2.0:
-                        want = True
-                elif it.get("type") in ("material", "gem", "scroll", "spellbook", "potion") and ratio <= tol:
-                    want = rng.random() < (0.55 if tier == "whale" else 0.40)
+                eff_tol = 1.15 if tier == "scalper" else tol
+                if ratio <= eff_tol:
+                    if it.get("kind") in ("weapon", "armor") and db.can_equip(buyer["cls"], iid):
+                        slot = "weapon" if it["kind"] == "weapon" else it.get("slot", "armor")
+                        if slot == "ring":
+                            r1, r2 = buyer["eq"].get("ring1"), buyer["eq"].get("ring2")
+                            s1 = db.item_power_score(buyer["cls"], r1["id"], r1.get("ench", 0)) if r1 else -1.0
+                            s2 = db.item_power_score(buyer["cls"], r2["id"], r2.get("ench", 0)) if r2 else -1.0
+                            cur = r1 if s1 <= s2 else r2
+                            cur_s = min(s1, s2)
+                        else:
+                            cur = buyer["eq"].get(slot)
+                            cur_s = db.item_power_score(buyer["cls"], cur["id"], cur.get("ench", 0)) if cur else -1.0
+                        cand_s = db.item_power_score(buyer["cls"], iid, ench)
+                        if cur is None and iid in (20281, 20288):
+                            cand_s = max(cand_s, 3.0)
+                        if cand_s > cur_s + (0.5 if cur is None else 2.0):
+                            want = True
+                    elif tier in ("whale", "regular") and it.get("type") in ("material", "gem", "scroll", "spellbook", "potion"):
+                        want = rng.random() < (0.55 if tier == "whale" else 0.40)
             elif tier == "casual" and ratio <= 0.85 and cost < 120_000:
                 want = rng.random() < 0.25
 
