@@ -4697,7 +4697,9 @@ function hv(m,dt,d){
       if (ev.source) lines.push('<div style="color:#b8cbe6">' + escH(ev.source.replace(/\s*\(大盤輔[^)]*\)/, '')) + '</div>');
     }
     if (Array.isArray(w.ticker) && w.ticker.length) {
-      lines.push('<div style="color:#ffe39a;margin-top:2px">' + escH(w.ticker[0]) + '</div>');
+      for (const tk of w.ticker.slice(0, 5)) {
+        lines.push('<div style="color:#ffe39a;margin-top:2px;border-top:1px dashed rgba(255,255,255,0.14);padding-top:2px">' + escH(tk) + '</div>');
+      }
     }
     if (lines.length) {
       clearTimeout(as._t);
@@ -5187,7 +5189,7 @@ function hv(m,dt,d){
   }   // 離開歷史模式：把最近 30 行放回去
   function chatHistKeep() { clearTimeout(_chHT); _chHT = setTimeout(() => chatHist(false), 10000); }
   function addChat(text, cls) {
-    if (cls === 'ann') { const as = document.getElementById('annStrip'); if (as) { as.textContent = text; clearTimeout(as._t); as._t = setTimeout(() => { as.textContent = ''; }, 600000); } }
+    if (cls === 'ann') { const as = document.getElementById('annStrip'); if (as) { as.textContent = text; clearTimeout(as._t); as._t = setTimeout(() => { if (!SRV() && typeof updateOfflineAnnStrip === 'function') updateOfflineAnnStrip(); else as.textContent = ''; }, 30000); } }
     const c = $id('chat'), d = document.createElement('div'); d.className = cls || 'loot'; d.textContent = text;
     CHATLOG.push([text, cls || 'loot']); if (CHATLOG.length > 300) CHATLOG.shift();
     if (_chHist) { const end = c.scrollTop + c.clientHeight >= c.scrollHeight - 6; c.appendChild(d); while (c.children.length > 300) c.removeChild(c.firstChild); if (end) c.scrollTop = c.scrollHeight; return; }

@@ -857,6 +857,8 @@
           id="cMarket">0</span>)</button>
       <button type="button" role="tab" id="tab-combat" aria-selected="false">戰鬥紀錄 (近66h <span
           id="cCombat">0</span>)</button>
+      <button type="button" role="tab" id="tab-trades" aria-selected="false">NPC交易紀錄 (近66h <span
+          id="cTrades">0</span>)</button>
     </div>
 
     <div id="sortStatus" class="sr-status" role="status"></div>
@@ -1063,6 +1065,52 @@
         </table>
       </div>
     </section>
+
+    <!-- Panel 5: NPC Trade Logs (last 66 ticks from sim/npc_state.json) -->
+    <section role="tabpanel" id="panel-trades" aria-labelledby="tab-trades" hidden>
+      <div class="controls">
+        <input type="search" id="qTrades" placeholder="搜尋買家、賣家、商品名稱或詞綴…" aria-label="搜尋NPC交易紀錄">
+        <select id="fTradeBuyerTier" aria-label="篩選買家身分">
+          <option value="all">全部買家身分</option>
+          <option value="scalper">奇岩商人 (掃貨)</option>
+          <option value="whale">重課肝帝</option>
+          <option value="regular">一般冒險者</option>
+          <option value="casual">新手探險家</option>
+        </select>
+        <select id="sTrades" aria-label="NPC交易紀錄排序">
+          <option value="0:descending">排序：Tick (新→舊)</option>
+          <option value="0:ascending">排序：Tick (舊→新)</option>
+          <option value="5:descending">排序：成交總價 高→低</option>
+          <option value="6:ascending">排序：折數比 低→高</option>
+        </select>
+        <span class="count-note" id="nTrades">顯示 0 筆</span>
+      </div>
+      <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-trades">
+        <table id="tblTrades"
+          style="--label-1:'Tick';--label-2:'買家';--label-3:'賣家';--label-4:'交易商品';--label-5:'數量';--label-6:'成交價 (含稅)';--label-7:'市價折數';">
+          <caption id="cap-trades" class="sr-only-caption">後台最近 66 ticks NPC 之間買賣成交紀錄</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-type="number" aria-sort="descending"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>Tick</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>買家</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>賣家</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>交易商品</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>數量</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>成交價 / 扣稅</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblTrades"
+                  command="--sort"><span>行情折數</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+            </tr>
+          </thead>
+          <tbody id="tbTrades"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <dialog id="npcDlg" closedby="any" aria-labelledby="npcDlgTitle">
@@ -1119,11 +1167,13 @@
       let ALL_SHOPS = [];
       let ALL_MKT = [];
       let ALL_COMBAT = [];
+      let ALL_TRADES = [];
       let SUPPLY_MAP = new Map();
       let BAG_MAP = new Map();       // npcId -> { items: [...], totalQty, totalVal, searchBlob }
       let BAG_SUPPLY = new Map();    // "id_ench" -> totalQty across all 70 NPCs
       let CARD_MAP = new Map();      // npcId -> { tier, zh, name }
       let COMBAT_MAP = new Map();    // npcId -> combatLog[] (newest first)
+      let TRADE_MAP = new Map();     // npcId -> tradeLog[] involving this NPC (newest first)
 
       function esc(s) {
         return String(s == null ? '' : s)
@@ -1187,7 +1237,7 @@
 
       // Sortable Tables (Invoker commands + Fallback click listener + Quick Select Sort)
       const sortStatus = document.getElementById('sortStatus');
-      const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket', tblCombat: 'sCombat' };
+      const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket', tblCombat: 'sCombat', tblTrades: 'sTrades' };
       function applyTableSort(table, idx, dir, announce) {
         const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[idx];
         if (!th || !table.tBodies.length) return;
@@ -1312,6 +1362,22 @@
             '</tr>';
         }).join('');
 
+        const tLogs = TRADE_MAP.get(n.id) || [];
+        const tBuyCnt = tLogs.filter(x => x.bId === n.id).length;
+        const tSellCnt = tLogs.length - tBuyCnt;
+        const tradeRows = tLogs.slice(0, 80).map(tr => {
+          const isBuy = tr.bId === n.id;
+          const disp = (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm + (tr.aff ? ' [' + tr.aff + ']' : '');
+          const otherId = isBuy ? tr.sId : tr.bId;
+          const otherNm = isBuy ? tr.s : tr.b;
+          return '<tr>' +
+            '<td data-align="end">#' + tr.t + '</td>' +
+            '<td><span class="badge ' + (isBuy ? 'res-win' : 'whale') + '">' + (isBuy ? '買入' : '賣出') + '</span> <button type="button" class="link-btn" data-npc="' + esc(otherId) + '">' + esc(otherNm) + '</button></td>' +
+            '<td><span class="item-cell">' + iconHtml(tr.id) + '<span>' + esc(disp) + (tr.n > 1 ? ' ×' + tr.n : '') + '</span></span></td>' +
+            '<td data-align="end"><strong style="color:var(--accent)">' + fmtNum(tr.p) + ' 金</strong> <span style="color:var(--muted);font-size:0.78rem">(' + Math.round((tr.r || 1) * 100) + '%)</span></td>' +
+            '</tr>';
+        }).join('');
+
         const st = n.stats || {};
         dlgBody.innerHTML =
           '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px;font-size:0.92rem">' +
@@ -1331,6 +1397,10 @@
           (bagInfo && bagInfo.items.length
             ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>'
             : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>') +
+          '<h3 style="margin:16px 0 6px;font-size:0.98rem">最近 66 ticks 交易紀錄 (買入 ' + tBuyCnt + ' / 賣出 ' + tSellCnt + ')</h3>' +
+          (tLogs.length
+            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>買賣對象</th><th>商品</th><th data-align="end">成交額</th></tr></thead><tbody>' + tradeRows + '</tbody></table>'
+            : '<p style="color:var(--muted);margin:4px 0">尚無最近市場成交紀錄。</p>') +
           '<h3 style="margin:16px 0 6px;font-size:0.98rem">最近 66 ticks 戰鬥紀錄 (' + cLogs.length + ' 場 · 通關率 ' + cRate + '%)</h3>' +
           (cLogs.length
             ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table>'
@@ -1464,6 +1534,34 @@
         applyActiveSort(document.getElementById('tblCombat'));
       }
 
+      function renderTrades() {
+        const q = document.getElementById('qTrades').value.trim().toLowerCase();
+        const bt = document.getElementById('fTradeBuyerTier').value;
+        const rows = ALL_TRADES.filter(r => {
+          if (bt !== 'all' && r.bt !== bt) return false;
+          if (q && !r.searchText.includes(q)) return false;
+          return true;
+        });
+        const totalVol = rows.reduce((a, b) => a + (b.p || 0), 0);
+        const totalTax = rows.reduce((a, b) => a + (b.tax || 0), 0);
+        const shown = rows.slice(0, 400);
+        document.getElementById('nTrades').textContent =
+          (rows.length > 400 ? '顯示前 400 / ' : '顯示 ') + fmtNum(rows.length) + ' 筆（交易額 ' + fmtNum(totalVol) + ' 金 · 銷毀稅 ' + fmtNum(totalTax) + ' 金）';
+        document.getElementById('tbTrades').innerHTML = shown.map(tr => {
+          const disp = (tr.e > 0 ? '+' + tr.e + ' ' : '') + tr.nm;
+          return '<tr>' +
+            '<td data-align="end" data-value="' + tr.t + '"><strong>#' + tr.t + '</strong></td>' +
+            '<td data-value="' + esc(tr.b) + '"><button type="button" class="link-btn" data-npc="' + esc(tr.bId) + '">' + esc(tr.b) + '</button> <span class="badge ' + esc(tr.bt) + '">' + esc(TIER_ZH[tr.bt] || '') + '</span></td>' +
+            '<td data-value="' + esc(tr.s) + '"><button type="button" class="link-btn" data-npc="' + esc(tr.sId) + '">' + esc(tr.s) + '</button> <span class="badge ' + esc(tr.st) + '">' + esc(TIER_ZH[tr.st] || '') + '</span></td>' +
+            '<th scope="row" data-value="' + esc(disp) + '"><span class="item-cell">' + iconHtml(tr.id) + '<span>' + esc(disp) + (tr.aff ? ' <span class="affix">[' + esc(tr.aff) + ']</span>' : '') + '</span></span></th>' +
+            '<td data-align="end" data-value="' + (tr.n || 1) + '">' + fmtNum(tr.n || 1) + '</td>' +
+            '<td data-align="end" data-value="' + tr.p + '"><strong style="color:var(--accent)">' + fmtNum(tr.p) + '</strong><br><span style="color:var(--muted);font-size:0.78rem">稅 -' + fmtNum(tr.tax || 0) + '</span></td>' +
+            '<td data-align="end" data-value="' + (tr.r || 1) + '">' + Math.round((tr.r || 1) * 100) + '%</td>' +
+            '</tr>';
+        }).join('');
+        applyActiveSort(document.getElementById('tblTrades'));
+      }
+
       // Click delegation for NPC buttons
       document.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-npc]');
@@ -1474,6 +1572,7 @@
       for (const id of ['qNpc', 'fNpcTier', 'fNpcState']) document.getElementById(id).addEventListener('input', renderNpcs);
       for (const id of ['qMarket', 'fMktCat', 'chkMktStock']) document.getElementById(id).addEventListener('input', renderMarket);
       for (const id of ['qCombat', 'fCombatRes', 'fCombatDiff']) document.getElementById(id).addEventListener('input', renderCombat);
+      for (const id of ['qTrades', 'fTradeBuyerTier']) document.getElementById(id).addEventListener('input', renderTrades);
 
       async function loadWorld() {
         const btn = document.getElementById('btnReload');
@@ -1640,6 +1739,25 @@
           }
           ALL_COMBAT.sort((a, b) => b.t - a.t);
 
+          TRADE_MAP = new Map();
+          ALL_TRADES = [];
+          if (rawState && Array.isArray(rawState.tradeLog)) {
+            for (const tr of rawState.tradeLog.slice().reverse()) {
+              const row = Object.assign({}, tr, {
+                searchText: ((tr.b || '') + ' ' + (tr.s || '') + ' ' + (tr.nm || '') + ' ' + (tr.aff || '')).toLowerCase(),
+              });
+              ALL_TRADES.push(row);
+              if (tr.bId) {
+                if (!TRADE_MAP.has(tr.bId)) TRADE_MAP.set(tr.bId, []);
+                TRADE_MAP.get(tr.bId).push(row);
+              }
+              if (tr.sId && tr.sId !== tr.bId) {
+                if (!TRADE_MAP.has(tr.sId)) TRADE_MAP.set(tr.sId, []);
+                TRADE_MAP.get(tr.sId).push(row);
+              }
+            }
+          }
+
           // Build MarketRef list
           ALL_MKT = [];
           for (const k of Object.keys(mref)) {
@@ -1672,11 +1790,13 @@
           document.getElementById('cNpcs').textContent = fmtNum(npcs.length);
           document.getElementById('cMarket').textContent = fmtNum(ALL_MKT.length);
           document.getElementById('cCombat').textContent = fmtNum(ALL_COMBAT.length);
+          document.getElementById('cTrades').textContent = fmtNum(ALL_TRADES.length);
 
           renderShops();
           renderNpcs();
           renderMarket();
           renderCombat();
+          renderTrades();
         } catch (err) {
           document.getElementById('mVer').textContent = '載入失敗：' + err.message;
         } finally {

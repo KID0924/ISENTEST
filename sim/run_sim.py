@@ -2511,10 +2511,33 @@ def run_npc_market_clearing(
 
             if want:
                 buyer["gold"] -= cost
-                seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + int(cost * (1.0 - tax_rate)))  # 交易稅直接銷毀（金幣黑洞）
+                net_get = int(cost * (1.0 - tax_rate))
+                tax_paid = max(0, cost - net_get)
+                seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + net_get)  # 交易稅直接銷毀（金幣黑洞）
                 self_bag_add(buyer, iid, ench, lst.get("n", 1), lst.get("aff"))
                 sold_ids.add(lst["id"])
                 seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
+                if state is not None:
+                    tick_now = int(state.get("tick", 0))
+                    nm_t = db.items.get(iid, {}).get("name", f"#{iid}")
+                    aff_obj = lst.get("aff")
+                    state.setdefault("tradeLog", []).append({
+                        "t": tick_now,
+                        "bId": buyer["id"],
+                        "b": buyer["name"],
+                        "bt": buyer["tier"],
+                        "sId": seller["id"],
+                        "s": seller["name"],
+                        "st": seller["tier"],
+                        "id": iid,
+                        "nm": nm_t,
+                        "e": ench,
+                        "n": lst.get("n", 1),
+                        "aff": aff_obj.get("name") if isinstance(aff_obj, dict) else None,
+                        "p": cost,
+                        "tax": tax_paid,
+                        "r": round(ratio, 2),
+                    })
                 # 寫入大額成交快報
                 if cost >= 400_000:
                     nm = db.items.get(iid, {}).get("name", f"#{iid}")
@@ -2523,6 +2546,10 @@ def run_npc_market_clearing(
                 bought_here += 1
                 if bought_here >= max_buys:
                     break
+
+    if state is not None and state.get("tradeLog"):
+        cutoff_t = int(state.get("tick", 0)) - 66
+        state["tradeLog"] = [tr for tr in state["tradeLog"] if tr.get("t", 0) > cutoff_t]
 
 
 def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: dict[str, int]) -> None:
