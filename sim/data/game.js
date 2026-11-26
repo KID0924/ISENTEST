@@ -40,7 +40,27 @@
   setTimeout(mresFetch, 300);
   function mapDirName(b) { return String(b || MAPBASE).replace(/\/+$/, '').split('/').pop(); }   // 地圖資料夾名字（例如 ../maps/map21/ → map21），手機小圖清單用這個當代號
   const _sprMissing = new Set();
-  const _missingReported = new Set();
+  const _missingReported = (() => {
+    const s = new Set();
+    try {
+      const saved = JSON.parse(localStorage.getItem('l1s_miss_sent') || 'null');
+      const now = Date.now();
+      if (saved && typeof saved === 'object') {
+        for (const k in saved) if (now - saved[k] < 86400000) s.add(k);
+      }
+    } catch (e) {}
+    return s;
+  })();
+  function _markMissingSent(k) {
+    _missingReported.add(k);
+    try {
+      const saved = JSON.parse(localStorage.getItem('l1s_miss_sent') || '{}') || {};
+      saved[k] = Date.now();
+      const keys = Object.keys(saved);
+      if (keys.length > 200) { for (const ok of keys.slice(0, keys.length - 200)) delete saved[ok]; }
+      localStorage.setItem('l1s_miss_sent', JSON.stringify(saved));
+    } catch (e) {}
+  }
   function reportMissingAsset(rawPath, extra) {
     try {
       let p = String(rawPath || '').split('?')[0].split('#')[0].trim();
@@ -51,8 +71,9 @@
       }
       if (!/(^\/?assets\/|^\/?maps\/)/i.test(p)) return;
       if (!p.startsWith('/')) p = '/' + p;
-      if (_missingReported.has(p)) return;
-      _missingReported.add(p);
+      const dedupKey = (extra && extra.gfx) ? ('gfx:' + extra.gfx) : p;
+      if (_missingReported.has(dedupKey)) return;
+      _markMissingSent(dedupKey);
       if (!/^https?:$/.test(location.protocol)) return;
       const st = (typeof STAGES !== 'undefined' && typeof stageIdx !== 'undefined') ? STAGES[stageIdx] : null;
       const payload = Object.assign({
@@ -74,9 +95,9 @@
     im.addEventListener('error', () => {
       if (im._fw) { im._fw = 0; im.src = png; return; }
       const sg = String(g);
-      reportMissingAsset(png, { source: 'sprLoad', gfx: sg, frame: String(f) });
       if (!_sprMissing.has(sg)) {
         _sprMissing.add(sg);
+        reportMissingAsset(png, { source: 'sprLoad', gfx: sg, frame: String(f) });
         console.warn('[缺檔警告] 讀不到本地圖片:', png);
         try { addChat('讀不到本地圖片：' + png, 'warn'); } catch (e) { }
       }
