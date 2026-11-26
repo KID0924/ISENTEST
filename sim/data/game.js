@@ -5095,6 +5095,28 @@ function hv(m,dt,d){
     for (const al of VILLAGE_ALTS) al.pauseMenu = (al === v);
     const list = window.SIM_WORLD.getNpcShop(v.simId);
     const rows = list.map(s => {
+      if (s.mcard) {
+        const mc = MCATBY[s.mcard];
+        if (!mc) return null;
+        const star = Math.max(1, Math.min(3, s.star | 0 || 1));
+        const starNm = MSTAR[star] || (star + '★');
+        const elZh = MCARD_EL[mc.el] || '';
+        const qTxt = (s.n > 1) ? (' ×' + s.n) : '';
+        const f = MCARD_FX[mc.el];
+        const fv = f ? f[1][star - 1] : 0;
+        const fxTxt = f ? (f[0] === 'dmgpct' ? ('傷害 +' + fv + '%') : f[0] === 'shield' ? ('護盾 +' + fv) : f[0] === 'hit' ? ('命中 +' + fv) : f[0] === 'hp' ? ('HP +' + fv) : ('經驗 +' + fv + '%')) : '';
+        const nm = '🃏 ' + star + '★' + starNm + '卡·' + mc.n + qTxt;
+        const tip = star + '★ 怪物' + starNm + '卡【' + mc.n + '】\n屬性：' + elZh + '屬（鑲嵌效果：' + fxTxt + '）\n售價：' + s.price.toLocaleString() + ' 金幣';
+        return {
+          iconUrl: MCARD_SPR(mc.ci),
+          iconFb: 'assets/codex/' + String(mc.ci) + '.png?v=v88',
+          name: nm,
+          info: s.price.toLocaleString() + ' 金幣',
+          off: gold() < s.price,
+          tip,
+          fn: () => openSimBuyConfirm(v, s)
+        };
+      }
       const d = ITEMS[s.item];
       if (!d) return null;
       const affTxt = s.aff ? ' [' + s.aff.name + ']' : '';
@@ -5129,27 +5151,45 @@ function hv(m,dt,d){
     $id('dgT').textContent = v.name + '：個人商店確認';
     skinDlg(null);
     const B = $id('dgB'); B.innerHTML = ''; B.className = '';
-    const d = ITEMS[s.item];
-    const affTxt = s.aff ? ' [' + s.aff.name + ']' : '';
     const qty = Math.max(1, s.n || 1);
     const qTxt = qty > 1 ? ' ×' + qty : '';
-    const dispName = aname(s.item, s.ench || 0) + affTxt + qTxt;
+    const isMcard = !!s.mcard;
+    const mc = isMcard ? MCATBY[s.mcard] : null;
+    const d = isMcard ? null : ITEMS[s.item];
+    if (isMcard && !mc) { openSimShop(v); return; }
+    const mcStar = isMcard ? Math.max(1, Math.min(3, s.star | 0 || 1)) : 1;
+    const mcStarNm = isMcard ? (MSTAR[mcStar] || (mcStar + '★')) : '';
+    const affTxt = s.aff ? ' [' + s.aff.name + ']' : '';
+    const dispName = isMcard
+      ? ('🃏 ' + mcStar + '★' + mcStarNm + '卡·' + mc.n + qTxt)
+      : (aname(s.item, s.ench || 0) + affTxt + qTxt);
 
     const hdr = document.createElement('div');
     hdr.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
-    hdr.innerHTML = '<img src="' + GH_ASSETS + 'icons/' + s.item + '.png" style="width:32px;height:32px;image-rendering:pixelated"><div><b style="color:#ffe29c">' + escH(dispName) + '</b><br><span style="color:#ffd266">價格：' + s.price.toLocaleString() + ' 金幣</span>　<span style="color:#a8b8c8;font-size:11px">(' + escH(v.tierLabel || '冒險者') + ')</span></div>';
+    if (isMcard) {
+      hdr.innerHTML = '<img src="' + escH(MCARD_SPR(mc.ci)) + '" style="width:36px;height:36px;object-fit:contain" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'assets/codex/' + escH(String(mc.ci)) + '.png?v=v88\';}"><div><b style="color:#ffe29c">' + escH(dispName) + '</b><br><span style="color:#ffd266">價格：' + s.price.toLocaleString() + ' 金幣</span>　<span style="color:#a8b8c8;font-size:11px">(' + escH(v.tierLabel || '冒險者') + ')</span></div>';
+    } else {
+      hdr.innerHTML = '<img src="' + GH_ASSETS + 'icons/' + s.item + '.png" style="width:32px;height:32px;image-rendering:pixelated"><div><b style="color:#ffe29c">' + escH(dispName) + '</b><br><span style="color:#ffd266">價格：' + s.price.toLocaleString() + ' 金幣</span>　<span style="color:#a8b8c8;font-size:11px">(' + escH(v.tierLabel || '冒險者') + ')</span></div>';
+    }
     B.appendChild(hdr);
 
     const st = document.createElement('div');
     st.style.cssText = 'font-size:11px;line-height:1.5;margin-bottom:6px;color:#ddd3b8;background:rgba(0,0,0,0.28);padding:6px 8px;border-radius:4px';
-    const lines = tipOf({ id: s.item, n: qty, ench: s.ench || 0 }).split('\n').slice(1).map(x => escH(x.replace(/<[^>]+>/g, '')));
-    if (s.aff) lines.push('<span style="color:#ffdf7a">★ 詞綴 [' + escH(s.aff.name) + '] ' + escH(s.aff.desc) + '</span>');
-    st.innerHTML = lines.join('<br>') || '（一般道具）';
+    if (isMcard) {
+      const f = MCARD_FX[mc.el];
+      const fv = f ? f[1][mcStar - 1] : 0;
+      const fxTxt = f ? (f[0] === 'dmgpct' ? ('傷害 +' + fv + '%') : f[0] === 'shield' ? ('最大護盾 +' + fv) : f[0] === 'hit' ? ('命中 +' + fv) : f[0] === 'hp' ? ('最大HP +' + fv) : ('經驗 +' + fv + '%')) : '';
+      st.innerHTML = '怪物卡片圖鑑（購入後存入「怪物卡片」，可自由鑲嵌於武器或防具上）<br>屬性：<span style="color:' + (MCARD_ELC[mc.el] || '#ffd24a') + '">' + escH(MCARD_EL[mc.el] || '') + '屬</span> · ' + mcStar + '★效果：<b>' + escH(fxTxt) + '</b>';
+    } else {
+      const lines = tipOf({ id: s.item, n: qty, ench: s.ench || 0 }).split('\n').slice(1).map(x => escH(x.replace(/<[^>]+>/g, '')));
+      if (s.aff) lines.push('<span style="color:#ffdf7a">★ 詞綴 [' + escH(s.aff.name) + '] ' + escH(s.aff.desc) + '</span>');
+      st.innerHTML = lines.join('<br>') || '（一般道具）';
+    }
     B.appendChild(st);
 
     const msg = document.createElement('div');
     msg.style.cssText = 'font-size:12px;color:#cfbfa0;margin-bottom:6px';
-    msg.textContent = gold() < s.price ? '你的金幣不足（持有 ' + gold().toLocaleString() + ' 金幣）。' : ('確定要向「' + v.name + '」購買這件物品嗎？（持有 ' + gold().toLocaleString() + ' 金幣）');
+    msg.textContent = gold() < s.price ? '你的金幣不足（持有 ' + gold().toLocaleString() + ' 金幣）。' : ('確定要向「' + v.name + '」購買' + (isMcard ? '這張怪物卡' : '這件物品') + '嗎？（持有 ' + gold().toLocaleString() + ' 金幣）');
     B.appendChild(msg);
 
     const br = document.createElement('div');
@@ -5166,7 +5206,11 @@ function hv(m,dt,d){
         return;
       }
       takeItem(40308, s.price);
-      if (d && d.kind === 'etc') {
+      if (isMcard) {
+        const curArr = MCARDOWN[mc.id] || (MCARDOWN[mc.id] = [0, 0, 0]);
+        curArr[mcStar - 1] = (curArr[mcStar - 1] | 0) + qty;
+        mcardSaveLocal();
+      } else if (d && d.kind === 'etc') {
         addItem(s.item, qty);
       } else {
         const it = addItem(s.item, 1);
@@ -8143,7 +8187,10 @@ function hv(m,dt,d){
     for (let i = 0; i < 8; i++) {
       const r = o.rows[LW.top + i]; const d = document.createElement('div'); d.className = 'lr'; d.style.top = (10 + i * 37) + 'px';
       if (r) {
-        d.innerHTML = (r.icon ? '<img src="' + GH_ASSETS + 'icons/' + r.icon + '.png">' : '<img style="visibility:hidden">') + '<div class="lt"><div class="ln"></div><div class="li"></div></div>';
+        const imgTag = r.iconUrl
+          ? ('<img src="' + escH(r.iconUrl) + '" style="object-fit:contain"' + (r.iconFb ? (' onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'' + escH(r.iconFb) + '\';}"') : '') + '>')
+          : (r.icon ? '<img src="' + GH_ASSETS + 'icons/' + r.icon + '.png">' : '<img style="visibility:hidden">');
+        d.innerHTML = imgTag + '<div class="lt"><div class="ln"></div><div class="li"></div></div>';
         d.querySelector('.ln').textContent = r.name; d.querySelector('.li').textContent = r.info || '';
         if (r.tip) d.dataset.tip = r.tip;
         if (r.off) d.classList.add('off'); else if (r.fn) d.onclick = e => r.fn(e);

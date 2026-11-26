@@ -1763,10 +1763,10 @@ def process_npc_mcards(
                 arr[star - 1] -= 1
                 cur_sk.append({"m": mid, "s": star})
 
-    # 4) 有更強高星卡時，若資金充裕支付拔卡費把舊卡拔回圖鑑再換上新卡
-    if tier in ("whale", "regular", "scalper") and avail:
+    # 4) 有更強高星卡時，若資金充裕支付拔卡費把舊卡拔回圖鑑再換上新卡（所有階層皆可升級替換）
+    if avail:
         swaps = 0
-        max_swaps = 3 if tier == "whale" else 1
+        max_swaps = 4 if tier == "whale" else 2 if tier in ("regular", "scalper") else 1
         while swaps < max_swaps and avail:
             best_sc, best_s, best_mid = avail[0]
             worst_pos: tuple[float, str, int, int, int] | None = None
@@ -1778,7 +1778,7 @@ def process_npc_mcards(
                     c_star = int(card.get("s", 1))
                     c_info = db.mcard_by_id.get(c_mid)
                     c_sc = _mcard_score(cls, c_info["el"] if c_info else "none", c_star, lv)
-                    if best_s > c_star and best_sc >= c_sc + 80.0:
+                    if best_s > c_star and best_sc >= c_sc + 60.0:
                         if worst_pos is None or c_sc < worst_pos[0]:
                             worst_pos = (c_sc, slot, idx_c, c_mid, c_star)
             if worst_pos is None:
@@ -1805,6 +1805,62 @@ def process_npc_mcards(
     for sl in list(sock.keys()):
         if not sock[sl]:
             del sock[sl]
+
+
+def mcard_expected_price(
+    db: GameDatabase, mid: int, star: int, state: dict[str, Any] | None = None
+) -> int:
+    """估算怪物卡片市價基準（依怪物等級、屬性熱門度與星級合成成本，含流拍阻尼）"""
+    info = db.mcard_by_id.get(mid) or {}
+    mob_lv = int(info.get("lv", 10))
+    el = str(info.get("el", "earth"))
+    el_mult = 1.25 if el in ("fire", "none") else 1.10 if el == "wind" else 1.0
+    base1 = int((12_000 + mob_lv * 650) * el_mult)
+    star_mult = 1.0 if star <= 1 else 4.2 if star == 2 else 28.0
+    all_mult = float((((state or {}).get("dailyEvent") or {}).get("mults") or {}).get("all", 1.0))
+    press = min(10, int(((state or {}).get("unsoldPress") or {}).get(f"mc_{mid}_{star}", 0)))
+    p_mul = max(0.75, 1.0 - press * 0.025)
+    return max(500, int(round(base1 * star_mult * all_mult * p_mul / 5.0) * 5))
+
+
+def _listing_display(db: GameDatabase, lst: dict[str, Any]) -> tuple[str, str]:
+    if "mcard" in lst:
+        mid = int(lst["mcard"])
+        star = int(lst.get("star", 1))
+        star_zh = {1: "普卡", 2: "銀卡", 3: "金卡"}.get(star, f"{star}★")
+        mc_n = (db.mcard_by_id.get(mid) or {}).get("n", f"#{mid}")
+        return f"{star}★{star_zh}·{mc_n}", mc_n
+    iid = int(lst["item"])
+    ench = int(lst.get("ench", 0))
+    nm = db.items.get(iid, {}).get("name", f"#{iid}")
+    return (f"+{ench} {nm}" if ench > 0 else nm), nm
+
+
+def _npc_mcard_wants_upgrade(npc: dict[str, Any], db: GameDatabase, mid: int, star: int) -> bool:
+    """判斷 NPC 買下這張怪物卡是否能直接填補空插槽或升級現有插槽"""
+    info = db.mcard_by_id.get(mid)
+    if not info:
+        return False
+    eq = npc.get("eq") or {}
+    sock = (npc.get("mcards") or {}).get("sock") or {}
+    cls = npc["cls"]
+    lv = npc["lv"]
+    cand_sc = _mcard_score(cls, info["el"], star, lv)
+
+    for slot, lim in db.msock_slots.items():
+        if slot not in eq:
+            continue
+        cur_sk = sock.get(slot) or []
+        if len(cur_sk) < lim:
+            return True
+        for card in cur_sk[:lim]:
+            c_star = int(card.get("s", 1))
+            c_mid = int(card.get("m", 0))
+            c_info = db.mcard_by_id.get(c_mid)
+            c_sc = _mcard_score(cls, c_info["el"] if c_info else "none", c_star, lv)
+            if star > c_star and cand_sc >= c_sc + 60.0:
+                return True
+    return False
 
 
 def ensure_npc_mcards(npc: dict[str, Any], db: GameDatabase, rng: random.Random) -> dict[str, Any]:
@@ -1871,9 +1927,7 @@ def generate_offline_bark(npc: dict[str, Any], db: GameDatabase, rng: random.Ran
     if shop and rng.random() < 0.78:
         # 優先挑單價最高或剛上架的前幾名來叫賣
         featured = max(shop, key=lambda x: x["price"])
-        it = db.items.get(featured["item"], {})
-        nm = it.get("name", f"道具#{featured['item']}")
-        disp = f"+{featured['ench']} {nm}" if featured.get("ench", 0) > 0 else nm
+        disp, _ = _listing_display(db, featured)
         pr = f"{featured['price']:,}"
 
         if tier == "scalper":
@@ -2905,16 +2959,26 @@ def restock_npc_shop(
         age = tick_id - lst.get("tick", tick_id)
         if age >= 48:
             # 記錄流拍壓力供物價下修
-            mk = f"{lst['item']}_{lst.get('ench', 0)}"
+            is_mc = "mcard" in lst
+            mk = f"mc_{lst['mcard']}_{lst.get('star', 1)}" if is_mc else f"{lst['item']}_{lst.get('ench', 0)}"
             state.setdefault("unsoldPress", {})[mk] = state.get("unsoldPress", {}).get(mk, 0) + 1
             if age < 60:
-                est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
+                if is_mc:
+                    est_l = mcard_expected_price(db, int(lst["mcard"]), int(lst.get("star", 1)), state) * max(1, lst.get("n", 1))
+                else:
+                    est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
                 floor_r = 0.75 if npc["tier"] == "scalper" else 0.72
                 floor_p = max(50, int(est_l * floor_r))
                 lst["price"] = max(floor_p, int(lst["price"] * 0.90))
                 kept.append(lst)
             else:
-                self_bag_add(npc, lst["item"], lst.get("ench", 0), lst.get("n", 1), lst.get("aff"))
+                if is_mc:
+                    own_mc = npc.setdefault("mcards", {"own": {}, "sock": {}}).setdefault("own", {})
+                    mc_arr = own_mc.setdefault(str(lst["mcard"]), [0, 0, 0])
+                    mc_s = max(1, min(3, int(lst.get("star", 1))))
+                    mc_arr[mc_s - 1] = int(mc_arr[mc_s - 1]) + max(1, int(lst.get("n", 1)))
+                else:
+                    self_bag_add(npc, lst["item"], lst.get("ench", 0), lst.get("n", 1), lst.get("aff"))
         else:
             kept.append(lst)
     shop[:] = kept
@@ -2922,6 +2986,35 @@ def restock_npc_shop(
     max_slots = 15 if npc["tier"] == "scalper" else 11 if npc["tier"] == "whale" else 9 if npc["tier"] == "regular" else 8
     bag = npc["bag"]
     lo_m, hi_m = TIER_SELL_MULT[npc["tier"]]
+
+    # 先統計背包內多餘未鑲嵌之怪物卡（所有未鑲嵌 3★，或滿槽後零散 2★），為商店保留上架名額以活絡怪卡流通
+    mcard_cands: list[tuple[int, int]] = []
+    if db.mcards_cat:
+        own_mc = (npc.get("mcards") or {}).get("own") or {}
+        sock_mc = (npc.get("mcards") or {}).get("sock") or {}
+        eq_now = npc.get("eq") or {}
+        all_ge2 = all(
+            len(sock_mc.get(sl) or []) >= lim and all(int(c.get("s", 1)) >= 2 for c in (sock_mc.get(sl) or [])[:lim])
+            for sl, lim in db.msock_slots.items()
+            if sl in eq_now
+        )
+        for mk, arr in own_mc.items():
+            if not isinstance(arr, list) or len(arr) < 3:
+                continue
+            mid = int(mk)
+            if mid not in db.mcard_by_id:
+                continue
+            if int(arr[2]) > 0 and not any(s.get("mcard") == mid and int(s.get("star", 1)) == 3 for s in shop):
+                mcard_cands.append((mid, 3))
+            elif (
+                (int(arr[1]) == 1 or (npc["tier"] == "scalper" and int(arr[1]) > 0))
+                and all_ge2
+                and not any(s.get("mcard") == mid and int(s.get("star", 1)) == 2 for s in shop)
+            ):
+                mcard_cands.append((mid, 2))
+        mcard_cands.sort(key=lambda x: (x[1], mcard_expected_price(db, x[0], x[1], state)), reverse=True)
+    reserve_mc_slots = min(2, len(mcard_cands))
+    bag_slot_cap = max(0, max_slots - reserve_mc_slots)
 
     # 奸商優先高價／高流通品擺滿 15 格，避免貨架被便宜雜物卡死；一般玩家保留 1-2 張捲自用，其餘賣掉換金幣
     keys = list(bag.keys())
@@ -2981,7 +3074,7 @@ def restock_npc_shop(
         else:
             sell_n = min(cnt, rng.choice([2, 3, 5, 10]))
 
-        if len(shop) >= max_slots:
+        if len(shop) >= bag_slot_cap:
             break
 
         # 非堆疊品逐件上架
@@ -2989,7 +3082,7 @@ def restock_npc_shop(
             sell_n = 1
 
         # 防止同一 NPC 同品項擺太多格（消耗品與+0裝備最多 1 格；高強化裝最多 2 格，避免重複戒指/白裝佔死 15 格）
-        same_cnt = sum(1 for s in shop if s["item"] == iid and s.get("ench", 0) == ench)
+        same_cnt = sum(1 for s in shop if s.get("item") == iid and s.get("ench", 0) == ench)
         if same_cnt >= (1 if (it.get("kind") == "etc" or ench == 0) else 2):
             continue
 
@@ -3023,6 +3116,34 @@ def restock_npc_shop(
         bag[key] -= sell_n
         if bag[key] <= 0:
             del bag[key]
+
+    # 上架多餘未鑲嵌怪物卡（先扣庫存再進個人商店，與道具同樣依 tier 溢價／折價定價）
+    if mcard_cands and len(shop) < max_slots:
+        own_mc = (npc.get("mcards") or {}).get("own") or {}
+        for mid, star in mcard_cands:
+            if len(shop) >= max_slots:
+                break
+            arr = own_mc.get(str(mid))
+            if not arr or int(arr[star - 1]) <= 0:
+                continue
+            est_mc = mcard_expected_price(db, mid, star, state)
+            mult = rng.uniform(lo_m, hi_m)
+            if npc["tier"] in ("casual", "regular"):
+                mult *= float((state.get("dailyEvent") or {}).get("sellUrgency", 1.0))
+            unit_p = max(1_000, int(round(est_mc * mult / 5.0) * 5))
+            arr[star - 1] = int(arr[star - 1]) - 1
+            if sum(arr) <= 0:
+                own_mc.pop(str(mid), None)
+            seq = state["nextSeq"]
+            state["nextSeq"] += 1
+            shop.append({
+                "id": f"w_{seq}",
+                "mcard": mid,
+                "star": star,
+                "n": 1,
+                "price": unit_p,
+                "tick": tick_id,
+            })
 
 
 def run_npc_market_clearing(
@@ -3064,6 +3185,68 @@ def run_npc_market_clearing(
             cost = lst["price"]
             if buyer["gold"] < cost + (500_000 if tier == "scalper" else 50_000):
                 continue
+
+            if "mcard" in lst:
+                mid = int(lst["mcard"])
+                star = max(1, min(3, int(lst.get("star", 1))))
+                qty_mc = max(1, int(lst.get("n", 1)))
+                est = mcard_expected_price(db, mid, star, state) * qty_mc
+                ratio = cost / max(1, est)
+                want = False
+                if tier == "scalper" and scalper_arbitrage_ok and ratio <= scalper_buy_max and star >= 2:
+                    want = True
+                elif tier in ("whale", "regular") or (tier == "scalper" and buyer["gold"] >= 30_000_000):
+                    eff_tol = 1.15 if tier == "scalper" else tol
+                    if ratio <= eff_tol:
+                        if _npc_mcard_wants_upgrade(buyer, db, mid, star):
+                            want = True
+                        elif tier in ("whale", "regular") and star == 2:
+                            own_b = ((buyer.get("mcards") or {}).get("own") or {}).get(str(mid), [0, 0, 0])
+                            if int(own_b[1]) == 1:
+                                want = True
+                elif tier == "casual" and star >= 2 and ratio <= 0.90 and cost <= max(150_000, buyer["gold"] // 3):
+                    if _npc_mcard_wants_upgrade(buyer, db, mid, star):
+                        want = rng.random() < 0.35
+
+                if want:
+                    buyer["gold"] -= cost
+                    net_get = int(cost * (1.0 - tax_rate))
+                    tax_paid = max(0, cost - net_get)
+                    seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + net_get)
+                    own_b = buyer.setdefault("mcards", {"own": {}, "sock": {}}).setdefault("own", {})
+                    arr_b = own_b.setdefault(str(mid), [0, 0, 0])
+                    arr_b[star - 1] = int(arr_b[star - 1]) + qty_mc
+                    sold_ids.add(lst["id"])
+                    seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
+                    disp_mc, _ = _listing_display(db, lst)
+                    if state is not None:
+                        tick_now = int(state.get("tick", 0))
+                        state.setdefault("tradeLog", []).append({
+                            "t": tick_now,
+                            "bId": buyer["id"],
+                            "b": buyer["name"],
+                            "bt": buyer["tier"],
+                            "sId": seller["id"],
+                            "s": seller["name"],
+                            "st": seller["tier"],
+                            "id": mid,
+                            "mcard": mid,
+                            "star": star,
+                            "nm": disp_mc,
+                            "e": 0,
+                            "n": qty_mc,
+                            "aff": None,
+                            "p": cost,
+                            "tax": tax_paid,
+                            "r": round(ratio, 2),
+                        })
+                    if cost >= 400_000:
+                        ticker.append(f"🃏【怪卡成交】「{buyer['name']}」向「{seller['name']}」買下【{disp_mc}】({cost:,}金)！")
+                    bought_here += 1
+                    if bought_here >= max_buys:
+                        break
+                continue
+
             iid = lst["item"]
             ench = lst.get("ench", 0)
             est = calc_live_price(db, iid, ench, market, state or {}) * max(1, lst.get("n", 1))
@@ -3147,6 +3330,8 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
     supply: dict[str, int] = {}
     for npc in npcs:
         for lst in npc.get("shop", []):
+            if "mcard" in lst:
+                continue
             mk = f"{lst['item']}_{lst.get('ench', 0)}"
             supply[mk] = supply.get(mk, 0) + 1
 
@@ -3246,6 +3431,15 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
 
         shop_pub = []
         for lst in npc.get("shop", []):
+            if "mcard" in lst:
+                shop_pub.append({
+                    "id": lst["id"],
+                    "mcard": int(lst["mcard"]),
+                    "star": int(lst.get("star", 1)),
+                    "n": lst.get("n", 1),
+                    "price": lst["price"],
+                })
+                continue
             s_entry: dict[str, Any] = {
                 "id": lst["id"],
                 "item": lst["item"],
