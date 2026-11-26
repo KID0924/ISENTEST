@@ -3247,7 +3247,7 @@ def main() -> None:
     parser.add_argument("--ticks", type=int, default=1, help="每次執行推進幾個虛擬小時 (預設 1)")
     parser.add_argument("--days", type=float, default=0, help="推進天數（會覆蓋 --ticks，如 --days 7）")
     parser.add_argument("--reset", action="store_true", help="重置世界並重跑開服狀態")
-    parser.add_argument("--warmup-ticks", type=int, default=1000, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
+    parser.add_argument("--warmup-ticks", type=int, default=66, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
     parser.add_argument("--seed", type=int, default=None, help="固定亂數種子方便測試重現")
     parser.add_argument("--retire-lv", type=int, default=50, help="滿級退坑門檻等級 (預設 50)")
     parser.add_argument("--offline", action="store_true", help="停用外部氣象/股市連線，純以內建亂數演算")
@@ -3284,18 +3284,25 @@ def main() -> None:
             "nextSeq": 1000,
             "market": {},
             "ticker": [],
-            "npcs": list(all_rosters) if warmup_ticks == 0 else list(cohorts[0]),
+            "npcs": list(all_rosters) if warmup_ticks < 4 else list(cohorts[0]),
         }
         if warmup_ticks > 0:
+            if warmup_ticks >= 4:
+                c1_t = min(warmup_ticks - 1, max(1, round(warmup_ticks * 0.144)))
+                c2_t = min(warmup_ticks - 1, max(c1_t + 1, round(warmup_ticks * 0.252)))
+                c3_t = min(warmup_ticks - 1, max(c2_t + 1, round(warmup_ticks * 0.312)))
+            else:
+                c1_t = c2_t = c3_t = -1
             print(f"[暖機] 進行 {warmup_ticks} 小時開服生態預演（7 職業各 10 人，分批入服打造各等級梯度）...")
             for t in range(warmup_ticks):
-                if t == 144:
+                if t == c1_t:
                     state["npcs"].extend(cohorts[1])
-                elif t == 252:
+                elif t == c2_t:
                     state["npcs"].extend(cohorts[2])
-                elif t == 312:
+                elif t == c3_t:
                     state["npcs"].extend(cohorts[3])
-                simulate_tick(state, db, rng, args)
+                allow_live = (not args.offline) and (t >= max(0, warmup_ticks - 24))
+                simulate_tick(state, db, rng, args, allow_live_event=allow_live)
     else:
         state = json.loads(state_file.read_text(encoding="utf-8"))
         for _npc in state.get("npcs", []):
