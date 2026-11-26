@@ -86,32 +86,32 @@ TIER_SINK_CAP = {
 
 EVENT_CATS = ("weapon", "armor", "gem", "scroll", "spellbook", "material", "potion", "etc")
 
-# 20 張突發每日事件卡（主軸：含 4 張暴跌、4 張暴漲、6 張品類輪動、6 張規則／生態事件，均偏平衡對沖天氣微幅多頭）
+# 20 張突發每日事件卡（主軸區間 +15% ~ -45%，含 4 張深跌、4 張滿多、6 張品類輪動、6 張規則／生態事件）
 DAILY_EVENT_POOL: list[dict[str, Any]] = [
-    # --- 4 張大空頭暴跌 ---
-    {"id": "crash_panic", "title": "📉【股災恐慌拋售潮】", "desc": "黑市傳出崩盤謠言，全服冒險者恐慌殺低變現！", "mults": {"all": 0.60}, "sellUrgency": 0.88},
-    {"id": "blackmarket_raid", "title": "🚨【警衛隊查緝走私】", "desc": "奇岩衛兵臨檢黑市倉庫，武器防具與材料急跌脫手！", "mults": {"weapon": 0.68, "armor": 0.68, "material": 0.72, "scroll": 0.90}, "sellUrgency": 0.90},
-    {"id": "dungeon_flood", "title": "🌊【地監產能大過剩】", "desc": "遠征隊大豐收導致武器防具供過於求，裝備行情大跳水！", "mults": {"weapon": 0.72, "armor": 0.72, "gem": 0.95}, "sellUrgency": 0.92},
-    {"id": "chill_selloff", "title": "❄️【冷清縮手拋售日】", "desc": "市場買氣降溫，各類物資全面折價出清！", "mults": {"all": 0.76}, "sellUrgency": 0.90},
-    # --- 4 張大多頭暴漲 ---
-    {"id": "aden_bull", "title": "📈【亞丁狂歡牛市日】", "desc": "奇岩經濟繁榮買氣沸騰，全品項物價飆升！", "mults": {"all": 1.36}},
-    {"id": "siege_supply", "title": "🔥【皇室攻城大採購】", "desc": "王城備戰急徵武防捲軸與藥水，消耗補給全線飆漲！", "mults": {"scroll": 1.44, "potion": 1.45, "armor": 1.18}},
-    {"id": "dragon_carnival", "title": "🐉【屠龍慶典狂熱】", "desc": "屠龍風潮帶動高階戰備需求，武器防具與寶石大漲！", "mults": {"weapon": 1.32, "armor": 1.28, "gem": 1.38}},
-    {"id": "guild_hype", "title": "📚【商會稀有囤貨潮】", "desc": "大公會收購稀有材料與古法書，稀缺品項價格攀高！", "mults": {"material": 1.35, "spellbook": 1.38, "potion": 0.92}},
-    # --- 6 張品類分化（有漲有跌） ---
-    {"id": "gem_boom", "title": "💎【奇岩寶石拍賣盛會】", "desc": "宮廷工匠高價徵收寶石，白裝卻乏人問津！", "mults": {"gem": 1.44, "material": 1.18, "weapon": 0.86, "armor": 0.88}},
-    {"id": "smith_week", "title": "⚒️【鐵匠衝裝競賽週】", "desc": "武防捲軸搶破頭大漲，原料價格小幅回檔！", "mults": {"scroll": 1.40, "material": 0.82, "armor": 1.12}},
-    {"id": "novice_relief", "title": "🧪【新手補給救濟日】", "desc": "藥水與基本補給大缺貨，低中階武器防具平價讓利！", "mults": {"potion": 1.35, "weapon": 0.72, "armor": 0.72}},
-    {"id": "mage_symposium", "title": "🔮【象牙塔法師研討會】", "desc": "魔法書與藍寶石系需求大增，近戰武器小跌！", "mults": {"spellbook": 1.42, "gem": 1.32, "weapon": 0.85}},
-    {"id": "armor_repair", "title": "🛡️【前線防具修補潮】", "desc": "防具與防捲喊漲，進攻型武器暫時走低！", "mults": {"armor": 1.35, "scroll": 1.22, "weapon": 0.85}},
-    {"id": "alchemy_boom", "title": "⚗️【鍊金工坊搶料大戰】", "desc": "製作材料奇貨可居，成品裝反而遇冷跌價！", "mults": {"material": 1.36, "weapon": 0.82, "armor": 0.82}},
+    # --- 4 張大空頭暴跌 (-28% ~ -45%) ---
+    {"id": "crash_panic", "title": "📉【股災恐慌拋售潮】", "desc": "黑市傳出崩盤謠言，全服冒險者恐慌殺低變現！", "mults": {"all": 0.55}, "sellUrgency": 0.88},
+    {"id": "blackmarket_raid", "title": "🚨【警衛隊查緝走私】", "desc": "奇岩衛兵臨檢黑市倉庫，武器防具與材料大跳水！", "mults": {"weapon": 0.60, "armor": 0.60, "material": 0.66, "scroll": 0.85}, "sellUrgency": 0.90},
+    {"id": "dungeon_flood", "title": "🌊【地監產能大過剩】", "desc": "遠征隊大豐收導致武器防具供過於求，裝備行情重挫！", "mults": {"weapon": 0.65, "armor": 0.65, "gem": 0.90}, "sellUrgency": 0.92},
+    {"id": "chill_selloff", "title": "❄️【冷清縮手拋售日】", "desc": "市場買氣急凍，各類物資全面折價出清！", "mults": {"all": 0.72}, "sellUrgency": 0.90},
+    # --- 4 張多頭採購 (+10% ~ +15%) ---
+    {"id": "aden_bull", "title": "📈【亞丁繁榮上漲日】", "desc": "奇岩經濟活絡買氣穩健走強，全品項看漲！", "mults": {"all": 1.15}},
+    {"id": "siege_supply", "title": "🔥【皇室攻城大採購】", "desc": "王城備戰急徵武防捲軸與藥水，消耗補給走強！", "mults": {"scroll": 1.15, "potion": 1.15, "armor": 1.10}},
+    {"id": "dragon_carnival", "title": "🐉【屠龍慶典備戰】", "desc": "屠龍風潮帶動戰備需求，武器防具與寶石溫和上揚！", "mults": {"weapon": 1.13, "armor": 1.12, "gem": 1.15}},
+    {"id": "guild_hype", "title": "📚【商會稀有囤貨潮】", "desc": "大公會收購稀有材料與古法書，稀缺品項走高！", "mults": {"material": 1.14, "spellbook": 1.15, "potion": 0.85}},
+    # --- 6 張品類分化（漲幅至 +15%、跌幅至 -35%） ---
+    {"id": "gem_boom", "title": "💎【奇岩寶石拍賣盛會】", "desc": "宮廷工匠高價徵收寶石，白裝卻大幅跌價乏人問津！", "mults": {"gem": 1.15, "material": 1.08, "weapon": 0.72, "armor": 0.75}},
+    {"id": "smith_week", "title": "⚒️【鐵匠衝裝競賽週】", "desc": "武防捲軸搶破頭，原料價格壓低讓利！", "mults": {"scroll": 1.15, "material": 0.72, "armor": 1.08}},
+    {"id": "novice_relief", "title": "🧪【新手補給救濟日】", "desc": "藥水略漲但低中階武器防具大降價出清！", "mults": {"potion": 1.14, "weapon": 0.65, "armor": 0.65}},
+    {"id": "mage_symposium", "title": "🔮【象牙塔法師研討會】", "desc": "魔法書與藍寶石系看漲，近戰武器走低！", "mults": {"spellbook": 1.15, "gem": 1.12, "weapon": 0.74}},
+    {"id": "armor_repair", "title": "🛡️【前線防具修補潮】", "desc": "防具與防捲喊漲，進攻型武器大幅回檔！", "mults": {"armor": 1.15, "scroll": 1.10, "weapon": 0.74}},
+    {"id": "alchemy_boom", "title": "⚗️【鍊金工坊搶料大戰】", "desc": "製作材料走俏，成品裝反而遇冷跌價！", "mults": {"material": 1.15, "weapon": 0.72, "armor": 0.72}},
     # --- 6 張特殊規則／生態事件 ---
-    {"id": "berserk_enchant", "title": "🔥【狂戰衝裝祭典】", "desc": "今日全服衝裝上限 +1，捲軸與高強化裝全面火熱！", "mults": {"scroll": 1.30, "weapon": 1.15, "armor": 1.15}, "enchantBonus": 1},
-    {"id": "merchant_monopoly", "title": "💰【大盤商聯合掃貨週】", "desc": "奇岩商人提高收購線至 0.88×，市場流動加速！", "mults": {"all": 1.08}, "scalperBuyMax": 0.88},
-    {"id": "tax_holiday", "title": "⚖️【奇岩商會減稅日】", "desc": "今日交易稅由 10% 降至 3%，全服買賣更活絡！", "mults": {"all": 1.04}, "taxRate": 0.03},
-    {"id": "nightmare_raid", "title": "☠️【魔王軍團突襲警報】", "desc": "高手勇闖高難路線，藥水飆漲但大量寶物湧入壓低材料！", "mults": {"potion": 1.28, "material": 0.85, "gem": 1.15}, "forceHard": True},
-    {"id": "chest_harvest", "title": "🎁【寶箱開採大豐收】", "desc": "大批寶箱材料與寶石出爐，素材與寶石折價出清！", "mults": {"material": 0.78, "gem": 0.80, "scroll": 0.88}},
-    {"id": "steady_calm", "title": "🌤️【奇岩休整微震日】", "desc": "市場回歸常態微幅波動，僅受現實台美股與台北氣候牽引。", "mults": {"all": 0.96}},
+    {"id": "berserk_enchant", "title": "🔥【狂戰衝裝祭典】", "desc": "今日全服衝裝上限 +1，捲軸與高強化裝搶手！", "mults": {"scroll": 1.15, "weapon": 1.08, "armor": 1.08}, "enchantBonus": 1},
+    {"id": "merchant_monopoly", "title": "💰【大盤商聯合掃貨週】", "desc": "奇岩商人提高收購線至 0.88×，市場流動加速！", "mults": {"all": 1.04}, "scalperBuyMax": 0.88},
+    {"id": "tax_holiday", "title": "⚖️【奇岩商會減稅日】", "desc": "今日交易稅由 10% 降至 3%，全服買賣更活絡！", "mults": {"all": 1.02}, "taxRate": 0.03},
+    {"id": "nightmare_raid", "title": "☠️【魔王軍團突襲警報】", "desc": "高手勇闖高難路線，藥水微漲但材料因寶物湧入大跌！", "mults": {"potion": 1.14, "material": 0.72, "gem": 1.08}, "forceHard": True},
+    {"id": "chest_harvest", "title": "🎁【寶箱開採大豐收】", "desc": "大批寶箱材料與寶石出爐，素材與寶石折價出清！", "mults": {"material": 0.68, "gem": 0.70, "scroll": 0.82}},
+    {"id": "steady_calm", "title": "🌤️【奇岩休整微震日】", "desc": "市場回歸平穩微震，主要反映現實台美股與台北氣候。", "mults": {"all": 0.96}},
 ]
 
 _LIVE_SIGNAL_CACHE: dict[str, Any] | None = None
@@ -1127,9 +1127,9 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
     default_card_m = float(base_map.get("all", 1.0))
     resolved: dict[str, float] = {}
     for cat in EVENT_CATS:
-        m_card = float(base_map.get(cat, default_card_m)) * jitter
+        m_card = max(0.55, min(1.15, float(base_map.get(cat, default_card_m)) * jitter))
         m_weath = float(w_mults.get(cat, 1.0))
-        final_m = max(0.42, min(1.75, m_card * stock_mult * m_weath))
+        final_m = max(0.42, min(1.45, m_card * stock_mult * m_weath))
         resolved[cat] = round(final_m, 3)
 
     stock_pct = (stock_mult - 1.0) * 100
