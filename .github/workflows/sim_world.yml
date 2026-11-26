@@ -1,12 +1,28 @@
 name: Update 70-NPC World State
 
 on:
-  schedule:
-    - cron: '0 */4 * * *'
   workflow_dispatch:
+    inputs:
+      ticks:
+        description: '推進虛擬小時數（預設 1 小時）'
+        required: false
+        default: '1'
+        type: string
+      source:
+        description: '觸發來源（手動執行選 manual；Worker 定時排程帶 worker）'
+        required: false
+        default: 'manual'
+        type: choice
+        options:
+          - manual
+          - worker
 
 permissions:
   contents: write
+
+concurrency:
+  group: sim-world-update
+  cancel-in-progress: false
 
 jobs:
   simulate:
@@ -15,16 +31,55 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Guard duplicate worker runs
+        id: guard
+        shell: python
+        run: |
+          import datetime as dt, json, os
+          from pathlib import Path
+
+          source = "${{ inputs.source }}" or "manual"
+          raw_ticks = ("${{ inputs.ticks }}" or "1").strip()
+          try:
+              ticks = max(1, min(240, int(raw_ticks)))
+          except Exception:
+              ticks = 1
+
+          skip = False
+          if source == "worker":
+              ws = Path("world_state.json")
+              if ws.exists():
+                  try:
+                      data = json.loads(ws.read_text(encoding="utf-8"))
+                      upd = data.get("updatedAt")
+                      if upd:
+                          last_dt = dt.datetime.fromisoformat(upd)
+                          age_sec = (dt.datetime.now(dt.timezone.utc) - last_dt.astimezone(dt.timezone.utc)).total_seconds()
+                          if 0 <= age_sec < 2700:
+                              print(f"[SKIP] 距離上次更新僅 {age_sec/60:.1f} 分鐘（< 45 分鐘），略過本次 Worker 重複觸發。")
+                              skip = True
+                  except Exception as e:
+                      print(f"[WARN] 檢查 updatedAt 失敗，繼續執行: {e}")
+
+          out_path = os.environ.get("GITHUB_OUTPUT")
+          if out_path:
+              with open(out_path, "a", encoding="utf-8") as f:
+                  f.write(f"skip={'true' if skip else 'false'}\n")
+                  f.write(f"ticks={ticks}\n")
+
       - name: Set up Python
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Run 70-NPC world simulation (4 hours)
+      - name: Run 70-NPC world simulation (1 hour default)
+        if: steps.guard.outputs.skip != 'true'
         run: |
-          python sim/run_sim.py --data-dir sim/data --state-file sim/npc_state.json --out world_state.json --ticks 4
+          python sim/run_sim.py --data-dir sim/data --state-file sim/npc_state.json --out world_state.json --ticks "${{ steps.guard.outputs.ticks }}"
 
       - name: Commit and push updated world_state.json
+        if: steps.guard.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

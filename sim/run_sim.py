@@ -303,6 +303,25 @@ class GameDatabase:
         self.box_pool: list[int] = []
         self.shop_anchor: dict[int, int] = {}
         self.market_base: dict[int, int] = {}
+        self.mcards_cat: list[dict[str, Any]] = []
+        self.mcard_by_id: dict[int, dict[str, Any]] = {}
+        self.mcard_fx: dict[str, tuple[str, list[int]]] = {
+            "fire": ("dmgpct", [1, 2, 5]),
+            "water": ("shield", [6, 12, 30]),
+            "wind": ("hit", [1, 2, 5]),
+            "earth": ("hp", [10, 20, 50]),
+            "none": ("exppct", [2, 4, 10]),
+        }
+        self.msock_slots: dict[str, int] = {
+            "weapon": 3, "helm": 1, "armor": 1, "pants": 1,
+            "boots": 1, "glove": 1, "shield": 1, "cloak": 1,
+        }
+        self.mcard_drop_mob: float = 0.02
+        self.mcard_drop_boss: float = 0.15
+        self.mcard_fuse_rate: dict[int, float] = {1: 0.55, 2: 0.30}
+        self.mcard_unsock: dict[int, tuple[int, int]] = {
+            1: (100_000, 5), 2: (500_000, 20), 3: (2_000_000, 50),
+        }
 
         self._load()
 
@@ -403,11 +422,12 @@ class GameDatabase:
         self.monsters = data_obj.get("monsters", [])
         self.monsters_by_id = {int(m["id"]): m for m in self.monsters}
 
-        # 5. game.js (動態抽取掉落倍率、禁掉品、寶箱池、ITEMFX 特效、商店價格與關卡池)
+        # 5. game.js (動態抽取掉落倍率、禁掉品、寶箱池、ITEMFX 特效、商店價格、關卡池與 V082 怪物卡片)
         self._parse_game_constants(game_txt)
         self._parse_item_fx(game_txt)
         self._parse_shop_anchors(game_txt)
         self._parse_stages(game_txt)
+        self._parse_mcards(game_txt)
         self._compute_all_base_prices()
 
         # 曼孟隨機裝備箱獎池（以 GEARCATS 與有效裝備動態建構，未來加新裝自動進池）
@@ -456,6 +476,58 @@ class GameDatabase:
                 fx[k] = float(v)
             if fx:
                 self.item_fx[int(iid_s)] = fx
+
+    def _parse_mcards(self, game_txt: str) -> None:
+        m_fx = re.search(r"const MCARD_FX\s*=\s*\{([^\n]+)\};", game_txt)
+        if m_fx:
+            for el_s, k_s, arr_s in re.findall(r"(\w+)\s*:\s*\[\s*'(\w+)'\s*,\s*\[([^\]]+)\]\s*\]", m_fx.group(1)):
+                vals = [int(x) for x in re.findall(r"\d+", arr_s)]
+                if len(vals) == 3:
+                    self.mcard_fx[el_s] = (k_s, vals)
+
+        m_sl = re.search(r"const MSOCK_SLOTS\s*=\s*\{([^}]+)\}", game_txt)
+        if m_sl:
+            slots: dict[str, int] = {}
+            for k_s, v_s in re.findall(r"(\w+)\s*:\s*(\d+)", m_sl.group(1)):
+                slots[k_s] = int(v_s)
+            if slots:
+                self.msock_slots = slots
+
+        m_dm = re.search(r"const MCARD_DROP_MOB\s*=\s*([0-9.]+)\s*,\s*MCARD_DROP_BOSS\s*=\s*([0-9.]+)\s*,\s*MCARD_FUSE_RATE\s*=\s*\{([^}]+)\}", game_txt)
+        if m_dm:
+            self.mcard_drop_mob = float(m_dm.group(1))
+            self.mcard_drop_boss = float(m_dm.group(2))
+            for k_s, v_s in re.findall(r"(\d+)\s*:\s*([0-9.]+)", m_dm.group(3)):
+                self.mcard_fuse_rate[int(k_s)] = float(v_s)
+
+        m_un = re.search(r"MUNSOCK\s*=\s*\{([^\n]+)\};", game_txt)
+        if m_un:
+            for s_s, g_s, c_s in re.findall(r"(\d+)\s*:\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]", m_un.group(1)):
+                self.mcard_unsock[int(s_s)] = (int(g_s), int(c_s))
+
+        m_cat = re.search(r"const MCARD_CAT\s*=\s*\[(.*?)\n\s*\];", game_txt, re.S)
+        if m_cat:
+            cat: list[dict[str, Any]] = []
+            by_id: dict[int, dict[str, Any]] = {}
+            for obj_s in re.findall(r"\{[^}]+\}", m_cat.group(1)):
+                id_m = re.search(r"id\s*:\s*(\d+)", obj_s)
+                n_m = re.search(r"n\s*:\s*'([^']+)'", obj_s)
+                el_m = re.search(r"el\s*:\s*'([^']+)'", obj_s)
+                lv_m = re.search(r"lv\s*:\s*(\d+)", obj_s)
+                ci_m = re.search(r"ci\s*:\s*'([^']+)'", obj_s)
+                if id_m and n_m and el_m and lv_m:
+                    row = {
+                        "id": int(id_m.group(1)),
+                        "n": n_m.group(1),
+                        "el": el_m.group(1),
+                        "lv": int(lv_m.group(1)),
+                        "ci": ci_m.group(1) if ci_m else "",
+                    }
+                    cat.append(row)
+                    by_id[row["id"]] = row
+            if cat:
+                self.mcards_cat = cat
+                self.mcard_by_id = by_id
 
     def _parse_shop_anchors(self, game_txt: str) -> None:
         # 只錨定真正可在村莊 NPC 商店用金幣購買的清單（SHOPSELL 與 VNPC shop；不用 BUYP 以免誤壓祝捲/寶石/法書市價）
@@ -1367,6 +1439,7 @@ def create_new_npc(idx: int, cls: str, tier: str, used_names: set[str], db: Game
         "bag": {},  # { "itemId_ench": count }
         "shop": [],  # list of listing dicts
         "card": init_npc_card(tier, 1, rng),
+        "mcards": {"own": {}, "sock": {}},
         "combatLog": [],
         "lastEvent": f"剛加入奇岩冒險的小{CLS_ZH[cls]}",
         "state": "village",
@@ -1419,6 +1492,288 @@ def maybe_upgrade_npc_card(npc: dict[str, Any], rng: random.Random, boost: float
         nxt = CARD_ORDER[idx + 1]
         npc["card"] = {"tier": nxt, "zh": CARD_TIERS[nxt]["zh"], "name": rng.choice(CARD_TIERS[nxt]["names"])}
     return npc["card"]
+
+
+def _mcard_unsock_gold(star: int, db: GameDatabase) -> int:
+    g, coin = db.mcard_unsock.get(star, (100_000, 5))
+    coin_price = db.shop_anchor.get(49100, 10_000)
+    return g + coin * coin_price
+
+
+def _mcard_score(cls: str, el: str, star: int, lv: int) -> float:
+    base = float(star) * 100.0
+    if el == "fire":
+        w = 34.0 if cls in ("mage", "ill", "darkelf") else 30.0
+    elif el == "wind":
+        w = 24.0 if cls in ("elf", "darkelf") else 20.0
+    elif el == "earth":
+        w = 24.0 if cls in ("knight", "dk", "royal") else 17.0
+    elif el == "water":
+        w = 21.0 if cls in ("mage", "ill", "elf") else 16.0
+    else:  # none: exp%
+        w = 22.0 if lv < 42 else 11.0
+    return base + w
+
+
+def npc_mcard_bonuses(npc: dict[str, Any], db: GameDatabase) -> dict[str, float]:
+    out = {"dmgpct": 0.0, "shield": 0.0, "hit": 0.0, "hp": 0.0, "exppct": 0.0}
+    mc = npc.get("mcards")
+    if not isinstance(mc, dict):
+        return out
+    sock = mc.get("sock") or {}
+    eq = npc.get("eq") or {}
+    for slot, cards in sock.items():
+        if slot not in eq or slot not in db.msock_slots or not isinstance(cards, list):
+            continue
+        lim = db.msock_slots[slot]
+        for c in cards[:lim]:
+            if not isinstance(c, dict):
+                continue
+            mid = int(c.get("m", 0))
+            star = max(1, min(3, int(c.get("s", 1))))
+            info = db.mcard_by_id.get(mid)
+            if not info:
+                continue
+            fx = db.mcard_fx.get(info["el"])
+            if not fx:
+                continue
+            stat_k, vals = fx
+            out[stat_k] = out.get(stat_k, 0.0) + float(vals[star - 1])
+    return out
+
+
+def npc_mcard_summary(npc: dict[str, Any]) -> dict[str, int]:
+    mc = npc.get("mcards") or {}
+    own = mc.get("own") or {}
+    sock = mc.get("sock") or {}
+    eq = npc.get("eq") or {}
+    types: set[str] = set()
+    c1 = c2 = c3 = 0
+    for mid_s, arr in own.items():
+        if not isinstance(arr, list) or len(arr) < 3:
+            continue
+        n1, n2, n3 = int(arr[0]), int(arr[1]), int(arr[2])
+        if n1 + n2 + n3 > 0:
+            types.add(str(mid_s))
+            c1 += n1
+            c2 += n2
+            c3 += n3
+    for slot, cards in sock.items():
+        if slot not in eq or not isinstance(cards, list):
+            continue
+        for c in cards:
+            if not isinstance(c, dict):
+                continue
+            types.add(str(c.get("m", 0)))
+            s = int(c.get("s", 1))
+            if s == 3:
+                c3 += 1
+            elif s == 2:
+                c2 += 1
+            else:
+                c1 += 1
+    return {"t": len(types), "n": c1, "s": c2, "g": c3}
+
+
+def roll_npc_mcard_drops(
+    npc: dict[str, Any],
+    db: GameDatabase,
+    rng: random.Random,
+    pool: list[int] | None,
+    kills_kept: int,
+    boss_id: int | None = None,
+    rec_lv: int = 10,
+    boss_only: bool = False,
+) -> list[tuple[int, str]]:
+    if not db.mcards_cat:
+        return []
+    mc = npc.setdefault("mcards", {"own": {}, "sock": {}})
+    own: dict[str, list[int]] = mc.setdefault("own", {})
+    gained: list[tuple[int, str]] = []
+
+    if pool and kills_kept > 0:
+        pool_mc = [db.mcard_by_id[m_id] for m_id in pool if m_id in db.mcard_by_id]
+        if pool_mc:
+            rolls = max(1, min(14, int(round(kills_kept / 55.0))))
+            for _ in range(rolls):
+                if rng.random() < db.mcard_drop_mob:
+                    c = rng.choice(pool_mc)
+                    mk = str(c["id"])
+                    arr = own.setdefault(mk, [0, 0, 0])
+                    arr[0] = int(arr[0]) + 1
+                    gained.append((c["id"], c["n"]))
+
+    if boss_only or boss_id:
+        if rng.random() < db.mcard_drop_boss:
+            c = db.mcard_by_id.get(boss_id) if boss_id else None
+            if c is None:
+                near = [x for x in db.mcards_cat if abs(x["lv"] - rec_lv) <= 14] or db.mcards_cat
+                c = rng.choice(near)
+            mk = str(c["id"])
+            arr = own.setdefault(mk, [0, 0, 0])
+            arr[0] = int(arr[0]) + 1
+            gained.append((c["id"], c["n"]))
+
+    return gained
+
+
+def process_npc_mcards(
+    npc: dict[str, Any],
+    db: GameDatabase,
+    rng: random.Random,
+    ticker: list[str],
+    new_events: list[str],
+    allow_ticker: bool = True,
+) -> None:
+    if not db.mcards_cat:
+        return
+    mc = npc.setdefault("mcards", {"own": {}, "sock": {}})
+    own: dict[str, list[int]] = mc.setdefault("own", {})
+    sock: dict[str, list[dict[str, int]]] = mc.setdefault("sock", {})
+    eq = npc.get("eq") or {}
+    cls = npc["cls"]
+    lv = npc["lv"]
+    tier = npc["tier"]
+
+    # 清理已不在身上的部位插槽
+    for sl in list(sock.keys()):
+        if sl not in eq or sl not in db.msock_slots or not sock[sl]:
+            sock.pop(sl, None)
+
+    # 1) 合成升星（2 普→1 銀 55%；2 銀→1 金 30%，失敗材料破裂）
+    max_fuses = 6 if tier == "whale" else 4 if tier == "regular" else 3 if tier == "scalper" else 2
+    fuse_count = 0
+    cand_mids = list(own.keys())
+    rng.shuffle(cand_mids)
+    r12 = db.mcard_fuse_rate.get(1, 0.55)
+    r23 = db.mcard_fuse_rate.get(2, 0.30)
+
+    for mk in cand_mids:
+        if fuse_count >= max_fuses:
+            break
+        arr = own.get(mk)
+        if not isinstance(arr, list) or len(arr) < 3:
+            continue
+        # 2★ -> 3★
+        while arr[1] >= 2 and fuse_count < max_fuses:
+            if tier == "casual" and rng.random() > 0.55:
+                break
+            arr[1] -= 2
+            fuse_count += 1
+            if rng.random() < r23:
+                arr[2] += 1
+                info = db.mcard_by_id.get(int(mk))
+                if info:
+                    new_events.append(f"合成出 3★ 怪物金卡【{info['n']}】！")
+                    if allow_ticker and rng.random() < 0.45:
+                        ticker.append(f"🃏【怪物金卡】「{npc['name']}」合成出 3★ 金卡【{info['n']}】！")
+        # 1★ -> 2★
+        while arr[0] >= 2 and fuse_count < max_fuses:
+            if tier == "casual" and rng.random() > 0.65:
+                break
+            arr[0] -= 2
+            fuse_count += 1
+            if rng.random() < r12:
+                arr[1] += 1
+
+    # 2) 建立背包可用卡片清單 [(score, star, mid)]
+    avail: list[tuple[float, int, int]] = []
+    for mk, arr in own.items():
+        if not isinstance(arr, list) or len(arr) < 3:
+            continue
+        mid = int(mk)
+        info = db.mcard_by_id.get(mid)
+        if not info:
+            continue
+        for star in (3, 2, 1):
+            cnt = int(arr[star - 1])
+            sc = _mcard_score(cls, info["el"], star, lv)
+            for _ in range(cnt):
+                avail.append((sc, star, mid))
+    avail.sort(key=lambda x: (x[0], x[1]), reverse=True)
+
+    # 3) 優先填滿身上裝備空插槽（插卡免費）
+    for slot, lim in db.msock_slots.items():
+        if slot not in eq:
+            continue
+        cur_sk = sock.setdefault(slot, [])
+        while len(cur_sk) < lim and avail:
+            _, star, mid = avail.pop(0)
+            arr = own.get(str(mid))
+            if arr and arr[star - 1] > 0:
+                arr[star - 1] -= 1
+                cur_sk.append({"m": mid, "s": star})
+
+    # 4) 有更強高星卡時，若資金充裕支付拔卡費把舊卡拔回圖鑑再換上新卡
+    if tier in ("whale", "regular", "scalper") and avail:
+        swaps = 0
+        max_swaps = 3 if tier == "whale" else 1
+        while swaps < max_swaps and avail:
+            best_sc, best_s, best_mid = avail[0]
+            worst_pos: tuple[float, str, int, int, int] | None = None
+            for slot, lim in db.msock_slots.items():
+                if slot not in eq:
+                    continue
+                for idx_c, card in enumerate(sock.get(slot, [])[:lim]):
+                    c_mid = int(card.get("m", 0))
+                    c_star = int(card.get("s", 1))
+                    c_info = db.mcard_by_id.get(c_mid)
+                    c_sc = _mcard_score(cls, c_info["el"] if c_info else "none", c_star, lv)
+                    if best_s > c_star and best_sc >= c_sc + 80.0:
+                        if worst_pos is None or c_sc < worst_pos[0]:
+                            worst_pos = (c_sc, slot, idx_c, c_mid, c_star)
+            if worst_pos is None:
+                break
+            _, slot, idx_c, old_mid, old_star = worst_pos
+            fee = _mcard_unsock_gold(old_star, db)
+            if npc["gold"] < fee * 2:
+                break
+            npc["gold"] -= fee
+            avail.pop(0)
+            arr_new = own.get(str(best_mid))
+            if not arr_new or arr_new[best_s - 1] <= 0:
+                break
+            arr_new[best_s - 1] -= 1
+            arr_old = own.setdefault(str(old_mid), [0, 0, 0])
+            arr_old[old_star - 1] += 1
+            sock[slot][idx_c] = {"m": best_mid, "s": best_s}
+            swaps += 1
+
+    # 清理數量皆為 0 的圖鑑空項，縮減存檔大小
+    for mk in list(own.keys()):
+        if sum(own[mk]) <= 0:
+            del own[mk]
+    for sl in list(sock.keys()):
+        if not sock[sl]:
+            del sock[sl]
+
+
+def ensure_npc_mcards(npc: dict[str, Any], db: GameDatabase, rng: random.Random) -> dict[str, Any]:
+    """初始化或為既有高階存檔 NPC 補齊合理的 V082 怪物卡片收集與插卡進度"""
+    mc = npc.get("mcards")
+    if isinstance(mc, dict) and isinstance(mc.get("own"), dict) and isinstance(mc.get("sock"), dict):
+        return mc
+    mc = {"own": {}, "sock": {}}
+    npc["mcards"] = mc
+    if not db.mcards_cat:
+        return mc
+    lv = int(npc.get("lv", 1))
+    tier = npc.get("tier", "regular")
+    runs = int(npc.get("runs", 0))
+    if lv <= 1 and runs <= 0:
+        return mc
+
+    t_mult = 1.55 if tier == "whale" else 1.0 if tier == "regular" else 0.90 if tier == "scalper" else 0.65
+    approx_drops = min(90, max(2, int((lv * 0.95 + min(120, runs) * 0.14) * t_mult)))
+    elig = [c for c in db.mcards_cat if c["lv"] <= max(12, lv + 8)] or db.mcards_cat
+    own = mc["own"]
+    for _ in range(approx_drops):
+        c = rng.choice(elig)
+        mk = str(c["id"])
+        arr = own.setdefault(mk, [0, 0, 0])
+        arr[0] += 1
+    process_npc_mcards(npc, db, rng, [], [], allow_ticker=False)
+    return mc
 
 
 def make_npc_roster(db: GameDatabase, rng: random.Random) -> list[dict[str, Any]]:
@@ -1534,19 +1889,21 @@ def npc_combat_profile(npc: dict[str, Any], db: GameDatabase) -> dict[str, float
     elif cls == "elf":
         w_aoe += 0.35
 
+    mc_b = npc_mcard_bonuses(npc, db)
     skill_mult = 1.16 if tier == "whale" else 1.00 if tier == "regular" else 0.96 if tier == "scalper" else 0.88
     # 對群目標數：武器/職業對群 × 變身卡擴散倍率 × 局內升級技能成長
     aoe_cap = w_aoe * c_def["aoe"] * (0.92 + lv * 0.015)
 
-    # 1) 單體輸出（吃等級、武器、攻撃詞綴、變身卡增傷與攻速）
-    single_dps = (lv * 1.45 + w_pts * 0.65 + a_pts * 0.06 + aff_off * 3.0 + 6.5) * c_def["dmg"] * c_def["aspd"] * skill_mult
+    # 1) 單體輸出（吃等級、武器、攻撃詞綴、變身卡增傷與攻速、V082火屬性傷害%/風屬性命中）
+    mc_off_mul = (1.0 + mc_b["dmgpct"] / 100.0) * (1.0 + min(0.18, mc_b["hit"] * 0.008))
+    single_dps = (lv * 1.45 + w_pts * 0.65 + a_pts * 0.06 + aff_off * 3.0 + 6.5) * c_def["dmg"] * c_def["aspd"] * skill_mult * mc_off_mul
 
     # 2) 對群清場產能（單體 × 對群擴散的 0.72 次方平滑，反映從 1 隻到 8 隻的清怪差距）
     aoe_power = single_dps * (min(9.5, max(1.0, aoe_cap)) ** 0.72) * 0.90
 
-    # 3) 血防坦度（防具積分＋基礎HP成長＋變身卡 HP/AC＋吸血/減傷詞綴）
+    # 3) 血防坦度（防具積分＋基礎HP成長＋變身卡 HP/AC＋V082地HP/水護盾＋吸血/減傷詞綴）
     hp_g, _ = npc_base_hp_mp(cls, lv, npc.get("stats") or CLASS_BASE_STATS[cls])
-    tank_power = (lv * 1.15 + a_pts * 0.28 + hp_g * 0.022 + c_def["hp"] * 0.08 + abs(c_def["ac"]) * 0.70 + aff_def * 3.5 + 7.0) * skill_mult
+    tank_power = (lv * 1.15 + a_pts * 0.28 + (hp_g + mc_b["hp"]) * 0.022 + mc_b["shield"] * 0.028 + c_def["hp"] * 0.08 + abs(c_def["ac"]) * 0.70 + aff_def * 3.5 + 7.0) * skill_mult
 
     return {
         "single_dps": single_dps,
@@ -1765,6 +2122,8 @@ def simulate_tick(
         new_events: list[str] = []
         if not isinstance(npc.get("card"), dict) or npc["card"].get("tier") not in CARD_TIERS:
             npc["card"] = init_npc_card(tier, npc["lv"], rng)
+        ensure_npc_mcards(npc, db, rng)
+        mc_exp_mul = 1.0 + npc_mcard_bonuses(npc, db).get("exppct", 0.0) / 100.0
         clog: list[dict[str, Any]] = npc.setdefault("combatLog", [])
         prof = npc_combat_profile(npc, db)
         force_hard_ev = bool((state.get("dailyEvent") or {}).get("forceHard", False))
@@ -1814,7 +2173,7 @@ def simulate_tick(
                     kills = int(rng.randint(850, 1550) * power_factor * floor_scale * kill_eff)
                     sample_mons = [db.monsters_by_id[rng.choice(pool)] for _ in range(10)]
                     avg_mexp = sum(db.mexp.get(int(m["id"]), 2) for m in sample_mons) / max(1, len(sample_mons))
-                    exp_gain = int(kills * avg_mexp * 0.78 * diff["exp"])
+                    exp_gain = int(kills * avg_mexp * 0.78 * diff["exp"] * mc_exp_mul)
 
                     drop_rolls = max(4, min(16, int((7 + npc["lv"] // 4) * floor_scale * max(0.45, kill_eff))))
                     fl_gold = int((rng.randint(3200, 7800) + st["recLv"] * rng.randint(360, 720)) * diff_gold_mult * floor_scale * max(0.35, kill_eff))
@@ -1850,6 +2209,7 @@ def simulate_tick(
                         kills_kept = int(kills * 0.25)
                         npc["kills"] = npc.get("kills", 0) + kills_kept
                         run_kills_acc += kills_kept
+                        roll_npc_mcard_drops(npc, db, rng, pool, kills_kept, rec_lv=st["recLv"])
                         exp_gain = int(exp_gain * 0.30)
                         run_exp_acc += exp_gain
                         fl_gold_net = max(0, int(fl_gold * 0.20) - upkeep_fl)
@@ -1876,6 +2236,7 @@ def simulate_tick(
                     # 小怪層過關：全額領取當層小怪掉落
                     npc["kills"] = npc.get("kills", 0) + kills
                     run_kills_acc += kills
+                    roll_npc_mcard_drops(npc, db, rng, pool, kills, rec_lv=st["recLv"])
                     for iid_l, e_l, q_l, aff_l in rolled_loot:
                         self_bag_add(npc, iid_l, e_l, q_l, aff_l)
                         _rec_drop(iid_l, e_l, q_l)
@@ -1889,7 +2250,10 @@ def simulate_tick(
                         if rng.random() < boss_p:
                             boss_ok = True
                             bmon = db.monsters_by_id[st["bossId"]]
-                            exp_gain += int(db.bxp.get(st["mapId"], 110) * diff["exp"])
+                            exp_gain += int(db.bxp.get(st["mapId"], 110) * diff["exp"] * mc_exp_mul)
+                            mc_boss_got = roll_npc_mcard_drops(npc, db, rng, None, 0, boss_id=st["bossId"], rec_lv=st["recLv"])
+                            for _, mc_nm in mc_boss_got:
+                                new_events.append(f"推倒{bmon['name']}掉落怪物卡【{mc_nm}】！")
                             fl_gold += int(rng.randint(12000, 36000) * diff_gold_mult)
                             if rng.random() < min(0.85, 0.38 * diff["bossrw"]) and db.chest_mats:
                                 mat_id = rng.choice(db.chest_mats)
@@ -1956,7 +2320,10 @@ def simulate_tick(
                     if rng.random() < dragon_p:
                         npc["kills"] = npc.get("kills", 0) + 1
                         run_kills_acc += 1
-                        exp_gain = int(db.bxp.get(st["mapId"], 500) * diff["exp"])
+                        exp_gain = int(db.bxp.get(st["mapId"], 500) * diff["exp"] * mc_exp_mul)
+                        mc_drg_got = roll_npc_mcard_drops(npc, db, rng, None, 0, boss_id=st["bossId"], rec_lv=st["recLv"], boss_only=True)
+                        for _, mc_nm in mc_drg_got:
+                            new_events.append(f"斬殺{bmon['name']}取得怪物卡【{mc_nm}】！")
                         run_exp_acc += exp_gain
                         fl_gold = int(rng.randint(60000, 140000) * diff_gold_mult)
                         run_gold_acc += fl_gold - upkeep_fl
@@ -2108,6 +2475,9 @@ def simulate_tick(
         # --- 3. 自動換裝＋強化消耗（裝備／卷軸黑洞）---
         ench_bonus = int((state.get("dailyEvent") or {}).get("enchantBonus", 0))
         upgrade_npc_gear_and_enchant(npc, db, market, rng, ticker, new_events, ench_bonus=ench_bonus)
+
+        # --- 3a. V082 怪物卡片合成升星＋裝備自動插卡／換高星卡 ---
+        process_npc_mcards(npc, db, rng, ticker, new_events)
 
         # --- 3b. 奇岩商人偶爾拿背包多餘藍／白裝或安定 0 飾品賭強化轉賣 ---
         scalper_gamble_resell_gear(npc, db, market, rng, ticker)
@@ -2285,6 +2655,16 @@ def upgrade_npc_gear_and_enchant(
             if bag[key] <= 0:
                 del bag[key]
             if cur:
+                # 若舊裝身上有怪物插卡，換裝時若付得出拔卡費則自動退回圖鑑
+                old_sk = ((npc.get("mcards") or {}).get("sock") or {}).pop(slot, None)
+                if old_sk:
+                    fee_tot = sum(_mcard_unsock_gold(int(c.get("s", 1)), db) for c in old_sk)
+                    if npc["gold"] >= fee_tot:
+                        npc["gold"] -= fee_tot
+                        own_mc = npc.setdefault("mcards", {"own": {}, "sock": {}}).setdefault("own", {})
+                        for c in old_sk:
+                            arr_mc = own_mc.setdefault(str(c["m"]), [0, 0, 0])
+                            arr_mc[max(0, min(2, int(c.get("s", 1)) - 1))] += 1
                 # 初始白武不再丟拍賣，直接回收
                 if cur["id"] != db.startw.get(cls, 172) or cur.get("ench", 0) > 0:
                     cur_aff = {"k": cur["aff"]} if cur.get("aff") else None
@@ -2331,11 +2711,12 @@ def upgrade_npc_gear_and_enchant(
                         ticker.append(f"🔥【衝裝成功】「{npc['name']}」將【+{w_obj['ench']} {w_it['name']}】強化成功！")
                         new_events.append(f"剛把 {w_it['name']} 衝到 +{w_obj['ench']}，心情超好！")
                 else:
-                    # 過安定失敗爆裝！武器降回備用白武
+                    # 過安定失敗爆裝！武器降回備用白武（插在上面的怪物卡一併消失）
                     if cur_e >= safe:
                         ticker.append(f"💥【化為光影】「{npc['name']}」衝 +{cur_e+1} {w_it['name']} 失敗爆掉了……")
                         new_events.append(f"剛衝 +{cur_e+1} {w_it['name']} 爆了，正在奇岩發呆療傷…")
                         eq["weapon"] = {"id": db.startw.get(cls, 172), "ench": 0, "n": 1}
+                        ((npc.get("mcards") or {}).get("sock") or {}).pop("weapon", None)
 
     # 試圖強化隨機一件防具（富商亦自動補防捲至安定值）
     arm_slots = [s for s in eq.keys() if s != "weapon"]
@@ -2367,6 +2748,7 @@ def upgrade_npc_gear_and_enchant(
                         ticker.append(f"✨【防具神話】「{npc['name']}」強化出【+{a_obj['ench']} {a_it.get('name','防具')}】！")
                 elif cur_e >= safe:
                     del eq[slot]
+                    ((npc.get("mcards") or {}).get("sock") or {}).pop(slot, None)
 
 
 def scalper_gamble_resell_gear(
@@ -2793,26 +3175,36 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
                 s_entry["aff"] = lst["aff"]
             shop_pub.append(s_entry)
 
-        npcs_pub.append(
-            {
-                "id": npc["id"],
-                "name": npc["name"],
-                "cls": npc["cls"],
-                "sex": npc["sex"],
-                "tier": npc["tier"],
-                "lv": npc["lv"],
-                "hpG": hp_g,
-                "mpG": mp_g,
-                "gold": npc["gold"],
-                "stats": npc["stats"],
-                "eq": eq_list,
-                "weapon": {"id": w_eq["id"], "n": 1, "ench": w_eq.get("ench", 0), "eq": "weapon"},
-                "state": st,
-                "talk": npc.get("talk", ""),
-                "shout": npc.get("shout"),
-                "shop": shop_pub,
-            }
-        )
+        msock_pub: dict[str, list[dict[str, int]]] = {}
+        raw_sock = (npc.get("mcards") or {}).get("sock") or {}
+        for sk_slot, sk_list in raw_sock.items():
+            if sk_slot in npc["eq"] and sk_slot in db.msock_slots and sk_list:
+                msock_pub[sk_slot] = [{"m": int(c["m"]), "s": int(c["s"])} for c in sk_list[: db.msock_slots[sk_slot]]]
+        mc_sum = npc_mcard_summary(npc)
+
+        npc_pub_row: dict[str, Any] = {
+            "id": npc["id"],
+            "name": npc["name"],
+            "cls": npc["cls"],
+            "sex": npc["sex"],
+            "tier": npc["tier"],
+            "lv": npc["lv"],
+            "hpG": hp_g,
+            "mpG": mp_g,
+            "gold": npc["gold"],
+            "stats": npc["stats"],
+            "eq": eq_list,
+            "weapon": {"id": w_eq["id"], "n": 1, "ench": w_eq.get("ench", 0), "eq": "weapon"},
+            "state": st,
+            "talk": npc.get("talk", ""),
+            "shout": npc.get("shout"),
+            "shop": shop_pub,
+        }
+        if msock_pub:
+            npc_pub_row["msock"] = msock_pub
+        if mc_sum.get("t", 0) > 0:
+            npc_pub_row["mcSum"] = mc_sum
+        npcs_pub.append(npc_pub_row)
 
     # 輸出全服部分關鍵物價行情給前端「向 NPC 兜售」查價用（已套用當日事件 × 股市 × 天氣倍率）
     price_map: dict[str, int] = {}
@@ -2906,6 +3298,8 @@ def main() -> None:
                 simulate_tick(state, db, rng, args)
     else:
         state = json.loads(state_file.read_text(encoding="utf-8"))
+        for _npc in state.get("npcs", []):
+            ensure_npc_mcards(_npc, db, rng)
 
     run_ticks = int(round(args.days * 24)) if args.days > 0 else max(0, args.ticks)
     if not is_fresh or args.days > 0 or args.warmup_ticks == 0:

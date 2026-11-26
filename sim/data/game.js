@@ -39,10 +39,20 @@
   function mresFetch() { if (!window.CLOUD || !/^https?:$/.test(location.protocol)) return; CLOUD.api('GET', '/api/mres').then(mresSet).catch(() => { }); }
   setTimeout(mresFetch, 300);
   function mapDirName(b) { return String(b || MAPBASE).replace(/\/+$/, '').split('/').pop(); }   // 地圖資料夾名字（例如 ../maps/map21/ → map21），手機小圖清單用這個當代號
+  const _sprMissing = new Set();
   function sprLoad(im, g, f) {   // 讀怪物／角色圖：有手機小圖就讀小圖（讀失敗自動改讀原圖）；78 組外連影子走 GitHub 圖床
     if (BACKUP_SHADOW_IDS.has(String(g))) { im.crossOrigin = 'anonymous'; im.src = GH_ASSETS + g + '/' + g + '-' + f + '.png'; return im; }
     const png = 'assets/' + g + '/' + g + '-' + f + '.png', m = META[g] && META[g][f];
-    if (m && mresOn() && MRES.gfx.has(String(g))) { im._fw = m.cols * m.cellW; im.addEventListener('error', () => { if (im._fw) { im._fw = 0; im.src = png; } }); im.src = 'assets/' + g + '_m/' + g + '-' + f + '.webp'; }
+    im.addEventListener('error', () => {
+      if (im._fw) { im._fw = 0; im.src = png; return; }
+      const sg = String(g);
+      if (!_sprMissing.has(sg)) {
+        _sprMissing.add(sg);
+        console.warn('[缺檔警告] 讀不到本地圖片:', png);
+        try { addChat('讀不到本地圖片：' + png, 'warn'); } catch (e) { }
+      }
+    });
+    if (m && mresOn() && MRES.gfx.has(String(g))) { im._fw = m.cols * m.cellW; im.src = 'assets/' + g + '_m/' + g + '-' + f + '.webp'; }
     else im.src = png;
     return im;
   }
@@ -341,8 +351,14 @@
     }
     return imgs[k] || null;
   }
+  const VNPC_PRELOAD_IDLE = { 2141: 8, 6377: 0, 725: 8, 1307: 8, 2115: 8, 10669: 0, 1208: 0, 895: 8, 1296: 0 };
   function loadAll() {
-    const list = [];   // 開場不再一次讀完全部素材（原本約 7900 個檔）
+    const list = [];   // 開場不再一次讀完全部素材（原本約 7900 個檔），僅預載奇岩村功能 NPC 待機圖以免進村透明
+    for (const g in VNPC_PRELOAD_IDLE) {
+      const base = VNPC_PRELOAD_IDLE[g], m = META[g];
+      if (!m) continue;
+      for (let d = 0; d < 8; d++) if (m[base + d]) list.push([+g, base + d]);
+    }
     const initMapId = (window.MAPS && MAPS[4100] && MAPS[4100].info) ? 4100 : 0;
     let done = 0; setMap(initMapId);
     const bar = document.getElementById('barfill'), txt = document.getElementById('loadtxt');
@@ -1154,7 +1170,7 @@
     if (T.form) { st.hp += formHp(T.form, T); st.ac += formAc(T.form, T); }
     cardStats(st, T.cardOwn);
     dollStats(st, T);
-    if (isL) mcardSockStats(st);
+    mcardSockStats(st, T);
     st.wLeech = WX.leech || 0; st.wDrain = WX.drain || 0; st.fxMag = WX.mag || 0; st.dr += WX.dr || 0; T.dx.expMul *= 1 + (WX.exp || 0); T.dx.spd *= 1 + (WX.spd || 0); T.dx.hpTR += WX.hpTR || 0; T.dx.mpTR += WX.mpTR || 0;   // 高階裝備特效
     T.dx.eva += OR.er;
     T.st = st;
@@ -4360,7 +4376,7 @@ function hv(m,dt,d){
     const simN = (!fn && window.SIM_NPC_ACCT && acct === window.SIM_NPC_ACCT && window.SIM_WORLD)
       ? window.SIM_WORLD.getNpc(name) : null;
     const sim = simN ? window.SIM_WORLD.partyCandidateFromSim(simN) : null;
-    let ch = fn || sim, ck, sex, cs, pl, uUpg, uPots, uTm, uCards = {}, uDoll = null, uInv = [];
+    let ch = fn || sim, ck, sex, cs, pl, uUpg, uPots, uTm, uCards = {}, uDoll = null, uInv = [], uMsock = null, uMsockBySu = null, uMcSum = null;
     const sKey = acct + '@' + name;
     if (fn) {
       ck = fn.cls || 'elf'; sex = fn.sex ? 1 : 0;
@@ -4377,7 +4393,13 @@ function hv(m,dt,d){
       uUpg = { hp: 0, mp: 0, atk: 0, spd: 0, mag: 0, int: 0, mv: 0 };
       uPots = { str: 0, con: 0, dex: 0, int: 0, wis: 0, cha: 0 };
       uTm = talModsOf(talCalcObj({}, pl.lv), false);
-      for (const o of (sim.eq || [])) if (o && ITEMS[o.id]) uInv.push({ id: o.id, n: o.n || 1, ench: o.ench || 0, eq: o.eq });
+      uMsock = sim.msock || null;
+      uMcSum = sim.mcSum || null;
+      for (const o of (sim.eq || [])) if (o && ITEMS[o.id]) {
+        const row = { id: o.id, n: o.n || 1, ench: o.ench || 0, eq: o.eq };
+        if (uMsock && o.eq && Array.isArray(uMsock[o.eq]) && uMsock[o.eq].length) row.msock = uMsock[o.eq];
+        uInv.push(row);
+      }
     } else {
       let db = {}; try { db = JSON.parse(localStorage.getItem('l1s_accts') || '{}') || {}; } catch (e) { db = {}; }
       const list = (db[acct] && Array.isArray(db[acct].chars)) ? db[acct].chars : [];
@@ -4390,12 +4412,17 @@ function hv(m,dt,d){
       let uTalRaw = {}; try { uTalRaw = JSON.parse(localStorage.getItem('l1s_tal@' + sKey) || 'null') || {}; } catch (e) { uTalRaw = {}; }
       uTm = talModsOf(talCalcObj(uTalRaw, pl.lv), false);
       try { uCards = JSON.parse(localStorage.getItem('l1s_cards@' + sKey) || '{}') || {}; } catch (e) { uCards = {}; }
+      try { uMsockBySu = JSON.parse(localStorage.getItem('l1s_msock@' + sKey) || 'null'); } catch (e) { uMsockBySu = null; }
       let ownD = [], dSel = ''; try { ownD = JSON.parse(localStorage.getItem('l1s_dolls@' + sKey) || '[]'); dSel = localStorage.getItem('l1s_doll@' + sKey) || ''; } catch (e) { }
       uDoll = (dSel && ownD.includes(dSel) && DOLLBY[dSel]) ? DOLLBY[dSel] : null;
       try {
         const sv = JSON.parse(localStorage.getItem('l1s_save2@' + sKey) || 'null');
         if (sv && Array.isArray(sv.inv)) {
-          for (const o of sv.inv) if (o && o.eq && ITEMS[o.id] && idef(o).type !== 'arrow' && o.id !== 41246 && o.id !== 40319) uInv.push({ id: o.id, n: o.n || 1, ench: o.ench || 0, eq: o.eq });
+          for (const o of sv.inv) if (o && o.eq && ITEMS[o.id] && idef(o).type !== 'arrow' && o.id !== 41246 && o.id !== 40319) {
+            const row = { id: o.id, n: o.n || 1, ench: o.ench || 0, eq: o.eq };
+            if (typeof o.u === 'string') { row.su = o.u; if (uMsockBySu && Array.isArray(uMsockBySu[o.u]) && uMsockBySu[o.u].length) row.msock = uMsockBySu[o.u]; }
+            uInv.push(row);
+          }
           if (!uInv.some(x => x.eq === 'weapon')) {
             const bw = sv.inv.find(o => o && ITEMS[o.id] && idef(o).type === 'bow');
             if (bw) uInv.push({ id: bw.id, n: 1, ench: bw.ench || 0, eq: 'weapon' });
@@ -4409,7 +4436,7 @@ function hv(m,dt,d){
     const pos = (!dryRun && HAVE_MAP && !walkable(px, py)) ? { x: P ? P.x : 0, y: P ? P.y : 0 } : { x: px, y: py };
     const u = {
       isAlly: true, isFixedNpc: !!fn, aid: sKey, acct, name, ck, sex, cs,
-      upg: uUpg, pots: uPots, tm: uTm, pl, inv: uInv, cardOwn: uCards, doll: uDoll,
+      upg: uUpg, pots: uPots, tm: uTm, pl, inv: uInv, cardOwn: uCards, doll: uDoll, msock: uMsock, msockBySu: uMsockBySu, mcSum: uMcSum,
       spr: dryRun ? null : spriteForActor(ck, sex), sum: [], picks: [],
       x: pos.x, y: pos.y, dir: P ? P.dir : 5, hp: 100, maxhp: 100, mp: 40, maxmp: 40,
       baseHp: 100 + 15 * (uUpg.hp || 0) + pl.hpG,
@@ -5446,6 +5473,14 @@ function hv(m,dt,d){
     if (d.use === 'tpmap') t += '\n' + d.desc + '\n在村莊使用，直接前往此層';
     if (ITEMDESC[d.id]) t += '\n' + ITEMDESC[d.id];
     if (it.n > 1) t += '\n數量 ' + it.n.toLocaleString();
+    const _sk = (it.msock && it.msock.length) ? it.msock : (it.su && typeof MSOCK !== 'undefined' && MSOCK && MSOCK[it.su]);
+    if (_sk && _sk.length) {
+      for (const c of _sk) {
+        const cc = MCATBY[c.m], el = cc ? cc.el : mcardElOf(c.m), f = el && MCARD_FX[el], v = f ? ((f[1][(c.s | 0) - 1]) || 0) : 0;
+        const unit = f ? (f[0] === 'dmgpct' ? '%傷害' : f[0] === 'shield' ? '護盾' : f[0] === 'hit' ? '命中' : f[0] === 'hp' ? 'HP' : '%經驗') : '';
+        t += '\n🎴 ' + (MSTAR[c.s] || '') + '卡 ' + (cc ? cc.n : ('#' + c.m)) + (f ? ('（' + (MCARD_EL[el] || '') + '+' + v + unit + '）') : '');
+      }
+    }
     if (it.eq) t += '\n〔裝備中〕';
     return t;
   }
@@ -5753,6 +5788,22 @@ function hv(m,dt,d){
           if (!it) c.dataset.tip = SLOTNAME[sl];
         }
         mk(146, 286, '角色裝備屬性', '#ffd75e', 8.5);
+        {
+          let sockN = 0; const parts = [];
+          for (const it of uInv) if (it.eq && it.msock && it.msock.length) sockN += it.msock.length;
+          if (u.mcDmg) parts.push('火+' + Math.round(u.mcDmg * 100) + '%傷');
+          if (u.mcSum && u.mcSum.t) {
+            const mcLine = document.createElement('div');
+            mcLine.style.cssText = 'position:absolute;left:16px;right:16px;bottom:' + ((simObj && simObj.talk) ? '56px' : '40px') + ';font:11px/1.3 "Microsoft JhengHei","Noto Sans TC",sans-serif;color:#ffd98a;text-align:center;text-shadow:1px 1px 0 #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+            mcLine.textContent = '🎴 怪物卡：收集 ' + u.mcSum.t + ' 種（金' + (u.mcSum.g | 0) + '/銀' + (u.mcSum.s | 0) + '/普' + (u.mcSum.n | 0) + '）· 已插卡 ' + sockN + ' 格' + (parts.length ? ' · ' + parts.join(' ') : '');
+            el.appendChild(mcLine);
+          } else if (sockN > 0) {
+            const mcLine = document.createElement('div');
+            mcLine.style.cssText = 'position:absolute;left:16px;right:16px;bottom:' + ((simObj && simObj.talk) ? '56px' : '40px') + ';font:11px/1.3 "Microsoft JhengHei","Noto Sans TC",sans-serif;color:#ffd98a;text-align:center;text-shadow:1px 1px 0 #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+            mcLine.textContent = '🎴 怪物卡：已插卡 ' + sockN + ' 格' + (parts.length ? ' · ' + parts.join(' ') : '');
+            el.appendChild(mcLine);
+          }
+        }
         if (simObj && simObj.talk) {
           const tq = document.createElement('div');
           tq.style.cssText = 'position:absolute;left:16px;right:16px;bottom:40px;font:11px/1.35 "Microsoft JhengHei","Noto Sans TC",sans-serif;color:#dfd4b0;text-align:center;text-shadow:1px 1px 0 #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
@@ -6967,13 +7018,19 @@ function hv(m,dt,d){
       mcardApply(r.own, r.sock); if (cb) cb(r);
     }).catch(function () { mcardLoadLocal(); if (cb) cb(); });
   }
-  function mcardSockStats(st) {
-    P.mcDmg = 0; P.mcExp = 0; if (!MSOCK) return;
-    for (const it of inv) {
-      if (!it.eq || !it.su) continue; const sk = MSOCK[it.su]; if (!sk || !sk.length) continue;
+  function mcardSockStats(st, actor) {
+    const T = actor || P, isL = T === P;
+    T.mcDmg = 0; T.mcExp = 0;
+    const list = actInv(T);
+    for (const it of list) {
+      if (!it.eq) continue;
+      let sk = null;
+      if (isL) { if (it.su && MSOCK) sk = MSOCK[it.su]; }
+      else { sk = (it.msock && it.msock.length) ? it.msock : (T.msock && T.msock[it.eq]) || (T.msockBySu && it.su && T.msockBySu[it.su]); }
+      if (!sk || !sk.length) continue;
       for (const c of sk) {
         const el = mcardElOf(c.m), f = el && MCARD_FX[el]; if (!f) continue; const v = (f[1][(c.s | 0) - 1]) || 0;
-        if (f[0] === 'hp') st.hp = (st.hp || 0) + v; else if (f[0] === 'shield') st.mp = (st.mp || 0) + v; else if (f[0] === 'hit') st.hit = (st.hit || 0) + v; else if (f[0] === 'dmgpct') P.mcDmg += v / 100; else if (f[0] === 'exppct') P.mcExp += v / 100;
+        if (f[0] === 'hp') st.hp = (st.hp || 0) + v; else if (f[0] === 'shield') st.mp = (st.mp || 0) + v; else if (f[0] === 'hit') st.hit = (st.hit || 0) + v; else if (f[0] === 'dmgpct') T.mcDmg += v / 100; else if (f[0] === 'exppct') T.mcExp += v / 100;
       }
     }
   }
@@ -9107,7 +9164,9 @@ function hv(m,dt,d){
 
   function startGame() {   // 進入（回到）村莊
     SND.music([9001], false, [20]);   // 主音樂 9001（若未下載則自動退回 20 號奇岩音樂）
-    npcClose(); resetGame(true); $id('chat').innerHTML = ''; invDirty = true; closeAll(); $id('ui').classList.remove('hidden'); addChat('歡迎來到奇岩村。', 'sys'); changeMap('奇岩村', '安全的村莊'); $id('bossbar').style.display = 'none'; hideLayers();
+    npcClose(); resetGame(true);
+    try { for (const n of VNPC) { const f = npcFrame(n, npcXY(n)); if (f) needImg(n.gfx, f.file); } } catch (e) { }
+    $id('chat').innerHTML = ''; invDirty = true; closeAll(); $id('ui').classList.remove('hidden'); addChat('歡迎來到奇岩村。', 'sys'); changeMap('奇岩村', '安全的村莊'); $id('bossbar').style.display = 'none'; hideLayers();
     if (!ONLINE) setTimeout(checkResumePrompt, 120);
   }
   // ---------- 魔法娃娃（資料：dolls.js，能力照資料庫 etcitem_doll_power） ----------
