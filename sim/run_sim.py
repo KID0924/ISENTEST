@@ -71,6 +71,18 @@ TIER_BUY_TOL = {
     "casual": 0.90,
     "scalper": 0.80,
 }
+TIER_GOLD_CAP = {
+    "scalper": 200_000_000,
+    "whale": 54_000_000,
+    "regular": 22_000_000,
+    "casual": 7_500_000,
+}
+TIER_SINK_CAP = {
+    "scalper": 165_000_000,
+    "whale": 44_000_000,
+    "regular": 18_000_000,
+    "casual": 6_000_000,
+}
 
 # 各職業預設基底屬性（僅供隊友招募面板顯示與戰力估算）
 CLASS_BASE_STATS = {
@@ -1340,12 +1352,10 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                         new_events.append(f"於{diff['name']}【{st['name']}】遭{bmon['name']}擊退")
                         break
 
-            npc["gold"] = max(0, npc["gold"] + run_gold_acc)
-            if tier == "scalper":
-                npc["gold"] = min(200_000_000, npc["gold"])
+            npc["gold"] = max(0, min(TIER_GOLD_CAP[tier], npc["gold"] + run_gold_acc))
 
-        # 高金幣 NPC 消耗金幣開曼孟 100萬/300萬裝備箱；商人天花板 2 億、約 1.65 億以上才微幅開箱
-        sink_cap = 165_000_000 if tier == "scalper" else 18_000_000 if tier == "whale" else 7_500_000 if tier == "regular" else 1_800_000
+        # 高金幣 NPC 超過開箱門檻開始開曼孟 100萬/300萬裝備箱，並嚴格遵守各身分現金天花板
+        sink_cap = TIER_SINK_CAP[tier]
         if npc["gold"] > sink_cap:
             spend = min(npc["gold"] - sink_cap // 2, 3_000_000 if rng.random() < 0.35 else 1_000_000)
             npc["gold"] -= spend
@@ -1354,8 +1364,7 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
                 be = 4 if rng.random() < 0.05 else 3 if rng.random() < 0.15 else 2 if rng.random() < 0.30 else 0
                 if bi in db.items:
                     self_bag_add(npc, bi, be, 1, None)
-        if tier == "scalper":
-            npc["gold"] = min(200_000_000, npc["gold"])
+        npc["gold"] = max(0, min(TIER_GOLD_CAP[tier], npc["gold"]))
 
         # --- 2. 利用 craftdb.js 提煉中間素材或打造製作裝備/餅乾 ---
         craft_npc_items(npc, db, market, rng, ticker, new_events)
@@ -1659,7 +1668,7 @@ def restock_npc_shop(
                 if di in db.items and di not in db.no_sell and di not in db.no_drop:
                     d_est = calc_expected_price(db, di, de, market)
                     if d_est < 350_000:
-                        npc["gold"] = min(200_000_000, npc["gold"] + max(20, int(d_est * 0.45)) * dc)
+                        npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + max(20, int(d_est * 0.45)) * dc)
                         del bag[dk]
         keys = list(bag.keys())
         keys.sort(
@@ -1682,9 +1691,7 @@ def restock_npc_shop(
         # 過低價值生活雜物（< 300 金，如食物/煙火/燈）直接丟遊戲商店換成水錢
         est = calc_expected_price(db, iid, ench, market)
         if est < 300 and it.get("kind") == "etc" and it.get("type") not in ("material", "gem", "scroll", "spellbook", "arrow"):
-            npc["gold"] += max(15, est // 2) * cnt
-            if npc["tier"] == "scalper":
-                npc["gold"] = min(200_000_000, npc["gold"])
+            npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + max(15, est // 2) * cnt)
             del bag[key]
             continue
 
@@ -1768,8 +1775,8 @@ def run_npc_market_clearing(
         # 若商人貨架已經近滿 (13+ 格)，暫停進貨等貨架消化
         if tier == "scalper" and len(buyer.get("shop", [])) >= 13:
             continue
-        # 買家每次看 12~16 件（商人更勤勞看 16~22 件），配合擴增的貨架維持交易流動率
-        view_n = rng.randint(16, 22) if tier == "scalper" else rng.randint(12, 16)
+        # 買家每次看 24~32 件（商人看 32~44 件），提供更活躍的逛街成交量
+        view_n = rng.randint(32, 44) if tier == "scalper" else rng.randint(24, 32)
         max_buys = 3 if tier == "whale" else 2 if tier == "regular" else 1
         bought_here = 0
         sample = rng.sample(all_listings, min(view_n, len(all_listings)))
@@ -1804,9 +1811,7 @@ def run_npc_market_clearing(
 
             if want:
                 buyer["gold"] -= cost
-                seller["gold"] += int(cost * 0.90)  # 10% 交易稅直接銷毀（金幣黑洞）
-                if seller["tier"] == "scalper":
-                    seller["gold"] = min(200_000_000, seller["gold"])
+                seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + int(cost * 0.90))  # 10% 交易稅直接銷毀（金幣黑洞）
                 self_bag_add(buyer, iid, ench, lst.get("n", 1), lst.get("aff"))
                 sold_ids.add(lst["id"])
                 seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
@@ -1828,9 +1833,10 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
             mk = f"{lst['item']}_{lst.get('ench', 0)}"
             supply[mk] = supply.get(mk, 0) + 1
 
-    avg_gold = sum(n["gold"] for n in npcs) / max(1, len(npcs))
-    # 若全服平均持有金幣過高，柔和啟動價格上限阻尼防止惡性通膨
-    damp = 0.992 if avg_gold > 9_500_000 else 1.003 if avg_gold < 1_800_000 else 1.0
+    adv = [n["gold"] for n in npcs if n["tier"] != "scalper"]
+    avg_gold = sum(adv) / max(1, len(adv))
+    # 依一般冒險人口人均金幣做柔和阻尼（排除囤現金的大盤商人，避免誤壓全服基準物價）
+    damp = 0.992 if avg_gold > 22_000_000 else 1.003 if avg_gold < 3_000_000 else 1.0
 
     for mk, cur_p in list(market.items()):
         iid_s, ench_s = mk.split("_")
