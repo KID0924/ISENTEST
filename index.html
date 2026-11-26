@@ -1032,7 +1032,7 @@
       <div class="kpi">
         <div class="kpi-label">累計滿級退坑替換</div>
         <div class="kpi-val" id="kRetired">-</div>
-        <div class="kpi-sub">退坑後自動補進 Lv.1 新角</div>
+        <div class="kpi-sub" id="kRetiredByTier">退坑後自動補進 Lv.1 新角</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">行情表收錄項目</div>
@@ -2030,6 +2030,10 @@
           document.getElementById('kShop').textContent = fmtNum(st.totalListings || 0) + ' 件';
           document.getElementById('kSellers').textContent = sellers + ' 位 NPC 正在擺攤';
           document.getElementById('kRetired').textContent = fmtNum(st.retiredCount || 0) + ' 人';
+          const rbt = st.retiredByTier || {};
+          document.getElementById('kRetiredByTier').textContent =
+            '肝帝 ' + fmtNum(rbt.whale || 0) + ' · 一般 ' + fmtNum(rbt.regular || 0) +
+            ' · 商人 ' + fmtNum(rbt.scalper || 0) + ' · 新手 ' + fmtNum(rbt.casual || 0);
 
           // Daily market event banner (20-card primary × stocks × Taipei weather)
           const evBox = document.getElementById('dailyEventBox');
