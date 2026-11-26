@@ -2073,7 +2073,10 @@ def simulate_tick(
         ench_bonus = int((state.get("dailyEvent") or {}).get("enchantBonus", 0))
         upgrade_npc_gear_and_enchant(npc, db, market, rng, ticker, new_events, ench_bonus=ench_bonus)
 
-        # --- 3. 整理背包 → 下架過期品／補進個人商店貨架 ---
+        # --- 3b. 奇岩商人偶爾拿背包多餘藍／白裝或安定 0 飾品賭強化轉賣 ---
+        scalper_gamble_resell_gear(npc, db, market, rng, ticker)
+
+        # --- 3c. 整理背包 → 下架過期品／補進個人商店貨架 ---
         restock_npc_shop(npc, db, market, rng, tick_id, state)
 
         if new_events:
@@ -2327,6 +2330,78 @@ def upgrade_npc_gear_and_enchant(
                         ticker.append(f"✨【防具神話】「{npc['name']}」強化出【+{a_obj['ench']} {a_it.get('name','防具')}】！")
                 elif cur_e >= safe:
                     del eq[slot]
+
+
+def scalper_gamble_resell_gear(
+    npc: dict[str, Any],
+    db: GameDatabase,
+    market: dict[str, int],
+    rng: random.Random,
+    ticker: list[str],
+) -> None:
+    """奇岩商人偶爾拿背包多餘白／藍裝或安定 0 飾品（戒/鍊/耳/臂甲）買捲賭強化轉賣"""
+    if npc["tier"] != "scalper" or npc["gold"] < 5_000_000 or rng.random() >= 0.28:
+        return
+    bag = npc.get("bag") or {}
+    cands: list[tuple[str, int, int, str, int, dict[str, Any]]] = []
+    for key, cnt in list(bag.items()):
+        if cnt <= 0:
+            continue
+        iid_s, ench_s, aff_k = key.split(":")
+        iid, ench = int(iid_s), int(ench_s)
+        if iid in db.no_sell or iid in db.no_drop or iid == 172:
+            continue
+        it = db.items.get(iid)
+        if not it or it.get("kind") not in ("weapon", "armor"):
+            continue
+        safe = int(it.get("safe", 6 if it.get("kind") == "weapon" else 4))
+        if safe < 0 or ench > safe + 1:
+            continue
+        est = calc_expected_price(db, iid, ench, market)
+        if safe > 0 and est < 25_000:
+            continue
+        cands.append((key, iid, ench, aff_k, safe, it))
+    if not cands:
+        return
+
+    cands.sort(key=lambda c: (bag.get(c[0], 0), calc_expected_price(db, c[1], c[2], market)), reverse=True)
+    key, iid, cur_e, aff_k, safe, it = rng.choice(cands[: min(5, len(cands))])
+    kind = it.get("kind", "armor")
+    scr_id = SCROLL_WEAPON_NORMAL if kind == "weapon" else SCROLL_ARMOR_NORMAL
+    scr_cost = db.shop_anchor.get(scr_id, 85_000 if kind == "weapon" else 41_000)
+    if npc["gold"] < scr_cost * 3 + 2_000_000:
+        return
+
+    bag[key] -= 1
+    if bag[key] <= 0:
+        del bag[key]
+
+    start_e = cur_e
+    exploded = False
+    while True:
+        if cur_e >= safe + 1:
+            cont_p = 0.45 if safe == 0 else 0.52
+            if cur_e >= safe + 2:
+                cont_p = (0.35 if safe == 0 else 0.42) * (0.62 ** (cur_e - (safe + 2)))
+            if rng.random() >= cont_p:
+                break
+        if npc["gold"] < scr_cost + 2_000_000:
+            break
+        npc["gold"] -= scr_cost
+        p = 1.0 if cur_e < safe else ench_rate(kind, cur_e, safe, blessed=False, uncapped=True)
+        if rng.random() < p:
+            cur_e += 1
+        elif cur_e >= safe:
+            exploded = True
+            break
+
+    if not exploded:
+        aff_obj = next((a for a in AFFIX_POOL if a["k"] == aff_k), None) if aff_k else None
+        self_bag_add(npc, iid, cur_e, 1, aff_obj)
+        if cur_e > start_e and ((safe == 0 and cur_e >= 2) or (safe > 0 and cur_e >= safe + 2)):
+            ticker.append(f"🎲【商人加工】「{npc['name']}」拿庫存試手氣，點出【+{cur_e} {it['name']}】上架轉賣！")
+    elif cur_e >= max(1, safe + 1):
+        ticker.append(f"💥【加工成灰】「{npc['name']}」將庫存 {it['name']} 衝 +{cur_e+1} 失敗蒸發……")
 
 
 def restock_npc_shop(
