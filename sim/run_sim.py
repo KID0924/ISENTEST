@@ -2129,8 +2129,8 @@ def simulate_tick(
         retire_prob = 0.0
         if npc["maxLvTicks"] >= 18:
             retire_prob = 0.07 if npc["tier"] == "whale" else 0.05
-        elif npc["ageTicks"] > 180 and npc["lv"] >= min(35, retire_lv - 2) and npc["tier"] in ("casual", "regular"):
-            retire_prob = 0.008
+        elif npc["ageTicks"] > 180 and npc["lv"] >= min(45, retire_lv - 2) and npc["tier"] in ("casual", "regular"):
+            retire_prob = 0.003
         if retire_prob > 0 and rng.random() < retire_prob:
             retired_total += 1
             old_name = npc["name"]
