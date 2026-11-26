@@ -1081,6 +1081,18 @@ def weighted_stock_ret(tw_ret: float | None, us_ret: float | None) -> float:
     return 0.0
 
 
+def calc_stock_mult(avg_ret: float) -> float:
+    """三段式股市曲線（0~1% 靈敏 ×10、1~3% ×4、3~10% ×1.5，最高 ±28.5%）"""
+    a = abs(avg_ret)
+    if a <= 0.01:
+        delta = a * 10.0
+    elif a <= 0.03:
+        delta = 0.10 + (a - 0.01) * 4.0
+    else:
+        delta = min(0.285, 0.18 + (a - 0.03) * 1.5)
+    return round(1.0 + delta if avg_ret >= 0 else 1.0 - delta, 4)
+
+
 def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, dict[str, float]]:
     """台北真實天氣次輔：偏多頭題材小加持 (+4%~+8%)，主波動仍交給事件卡與股市"""
     if precip >= 3.0 or wcode >= 80:
@@ -1095,7 +1107,7 @@ def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, 
 
 
 def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, allow_live: bool = False) -> dict[str, Any]:
-    """三層疊乘物價公式：20張突發事件卡(主 +15%~-45%) × 台美股(輔 ×14, ±20%) × 台北天氣(次輔 +4%~+8%)"""
+    """三層疊乘物價公式：20張突發事件卡(主 +15%~-45%) × 台美股(輔三段式 ±28.5%) × 台北天氣(次輔 +4%~+8%)"""
     recent: list[str] = state.setdefault("recentEventIds", [])
     cands = [c for c in DAILY_EVENT_POOL if c["id"] not in recent[-5:]] or DAILY_EVENT_POOL
     card = rng.choice(cands)
@@ -1130,7 +1142,7 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
             tw_lbl, us_lbl = f"{tw_ret * 100:+.2f}%", f"{us_ret * 100:+.2f}%"
         avg_ret = weighted_stock_ret(tw_ret, us_ret)
 
-    stock_mult = max(0.80, min(1.20, 1.0 + avg_ret * 14.0))
+    stock_mult = calc_stock_mult(avg_ret)
     w_label, w_mults = weather_theme_mults(temp_c, precip, wcode)
     jitter = rng.uniform(0.96, 1.04)
 
@@ -1140,7 +1152,7 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
     for cat in EVENT_CATS:
         m_card = max(0.55, min(1.15, float(base_map.get(cat, default_card_m)) * jitter))
         m_weath = float(w_mults.get(cat, 1.0))
-        final_m = max(0.42, min(1.50, m_card * stock_mult * m_weath))
+        final_m = max(0.39, min(1.59, m_card * stock_mult * m_weath))
         resolved[cat] = round(final_m, 3)
 
     stock_pct = (stock_mult - 1.0) * 100
