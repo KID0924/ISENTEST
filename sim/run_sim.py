@@ -84,6 +84,38 @@ TIER_SINK_CAP = {
     "casual": 6_000_000,
 }
 
+EVENT_CATS = ("weapon", "armor", "gem", "scroll", "spellbook", "material", "potion", "etc")
+
+# 20 張突發每日事件卡（主軸：含 4 張暴跌、4 張暴漲、6 張品類輪動、6 張規則／生態事件，均偏平衡對沖天氣微幅多頭）
+DAILY_EVENT_POOL: list[dict[str, Any]] = [
+    # --- 4 張大空頭暴跌 ---
+    {"id": "crash_panic", "title": "📉【股災恐慌拋售潮】", "desc": "黑市傳出崩盤謠言，全服冒險者恐慌殺低變現！", "mults": {"all": 0.60}, "sellUrgency": 0.88},
+    {"id": "blackmarket_raid", "title": "🚨【警衛隊查緝走私】", "desc": "奇岩衛兵臨檢黑市倉庫，武器防具與材料急跌脫手！", "mults": {"weapon": 0.68, "armor": 0.68, "material": 0.72, "scroll": 0.90}, "sellUrgency": 0.90},
+    {"id": "dungeon_flood", "title": "🌊【地監產能大過剩】", "desc": "遠征隊大豐收導致武器防具供過於求，裝備行情大跳水！", "mults": {"weapon": 0.72, "armor": 0.72, "gem": 0.95}, "sellUrgency": 0.92},
+    {"id": "chill_selloff", "title": "❄️【冷清縮手拋售日】", "desc": "市場買氣降溫，各類物資全面折價出清！", "mults": {"all": 0.76}, "sellUrgency": 0.90},
+    # --- 4 張大多頭暴漲 ---
+    {"id": "aden_bull", "title": "📈【亞丁狂歡牛市日】", "desc": "奇岩經濟繁榮買氣沸騰，全品項物價飆升！", "mults": {"all": 1.36}},
+    {"id": "siege_supply", "title": "🔥【皇室攻城大採購】", "desc": "王城備戰急徵武防捲軸與藥水，消耗補給全線飆漲！", "mults": {"scroll": 1.44, "potion": 1.45, "armor": 1.18}},
+    {"id": "dragon_carnival", "title": "🐉【屠龍慶典狂熱】", "desc": "屠龍風潮帶動高階戰備需求，武器防具與寶石大漲！", "mults": {"weapon": 1.32, "armor": 1.28, "gem": 1.38}},
+    {"id": "guild_hype", "title": "📚【商會稀有囤貨潮】", "desc": "大公會收購稀有材料與古法書，稀缺品項價格攀高！", "mults": {"material": 1.35, "spellbook": 1.38, "potion": 0.92}},
+    # --- 6 張品類分化（有漲有跌） ---
+    {"id": "gem_boom", "title": "💎【奇岩寶石拍賣盛會】", "desc": "宮廷工匠高價徵收寶石，白裝卻乏人問津！", "mults": {"gem": 1.44, "material": 1.18, "weapon": 0.86, "armor": 0.88}},
+    {"id": "smith_week", "title": "⚒️【鐵匠衝裝競賽週】", "desc": "武防捲軸搶破頭大漲，原料價格小幅回檔！", "mults": {"scroll": 1.40, "material": 0.82, "armor": 1.12}},
+    {"id": "novice_relief", "title": "🧪【新手補給救濟日】", "desc": "藥水與基本補給大缺貨，低中階武器防具平價讓利！", "mults": {"potion": 1.35, "weapon": 0.72, "armor": 0.72}},
+    {"id": "mage_symposium", "title": "🔮【象牙塔法師研討會】", "desc": "魔法書與藍寶石系需求大增，近戰武器小跌！", "mults": {"spellbook": 1.42, "gem": 1.32, "weapon": 0.85}},
+    {"id": "armor_repair", "title": "🛡️【前線防具修補潮】", "desc": "防具與防捲喊漲，進攻型武器暫時走低！", "mults": {"armor": 1.35, "scroll": 1.22, "weapon": 0.85}},
+    {"id": "alchemy_boom", "title": "⚗️【鍊金工坊搶料大戰】", "desc": "製作材料奇貨可居，成品裝反而遇冷跌價！", "mults": {"material": 1.36, "weapon": 0.82, "armor": 0.82}},
+    # --- 6 張特殊規則／生態事件 ---
+    {"id": "berserk_enchant", "title": "🔥【狂戰衝裝祭典】", "desc": "今日全服衝裝上限 +1，捲軸與高強化裝全面火熱！", "mults": {"scroll": 1.30, "weapon": 1.15, "armor": 1.15}, "enchantBonus": 1},
+    {"id": "merchant_monopoly", "title": "💰【大盤商聯合掃貨週】", "desc": "奇岩商人提高收購線至 0.88×，市場流動加速！", "mults": {"all": 1.08}, "scalperBuyMax": 0.88},
+    {"id": "tax_holiday", "title": "⚖️【奇岩商會減稅日】", "desc": "今日交易稅由 10% 降至 3%，全服買賣更活絡！", "mults": {"all": 1.04}, "taxRate": 0.03},
+    {"id": "nightmare_raid", "title": "☠️【魔王軍團突襲警報】", "desc": "高手勇闖高難路線，藥水飆漲但大量寶物湧入壓低材料！", "mults": {"potion": 1.28, "material": 0.85, "gem": 1.15}, "forceHard": True},
+    {"id": "chest_harvest", "title": "🎁【寶箱開採大豐收】", "desc": "大批寶箱材料與寶石出爐，素材與寶石折價出清！", "mults": {"material": 0.78, "gem": 0.80, "scroll": 0.88}},
+    {"id": "steady_calm", "title": "🌤️【奇岩休整微震日】", "desc": "市場回歸常態微幅波動，僅受現實台美股與台北氣候牽引。", "mults": {"all": 0.96}},
+]
+
+_LIVE_SIGNAL_CACHE: dict[str, Any] | None = None
+
 # 各職業預設基底屬性（僅供隊友招募面板顯示與戰力估算）
 CLASS_BASE_STATS = {
     "royal": {"str": 16, "dex": 11, "con": 12, "wis": 12, "cha": 18, "int": 11},
@@ -927,6 +959,249 @@ def calc_expected_price(db: GameDatabase, iid: int, ench: int, market: dict[str,
     return res
 
 
+def item_event_cat(db: GameDatabase, iid: int) -> str:
+    it = db.items.get(iid, {})
+    kind = it.get("kind")
+    if kind == "weapon":
+        return "weapon"
+    if kind == "armor":
+        return "armor"
+    t = it.get("type")
+    if t == "gem" or 40044 <= iid <= 40055:
+        return "gem"
+    if t == "scroll" or iid in (40074, 40087, 140074, 140087, 90074, 90087, 40079):
+        return "scroll"
+    if t == "spellbook":
+        return "spellbook"
+    if t in ("potion", "arrow") or iid in (40010, 40011, 40012, 40014, 40068, 40743):
+        return "potion"
+    if t == "material" or iid in (88, 89, 100, 80019, 84072):
+        return "material"
+    return "etc"
+
+
+def item_event_mult(db: GameDatabase, state: dict[str, Any], iid: int) -> float:
+    ev = state.get("dailyEvent")
+    if not ev:
+        return 1.0
+    mults = ev.get("mults") or {}
+    cat = item_event_cat(db, iid)
+    return float(mults.get(cat, mults.get("all", 1.0)))
+
+
+def calc_live_price(db: GameDatabase, iid: int, ench: int, market: dict[str, int], state: dict[str, Any]) -> int:
+    base_p = calc_expected_price(db, iid, ench, market)
+    mult = item_event_mult(db, state, iid)
+    return max(15, int(round(base_p * mult / 5.0) * 5))
+
+
+def _fetch_yahoo_daily_return(symbol: str, timeout: float = 5.0) -> tuple[float | None, str]:
+    """抓取 Yahoo Finance 最近兩根有效日線計算真實單日漲跌幅；休市超過 36 小時回傳 0.0"""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    res = (data.get("chart") or {}).get("result") or []
+    if not res:
+        return None, "無資料"
+    meta = res[0].get("meta") or {}
+    closes_raw = ((res[0].get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    closes = [float(x) for x in closes_raw if x is not None and x > 0]
+    if len(closes) < 2:
+        return None, "資料不足"
+    mkt_ts = float(meta.get("regularMarketTime") or 0)
+    now_ts = dt.datetime.now(dt.timezone.utc).timestamp()
+    if mkt_ts > 0 and (now_ts - mkt_ts) > 36 * 3600:
+        return 0.0, "休市"
+    ret = (closes[-1] - closes[-2]) / closes[-2]
+    return ret, f"{ret * 100:+.2f}%"
+
+
+def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
+    global _LIVE_SIGNAL_CACHE
+    if _LIVE_SIGNAL_CACHE is not None:
+        return _LIVE_SIGNAL_CACHE
+
+    temp_c = 22.0
+    precip = 0.0
+    wcode = 3
+    w_ok = False
+    try:
+        w_url = (
+            "https://api.open-meteo.com/v1/forecast"
+            "?latitude=25.033&longitude=121.5654"
+            "&current=temperature_2m,precipitation,weather_code&timezone=Asia%2FTaipei"
+        )
+        req = urllib.request.Request(w_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            wd = json.loads(resp.read().decode("utf-8"))
+        cur = wd.get("current") or {}
+        if "temperature_2m" in cur:
+            temp_c = float(cur["temperature_2m"])
+            precip = float(cur.get("precipitation") or 0.0)
+            wcode = int(cur.get("weather_code") or 0)
+            w_ok = True
+    except Exception:
+        pass
+
+    tw_ret, tw_lbl = None, "休市/略過"
+    us_ret, us_lbl = None, "休市/略過"
+    try:
+        tw_ret, tw_lbl = _fetch_yahoo_daily_return("%5ETWII", timeout=timeout)
+    except Exception:
+        pass
+    try:
+        us_ret, us_lbl = _fetch_yahoo_daily_return("%5EGSPC", timeout=timeout)
+    except Exception:
+        pass
+
+    rets = [r for r in (tw_ret, us_ret) if r is not None]
+    avg_ret = sum(rets) / len(rets) if rets else 0.0
+    _LIVE_SIGNAL_CACHE = {
+        "liveWeather": w_ok,
+        "tempC": temp_c,
+        "precip": precip,
+        "wcode": wcode,
+        "twLabel": tw_lbl,
+        "usLabel": us_lbl,
+        "avgRet": avg_ret,
+        "liveStocks": bool(rets),
+    }
+    return _LIVE_SIGNAL_CACHE
+
+
+def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, dict[str, float]]:
+    """台北真實天氣次輔：偏多頭題材小加持 (+4%~+8%)，主波動仍交給事件卡與股市"""
+    if precip >= 3.0 or wcode >= 80:
+        return f"⛈️ 台北豪雨 ({temp_c:.1f}°C)", {"gem": 1.08, "armor": 1.05, "potion": 1.04}
+    if precip > 0.1 or (51 <= wcode <= 77):
+        return f"🌧️ 台北降雨 ({temp_c:.1f}°C)", {"armor": 1.06, "scroll": 1.06}
+    if temp_c >= 29.0:
+        return f"☀️ 台北高溫 ({temp_c:.1f}°C)", {"potion": 1.07}
+    if temp_c <= 16.0:
+        return f"❄️ 台北低溫 ({temp_c:.1f}°C)", {"weapon": 1.06, "scroll": 1.05, "material": 1.05}
+    return f"🌤️ 台北晴陰 ({temp_c:.1f}°C)", {}
+
+
+def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, allow_live: bool = False) -> dict[str, Any]:
+    """三層疊乘物價公式：20張突發事件卡(主) × 台美股(輔 ±15%) × 台北天氣(次輔 +4%~+8%)"""
+    recent: list[str] = state.setdefault("recentEventIds", [])
+    cands = [c for c in DAILY_EVENT_POOL if c["id"] not in recent[-5:]] or DAILY_EVENT_POOL
+    card = rng.choice(cands)
+    recent.append(card["id"])
+    if len(recent) > 12:
+        state["recentEventIds"] = recent[-12:]
+
+    if allow_live:
+        sig = fetch_real_world_signals(timeout=5.0)
+        temp_c, precip, wcode = sig["tempC"], sig["precip"], sig["wcode"]
+        avg_ret = sig["avgRet"]
+        tw_lbl, us_lbl = sig["twLabel"], sig["usLabel"]
+    else:
+        # 大量歷史預演不洗外部 API，使用逼真亂數氣候＋股價分布
+        r_w = rng.random()
+        if r_w < 0.10:
+            temp_c, precip, wcode = rng.uniform(20, 27), rng.uniform(3.5, 12.0), 95
+        elif r_w < 0.25:
+            temp_c, precip, wcode = rng.uniform(18, 25), rng.uniform(0.3, 2.5), 61
+        elif r_w < 0.45:
+            temp_c, precip, wcode = rng.uniform(29.2, 34.5), 0.0, 1
+        elif r_w < 0.60:
+            temp_c, precip, wcode = rng.uniform(11.0, 15.8), 0.0, 2
+        else:
+            temp_c, precip, wcode = rng.uniform(18.0, 27.5), 0.0, 3
+        if rng.random() < 0.28:
+            tw_ret, us_ret = 0.0, 0.0
+            tw_lbl, us_lbl = "休市", "休市"
+        else:
+            tw_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
+            us_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
+            tw_lbl, us_lbl = f"{tw_ret * 100:+.2f}%", f"{us_ret * 100:+.2f}%"
+        avg_ret = (tw_ret + us_ret) / 2.0
+
+    stock_mult = max(0.85, min(1.15, 1.0 + avg_ret * 3.5))
+    w_label, w_mults = weather_theme_mults(temp_c, precip, wcode)
+    jitter = rng.uniform(0.96, 1.04)
+
+    base_map = card["mults"]
+    default_card_m = float(base_map.get("all", 1.0))
+    resolved: dict[str, float] = {}
+    for cat in EVENT_CATS:
+        m_card = float(base_map.get(cat, default_card_m)) * jitter
+        m_weath = float(w_mults.get(cat, 1.0))
+        final_m = max(0.42, min(1.75, m_card * stock_mult * m_weath))
+        resolved[cat] = round(final_m, 3)
+
+    stock_pct = (stock_mult - 1.0) * 100
+    ev = {
+        "id": card["id"],
+        "title": card["title"],
+        "desc": card["desc"],
+        "source": f"台股 {tw_lbl} · 美股 {us_lbl} (大盤輔 {stock_pct:+.1f}%) ｜ {w_label}",
+        "stockMult": round(stock_mult, 3),
+        "weatherLabel": w_label,
+        "weatherMults": w_mults,
+        "mults": resolved,
+        "sellUrgency": float(card.get("sellUrgency", 1.0)),
+        "taxRate": float(card.get("taxRate", 0.10)),
+        "scalperBuyMax": float(card.get("scalperBuyMax", 0.80)),
+        "enchantBonus": int(card.get("enchantBonus", 0)),
+        "forceHard": bool(card.get("forceHard", False)),
+        "startTick": tick_id,
+        "untilTick": tick_id + 23,
+    }
+    state["dailyEvent"] = ev
+    return ev
+
+
+def apply_merchant_loss_event(
+    npcs: list[dict[str, Any]], state: dict[str, Any], rng: random.Random, tick_id: int, ticker: list[str]
+) -> None:
+    """奇岩商人每 3~5 天 (72~120 ticks) 遭遇鉅額虧損風險（不破產、保留至少 50 萬營運金）"""
+    next_loss = state.get("nextMerchantLossTick")
+    if next_loss is None:
+        state["nextMerchantLossTick"] = tick_id + rng.randint(72, 120)
+        return
+    if tick_id < next_loss:
+        return
+
+    cands = [n for n in npcs if n["tier"] == "scalper" and n.get("ageTicks", 0) >= 72 and n["gold"] >= 3_000_000]
+    ev = state.get("dailyEvent") or {}
+    avg_m = sum((ev.get("mults") or {}).values()) / max(1, len(ev.get("mults") or {})) if ev.get("mults") else 1.0
+    bearish = avg_m < 0.90
+
+    if cands:
+        n_hit = 2 if (bearish and len(cands) >= 2 and rng.random() < 0.55) else 1
+        # 資產越高的富商越容易成為目標
+        weights = [max(1.0, float(n["gold"])) for n in cands]
+        picked: list[dict[str, Any]] = []
+        pool = list(zip(cands, weights))
+        for _ in range(min(n_hit, len(pool))):
+            chosen = rng.choices([x[0] for x in pool], weights=[x[1] for x in pool], k=1)[0]
+            picked.append(chosen)
+            pool = [x for x in pool if x[0]["id"] != chosen["id"]]
+
+        stories = [
+            "遠洋商船遇暴風沉沒，囤貨大筆賠付",
+            "高價接盤遇到行情反轉慘遭套牢",
+            "違規走私被奇岩商會重罰查扣保證金",
+            "合夥投資古龍期貨槓桿爆倉認賠",
+        ]
+        for m_npc in picked:
+            loss_pct = rng.uniform(0.45, 0.70) if bearish else rng.uniform(0.30, 0.65)
+            old_g = m_npc["gold"]
+            new_g = max(500_000, int(old_g * (1.0 - loss_pct)))
+            lost = old_g - new_g
+            if lost > 0:
+                m_npc["gold"] = new_g
+                state["merchantLossCount"] = state.get("merchantLossCount", 0) + 1
+                story = rng.choice(stories)
+                m_npc["lastEvent"] = f"{story}，痛失 {lost:,} 金幣…"
+                ticker.append(f"💸【商會鉅虧】「{m_npc['name']}」{story}，資產蒸發 {lost:,} 金幣！")
+
+    state["nextMerchantLossTick"] = tick_id + rng.randint(72, 120)
+
+
 def npc_base_hp_mp(cls: str, lv: int, cs: dict[str, int]) -> tuple[int, int]:
     ct = {"royal": 0, "knight": 1, "elf": 2, "mage": 3, "darkelf": 4, "dk": 5, "ill": 6}[cls]
     hpb = [11, 17, 10, 7, 10, 13, 9][ct]
@@ -1097,7 +1372,7 @@ def stage_power_req(st: dict[str, Any]) -> float:
 
 
 def choose_segment_and_diff(
-    npc: dict[str, Any], db: GameDatabase, rng: random.Random
+    npc: dict[str, Any], db: GameDatabase, rng: random.Random, force_hard: bool = False
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     lv = npc["lv"]
     tier = npc["tier"]
@@ -1135,6 +1410,8 @@ def choose_segment_and_diff(
         else:
             weights = [0.0, 0.12, 0.45, 0.43]
 
+    if force_hard and tier in ("whale", "regular"):
+        weights = [0.0, 0.25 * weights[0], weights[1] * 0.6 + weights[2], weights[3] + weights[1] * 0.4 + weights[0] * 0.75]
     diff = rng.choices(db.diffs, weights=weights, k=1)[0]
     return seg, diff
 
@@ -1147,13 +1424,24 @@ def survival_prob(eff_power: float, req: float) -> float:
     return max(0.06, min(0.97, 1.0 / (1.0 + math.exp(-z))))
 
 
-def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, args: argparse.Namespace) -> dict[str, Any]:
+def simulate_tick(
+    state: dict[str, Any], db: GameDatabase, rng: random.Random, args: argparse.Namespace, allow_live_event: bool = False
+) -> dict[str, Any]:
     state["tick"] = state.get("tick", 0) + 1
     tick_id = state["tick"]
     npcs: list[dict[str, Any]] = state["npcs"]
     market: dict[str, int] = state.setdefault("market", {})
     ticker: list[str] = state.setdefault("ticker", [])
     retired_total = state.get("retiredCount", 0)
+
+    # --- 0. 每日市場事件卡（每 24 ticks 換 1 張：20 張主軸卡 × 台美股 × 台北天氣）---
+    cur_ev = state.get("dailyEvent")
+    if not cur_ev or tick_id > int(cur_ev.get("untilTick", 0)):
+        ev_new = roll_daily_event(state, rng, tick_id, allow_live=allow_live_event)
+        ticker.append(f"{ev_new['title']} {ev_new['desc']}（{ev_new['source']}）")
+
+    # --- 0b. 奇岩商人每 3~5 天鉅額虧損事件（不破產）---
+    apply_merchant_loss_event(npcs, state, rng, tick_id, ticker)
 
     # 確保所有 70 人都有合理市場基準
     used_names = {n["name"] for n in npcs}
@@ -1179,9 +1467,10 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         # 記錄最近發生的精彩事蹟（每「場」= 從起點走完一條完整 SEGMENTS 流程關卡，中途輸了就結束該場）
         new_events: list[str] = []
         base_power = npc_combat_power(npc, db)
+        force_hard_ev = bool((state.get("dailyEvent") or {}).get("forceHard", False))
         for _ in range(n_runs):
             npc["runs"] = npc.get("runs", 0) + 1
-            seg, diff = choose_segment_and_diff(npc, db, rng)
+            seg, diff = choose_segment_and_diff(npc, db, rng, force_hard=force_hard_ev)
             # 本場局內抽卡（變身卡／技能構築）與走位操作手氣
             run_luck = rng.uniform(0.76, 1.32)
             eff_power = base_power * run_luck
@@ -1370,7 +1659,8 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         craft_npc_items(npc, db, market, rng, ticker, new_events)
 
         # --- 3. 自動換裝＋強化消耗（裝備／卷軸黑洞）---
-        upgrade_npc_gear_and_enchant(npc, db, market, rng, ticker, new_events)
+        ench_bonus = int((state.get("dailyEvent") or {}).get("enchantBonus", 0))
+        upgrade_npc_gear_and_enchant(npc, db, market, rng, ticker, new_events, ench_bonus=ench_bonus)
 
         # --- 3. 整理背包 → 下架過期品／補進個人商店貨架 ---
         restock_npc_shop(npc, db, market, rng, tick_id, state)
@@ -1378,8 +1668,8 @@ def simulate_tick(state: dict[str, Any], db: GameDatabase, rng: random.Random, a
         if new_events:
             npc["lastEvent"] = new_events[-1]
 
-    # --- 4. NPC ↔ NPC 跨商店市場交易（10% 稅金銷毀）---
-    run_npc_market_clearing(npcs, db, market, rng, ticker)
+    # --- 4. NPC ↔ NPC 跨商店市場交易（10% 稅金銷毀，減稅日降為 3%）---
+    run_npc_market_clearing(npcs, db, market, rng, ticker, state)
 
     # --- 5. 滿級（預設 Lv.50）退坑循環 → 補進 Lv.1 新手 ---
     for i, npc in enumerate(npcs):
@@ -1513,6 +1803,7 @@ def upgrade_npc_gear_and_enchant(
     rng: random.Random,
     ticker: list[str],
     new_events: list[str],
+    ench_bonus: int = 0,
 ) -> None:
     cls = npc["cls"]
     eq = npc["eq"]
@@ -1572,7 +1863,7 @@ def upgrade_npc_gear_and_enchant(
     if w_obj:
         w_it = db.items[w_obj["id"]]
         safe = max(0, int(w_it.get("safe", 6)))
-        max_try = safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe
+        max_try = min(ENCH_MAX, (safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe) + ench_bonus)
         cur_e = w_obj.get("ench", 0)
         if cur_e < max_try:
             use_key = bw_scr if (cur_e >= safe and bag.get(bw_scr, 0) > 0) else w_scr if bag.get(w_scr, 0) > 0 else None
@@ -1602,7 +1893,7 @@ def upgrade_npc_gear_and_enchant(
         a_it = db.items.get(a_obj["id"], {})
         safe = int(a_it.get("safe", 4))
         cur_e = a_obj.get("ench", 0)
-        max_try = safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe
+        max_try = min(ENCH_MAX, (safe + 2 if npc["tier"] == "whale" else safe + 1 if npc["tier"] == "regular" else safe) + ench_bonus)
         if safe > 0 and cur_e < max_try:
             use_key = ba_scr if (cur_e >= safe and bag.get(ba_scr, 0) > 0) else a_scr if bag.get(a_scr, 0) > 0 else None
             if use_key:
@@ -1637,7 +1928,7 @@ def restock_npc_shop(
             mk = f"{lst['item']}_{lst.get('ench', 0)}"
             state.setdefault("unsoldPress", {})[mk] = state.get("unsoldPress", {}).get(mk, 0) + 1
             if age < 60:
-                est_l = calc_expected_price(db, lst["item"], lst.get("ench", 0), market) * max(1, lst.get("n", 1))
+                est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
                 floor_r = 0.85 if npc["tier"] == "scalper" else 0.72
                 floor_p = max(50, int(est_l * floor_r))
                 lst["price"] = max(floor_p, int(lst["price"] * 0.90))
@@ -1689,9 +1980,10 @@ def restock_npc_shop(
             continue
 
         # 過低價值生活雜物（< 300 金，如食物/煙火/燈）直接丟遊戲商店換成水錢
-        est = calc_expected_price(db, iid, ench, market)
-        if est < 300 and it.get("kind") == "etc" and it.get("type") not in ("material", "gem", "scroll", "spellbook", "arrow"):
-            npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + max(15, est // 2) * cnt)
+        base_est = calc_expected_price(db, iid, ench, market)
+        est = calc_live_price(db, iid, ench, market, state)
+        if base_est < 300 and it.get("kind") == "etc" and it.get("type") not in ("material", "gem", "scroll", "spellbook", "arrow"):
+            npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + max(15, base_est // 2) * cnt)
             del bag[key]
             continue
 
@@ -1702,9 +1994,9 @@ def restock_npc_shop(
             sell_n = min(cnt - 2, rng.choice([1, 2, 3]))
         elif it.get("kind") != "etc":
             sell_n = 1
-        elif est >= 100_000:
+        elif base_est >= 100_000:
             sell_n = 1 if cnt == 1 else min(cnt, rng.choice([1, 2]))
-        elif est >= 15_000:
+        elif base_est >= 15_000:
             sell_n = min(cnt, rng.choice([1, 2, 3, 5]))
         else:
             sell_n = min(cnt, rng.choice([2, 3, 5, 10]))
@@ -1721,6 +2013,8 @@ def restock_npc_shop(
             continue
 
         mult = rng.uniform(lo_m, hi_m)
+        if npc["tier"] in ("casual", "regular"):
+            mult *= float((state.get("dailyEvent") or {}).get("sellUrgency", 1.0))
         aff_bonus = 1.18 if aff_k else 1.0
         unit_price = max(35, int(round(est * mult * aff_bonus / 5.0) * 5))
         # 若為鎮上 NPC 商店常駐無限販售品，價格不應高過商店原價的 94%
@@ -1756,8 +2050,12 @@ def run_npc_market_clearing(
     market: dict[str, int],
     rng: random.Random,
     ticker: list[str],
+    state: dict[str, Any] | None = None,
 ) -> None:
-    """NPC 之間彼此在各自商店買貨（奸商掃低價貨、肝帝補衝裝捲/升級裝、10% 手續費直接銷毀防通膨）"""
+    """NPC 之間彼此在各自商店買貨（奸商掃低價貨、肝帝補衝裝捲/升級裝、預設 10% 手續費銷毀防通膨）"""
+    ev = (state or {}).get("dailyEvent") or {}
+    tax_rate = float(ev.get("taxRate", 0.10))
+    scalper_buy_max = float(ev.get("scalperBuyMax", 0.80))
     # 蒐集所有賣單
     all_listings: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for seller in npcs:
@@ -1788,11 +2086,11 @@ def run_npc_market_clearing(
                 continue
             iid = lst["item"]
             ench = lst.get("ench", 0)
-            est = calc_expected_price(db, iid, ench, market) * max(1, lst.get("n", 1))
+            est = calc_live_price(db, iid, ench, market, state or {}) * max(1, lst.get("n", 1))
             ratio = cost / max(1, est)
 
             want = False
-            if tier == "scalper" and ratio <= 0.80:
+            if tier == "scalper" and ratio <= scalper_buy_max:
                 it_sc = db.items.get(iid, {})
                 if it_sc.get("type") in ("material", "gem", "scroll", "spellbook", "potion") or est >= 30_000:
                     want = True
@@ -1811,7 +2109,7 @@ def run_npc_market_clearing(
 
             if want:
                 buyer["gold"] -= cost
-                seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + int(cost * 0.90))  # 10% 交易稅直接銷毀（金幣黑洞）
+                seller["gold"] = min(TIER_GOLD_CAP[seller["tier"]], seller["gold"] + int(cost * (1.0 - tax_rate)))  # 交易稅直接銷毀（金幣黑洞）
                 self_bag_add(buyer, iid, ench, lst.get("n", 1), lst.get("aff"))
                 sold_ids.add(lst["id"])
                 seller["shop"] = [x for x in seller["shop"] if x["id"] != lst["id"]]
@@ -1842,10 +2140,10 @@ def update_market_prices(npcs: list[dict[str, Any]], db: GameDatabase, market: d
         iid_s, ench_s = mk.split("_")
         iid, ench = int(iid_s), int(ench_s)
         cnt = supply.get(mk, 0)
-        if cnt >= 6:
-            adj = 0.985
+        if cnt >= 5:
+            adj = 0.978
         elif cnt == 0:
-            adj = 1.003
+            adj = 1.008
         else:
             adj = 1.0
         new_p = int(cur_p * adj * damp)
@@ -1946,13 +2244,14 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
             }
         )
 
-    # 輸出全服部分關鍵物價行情給前端「向 NPC 兜售」查價用（精簡只保留常見裝備/捲軸＋market 中已出現項目）
+    # 輸出全服部分關鍵物價行情給前端「向 NPC 兜售」查價用（已套用當日事件 × 股市 × 天氣倍率）
     price_map: dict[str, int] = {}
     for iid in db.items:
-        price_map[str(iid)] = calc_expected_price(db, iid, 0, market)
+        price_map[str(iid)] = calc_live_price(db, iid, 0, market, state)
     for mk, mv in market.items():
         # 例如 "180_7"
-        price_map[mk] = mv
+        iid_mk = int(mk.split("_")[0])
+        price_map[mk] = max(15, int(round(mv * item_event_mult(db, state, iid_mk) / 5.0) * 5))
 
     now_iso = dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).isoformat(timespec="seconds")
     world = {
@@ -1967,6 +2266,7 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
             "retiredCount": state.get("retiredCount", 0),
             "totalListings": sum(len(n["shop"]) for n in npcs_pub),
         },
+        "dailyEvent": state.get("dailyEvent"),
         "marketRef": price_map,
         "npcs": npcs_pub,
         "ticker": list(reversed(state.get("ticker", [])[-10:])),
@@ -1987,6 +2287,7 @@ def main() -> None:
     parser.add_argument("--warmup-ticks", type=int, default=336, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
     parser.add_argument("--seed", type=int, default=None, help="固定亂數種子方便測試重現")
     parser.add_argument("--retire-lv", type=int, default=50, help="滿級退坑門檻等級 (預設 50)")
+    parser.add_argument("--offline", action="store_true", help="停用外部氣象/股市連線，純以內建亂數演算")
     parser.add_argument("--ai", action="store_true", help="有設定 API KEY 時啟用單次 Batch AI 新聞潤飾")
     parser.add_argument(
         "--out",
@@ -2036,8 +2337,10 @@ def main() -> None:
 
     run_ticks = int(round(args.days * 24)) if args.days > 0 else max(0, args.ticks)
     if not is_fresh or args.days > 0 or args.warmup_ticks == 0:
-        for _ in range(run_ticks):
-            simulate_tick(state, db, rng, args)
+        for step_i in range(run_ticks):
+            # 只在當次模擬的最後 24 tick（即「今天」）抓取真實台北天氣與台美股，歷史大量預演不洗 API
+            is_today_window = (not args.offline) and (run_ticks <= 24 or step_i >= run_ticks - 24)
+            simulate_tick(state, db, rng, args, allow_live_event=is_today_window)
 
     state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
