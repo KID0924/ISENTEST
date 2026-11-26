@@ -4671,7 +4671,38 @@ function hv(m,dt,d){
   }
   const isInspectOpen = () => !!(WINS && WINS.inspect && WINS.inspect.el && !WINS.inspect.el.classList.contains('hidden'));
   if (typeof window !== 'undefined') {
-    window.__onSimWorldUpdate = () => { if (village && !SRV() && P && !npcOpen && !isInspectOpen()) initVillageAlts(); };
+    window.__onSimWorldUpdate = () => {
+      try { if (typeof updateOfflineAnnStrip === 'function') updateOfflineAnnStrip(); } catch (e) { }
+      if (village && !SRV() && P && !npcOpen && !isInspectOpen()) initVillageAlts();
+    };
+  }
+  function updateOfflineAnnStrip() {
+    if (SRV()) return;
+    const as = document.getElementById('annStrip');
+    if (!as) return;
+    const w = window.SIM_WORLD && window.SIM_WORLD.world;
+    if (!w) return;
+    const ev = w.dailyEvent;
+    const lines = [];
+    if (ev && ev.title) {
+      lines.push('<div style="color:#ffd86b;font-weight:700">' + escH(ev.title) + '</div>');
+      const m = ev.mults || {};
+      const mapZ = { weapon: '武', armor: '防', gem: '寶', scroll: '捲', spellbook: '書', material: '材', potion: '水' };
+      const tags = Object.keys(mapZ).map(k => {
+        const pct = Math.round(((Number(m[k] || 1)) - 1) * 100);
+        if (!pct) return '';
+        return '<span style="color:' + (pct > 0 ? '#8ff09c' : '#ff9a9a') + '">' + mapZ[k] + (pct > 0 ? '+' : '') + pct + '%</span>';
+      }).filter(Boolean).slice(0, 5);
+      if (tags.length) lines.push('<div>' + tags.join(' ') + '</div>');
+      if (ev.source) lines.push('<div style="color:#b8cbe6">' + escH(ev.source.replace(/\s*\(大盤輔[^)]*\)/, '')) + '</div>');
+    }
+    if (Array.isArray(w.ticker) && w.ticker.length) {
+      lines.push('<div style="color:#ffe39a;margin-top:2px">' + escH(w.ticker[0]) + '</div>');
+    }
+    if (lines.length) {
+      clearTimeout(as._t);
+      as.innerHTML = lines.join('');
+    }
   }
   function updateVillageAlts(dt) {
     if (!village || SRV() || !VILLAGE_ALTS.length) return;
@@ -4717,6 +4748,7 @@ function hv(m,dt,d){
             v.say = v.shout;
             v.sayT = 3.8;
             hasActiveBubble = true;
+            addChat('[商攤] ' + v.name + '：' + v.shout, 'say');
           }
           v.nextShoutT = rnd(16, 36);
         }
@@ -6562,7 +6594,9 @@ function hv(m,dt,d){
     setMap(4100); const sp = cellToXY(VILL.spawn[0], VILL.spawn[1]); P.x = sp.x; P.y = sp.y;
     P.hp = P.maxhp; P.mp = P.maxmp;
     if (!SRV() && window.SIM_WORLD) {
+      updateOfflineAnnStrip();
       window.SIM_WORLD.refresh(false).then(w => {
+        updateOfflineAnnStrip();
         if (village && w && !window.__simTickerShown) {
           window.__simTickerShown = w.version || '1';
           if (Array.isArray(w.ticker) && w.ticker.length) addChat(w.ticker[0], 'sys');
@@ -8814,10 +8848,21 @@ function hv(m,dt,d){
     let act = null; try { act = F ? (a.idle || a.walk) : (pl.wmap ? pActOf('idle') : (isBow() ? a.bowbreath : a.idle)); } catch (e) { }
     return headPos(gf, act, P.dir, P.x, P.y);
   }
-  function drawBubble(x, y, text) {   // 白字＋細黑邊，沒有底色；(x,y)＝字的底部中心
-    ctx.font = 'bold 13px "Microsoft JhengHei","Noto Sans TC",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000';
-    const t = text.length > 16 ? text.slice(0, 16) + '…' : text;
-    ctx.strokeText(t, Math.round(x), Math.round(y)); ctx.fillStyle = '#fff'; ctx.fillText(t, Math.round(x), Math.round(y));
+  function drawBubble(x, y, text) {   // 白字＋細黑邊，沒有底色；超過 17 字自動折行顯示最多 2 行 (約 34 字)
+    ctx.font = 'bold 13px "Microsoft JhengHei","Noto Sans TC",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff';
+    const raw = text.length > 34 ? text.slice(0, 34) + '…' : text;
+    if (raw.length <= 17) {
+      ctx.strokeText(raw, Math.round(x), Math.round(y)); ctx.fillText(raw, Math.round(x), Math.round(y));
+      return;
+    }
+    let splitAt = 17;
+    for (let i = 16; i >= 10; i--) {
+      if (' ，。！？】)'.includes(raw[i])) { splitAt = i + 1; break; }
+    }
+    const l1 = raw.slice(0, splitAt), l2 = raw.slice(splitAt);
+    const rx = Math.round(x), ry = Math.round(y);
+    ctx.strokeText(l1, rx, ry - 15); ctx.fillText(l1, rx, ry - 15);
+    ctx.strokeText(l2, rx, ry); ctx.fillText(l2, rx, ry);
   }
   function drawRemote(r) {
     const pl = DATA.player, F = (r.f && window.CARDFORM && CARDFORM[r.f]) || null;
