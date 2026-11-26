@@ -2987,14 +2987,14 @@ def restock_npc_shop(
     bag = npc["bag"]
     lo_m, hi_m = TIER_SELL_MULT[npc["tier"]]
 
-    # 先統計背包內多餘未鑲嵌之怪物卡（所有未鑲嵌 3★，或滿槽後零散 2★），為商店保留上架名額以活絡怪卡流通
+    # 先統計背包內多餘未鑲嵌之怪物卡（優先上架多餘 3★；僅在全身插槽已滿 3★ 後才釋出零散 2★，避免提早賣光 2★ 合成種子）
     mcard_cands: list[tuple[int, int]] = []
     if db.mcards_cat:
         own_mc = (npc.get("mcards") or {}).get("own") or {}
         sock_mc = (npc.get("mcards") or {}).get("sock") or {}
         eq_now = npc.get("eq") or {}
-        all_ge2 = all(
-            len(sock_mc.get(sl) or []) >= lim and all(int(c.get("s", 1)) >= 2 for c in (sock_mc.get(sl) or [])[:lim])
+        all_ge3 = bool(eq_now) and all(
+            len(sock_mc.get(sl) or []) >= lim and all(int(c.get("s", 1)) >= 3 for c in (sock_mc.get(sl) or [])[:lim])
             for sl, lim in db.msock_slots.items()
             if sl in eq_now
         )
@@ -3007,8 +3007,8 @@ def restock_npc_shop(
             if int(arr[2]) > 0 and not any(s.get("mcard") == mid and int(s.get("star", 1)) == 3 for s in shop):
                 mcard_cands.append((mid, 3))
             elif (
-                (int(arr[1]) == 1 or (npc["tier"] == "scalper" and int(arr[1]) > 0))
-                and all_ge2
+                int(arr[1]) == 1
+                and all_ge3
                 and not any(s.get("mcard") == mid and int(s.get("star", 1)) == 2 for s in shop)
             ):
                 mcard_cands.append((mid, 2))
