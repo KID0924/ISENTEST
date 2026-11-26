@@ -237,6 +237,18 @@ def ench_rate(kind: str, ench: int, safe: int, blessed: bool = False, uncapped: 
     return max(0.0, min(1.0, ch))
 
 
+def _npc_enchant_step_prob(
+    kind: str, cur_e: int, safe: int, blessed: bool = False, uncapped: bool = False
+) -> float:
+    """NPC 強化成功率：安定前必過；超過安定值 +2 以內減半；超過安定值 +2 恢復正常機率"""
+    if cur_e < safe:
+        return 1.0
+    p = ench_rate(kind, cur_e, safe, blessed=blessed, uncapped=uncapped)
+    if 0 <= safe <= cur_e < safe + 2:
+        return p / 2.0
+    return p
+
+
 def _extract_js_object(text: str, marker: str) -> Any:
     """從 JS const X = {...}; 或 Object.assign(ITEMS, {...}); 中安全擷取 JSON 結構"""
     idx = text.find(marker)
@@ -2457,14 +2469,7 @@ def simulate_tick(
                             if npc["gold"] < scr_cost:
                                 break
                             npc["gold"] -= scr_cost
-                            if cur_e < b_safe:
-                                p_step = 1.0
-                            elif cur_e < min_target:
-                                # 未達「安定+2」前，依遊戲真實機率 ÷ 2 強迫過關
-                                p_step = ench_rate(b_kind, cur_e, b_safe, blessed=False, uncapped=True) / 2.0
-                            else:
-                                # 超過「安定+2」之後改回遊戲真實機率，且不封頂繼續賭
-                                p_step = ench_rate(b_kind, cur_e, b_safe, blessed=False, uncapped=True)
+                            p_step = _npc_enchant_step_prob(b_kind, cur_e, b_safe, blessed=False, uncapped=True)
                             if rng.random() < p_step:
                                 cur_e += 1
                             elif cur_e >= b_safe:
@@ -2507,12 +2512,19 @@ def simulate_tick(
     for i, npc in enumerate(npcs):
         if npc["lv"] >= retire_lv:
             npc["maxLvTicks"] = npc.get("maxLvTicks", 0) + 1
-        # 滿級後逐步光榮退坑（同時若老號退坑比例低於定額，老玩家也有極低機率換血重練），維持全等級生態
+        # 滿級與非肝帝分級／高齡自然退坑循環（僅肝帝保留滿級後 7% 退坑）
         retire_prob = 0.0
         if npc["maxLvTicks"] >= 18:
             retire_prob = 0.07 if npc["tier"] == "whale" else 0.05
-        elif npc["ageTicks"] > 180 and npc["lv"] >= min(45, retire_lv - 2) and npc["tier"] in ("casual", "regular"):
-            retire_prob = 0.003
+        if npc["tier"] != "whale":
+            if npc["lv"] > 45:
+                retire_prob = max(retire_prob, 0.02)
+            elif npc["lv"] > 40:
+                retire_prob = max(retire_prob, 0.0125)
+            elif npc["lv"] > 35:
+                retire_prob = max(retire_prob, 0.01)
+            if npc.get("ageTicks", 0) > 500:
+                retire_prob = max(retire_prob, 0.012)
         if retire_prob > 0 and rng.random() < retire_prob:
             retired_total += 1
             old_name = npc["name"]
@@ -2716,7 +2728,7 @@ def upgrade_npc_gear_and_enchant(
                 bag[use_key] -= 1
                 if bag[use_key] <= 0:
                     del bag[use_key]
-                p = ench_rate("weapon", cur_e, safe, blessed=blessed)
+                p = _npc_enchant_step_prob("weapon", cur_e, safe, blessed=blessed)
                 if rng.random() < p:
                     w_obj["ench"] = cur_e + 1
                     if w_obj["ench"] >= 7:
@@ -2753,7 +2765,7 @@ def upgrade_npc_gear_and_enchant(
                 bag[use_key] -= 1
                 if bag[use_key] <= 0:
                     del bag[use_key]
-                p = ench_rate("armor", cur_e, safe, blessed=blessed)
+                p = _npc_enchant_step_prob("armor", cur_e, safe, blessed=blessed)
                 if rng.random() < p:
                     a_obj["ench"] = cur_e + 1
                     if a_obj["ench"] >= 7:
@@ -2819,7 +2831,7 @@ def scalper_gamble_resell_gear(
         if npc["gold"] < scr_cost + 2_000_000:
             break
         npc["gold"] -= scr_cost
-        p = 1.0 if cur_e < safe else ench_rate(kind, cur_e, safe, blessed=False, uncapped=True)
+        p = _npc_enchant_step_prob(kind, cur_e, safe, blessed=False, uncapped=True)
         if rng.random() < p:
             cur_e += 1
         elif cur_e >= safe:
