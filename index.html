@@ -546,6 +546,43 @@
       border-color: var(--ok);
     }
 
+    .badge.card-white { color: #cbd5e1; border-color: #64748b; }
+    .badge.card-green { color: #4ade80; border-color: #22c55e; }
+    .badge.card-blue { color: #60a5fa; border-color: #3b82f6; }
+    .badge.card-red { color: #f87171; border-color: #ef4444; }
+    .badge.card-purple { color: #c084fc; border-color: #a855f7; }
+    .badge.card-gold { color: #fbbf24; border-color: #f59e0b; }
+
+    .badge.res-win {
+      color: var(--ok);
+      border-color: var(--ok);
+    }
+
+    .badge.res-wipe {
+      color: var(--warn);
+      border-color: var(--warn);
+    }
+
+    .combat-floors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-block-start: 4px;
+    }
+
+    .fl-chip {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .fl-chip.ok { border-color: rgba(93, 224, 141, 0.35); color: var(--text); }
+    .fl-chip.fail { border-color: rgba(255, 140, 105, 0.55); color: var(--warn); }
+
     .affix {
       color: var(--ok);
       font-size: 0.8rem;
@@ -818,6 +855,8 @@
       <button type="button" role="tab" id="tab-npcs" aria-selected="false">70 位冒險者 (<span id="cNpcs">70</span>)</button>
       <button type="button" role="tab" id="tab-market" aria-selected="false">全服行情基準 (<span
           id="cMarket">0</span>)</button>
+      <button type="button" role="tab" id="tab-combat" aria-selected="false">戰鬥紀錄 (近66h <span
+          id="cCombat">0</span>)</button>
     </div>
 
     <div id="sortStatus" class="sr-status" role="status"></div>
@@ -975,6 +1014,55 @@
         </table>
       </div>
     </section>
+
+    <!-- Panel 4: Combat Logs (last 66 ticks from sim/npc_state.json) -->
+    <section role="tabpanel" id="panel-combat" aria-labelledby="tab-combat" hidden>
+      <div class="controls">
+        <input type="search" id="qCombat" placeholder="搜尋冒險者、路線、怪物層、卡片或掉落物…" aria-label="搜尋戰鬥紀錄">
+        <select id="fCombatRes" aria-label="篩選戰果">
+          <option value="all">全部戰果</option>
+          <option value="win">僅看通關</option>
+          <option value="wipe">僅看翻車</option>
+        </select>
+        <select id="fCombatDiff" aria-label="篩選難度">
+          <option value="all">全部難度</option>
+          <option value="簡單">簡單</option>
+          <option value="普通">普通</option>
+          <option value="困難">困難</option>
+          <option value="惡夢">惡夢</option>
+        </select>
+        <select id="sCombat" aria-label="戰鬥紀錄排序">
+          <option value="0:descending">排序：時間 (新→舊)</option>
+          <option value="0:ascending">排序：時間 (舊→新)</option>
+          <option value="5:descending">排序：淨賺金幣 高→低</option>
+          <option value="4:descending">排序：殺怪數 多→少</option>
+        </select>
+        <span class="count-note" id="nCombat">顯示 0 筆</span>
+      </div>
+      <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cap-combat">
+        <table id="tblCombat"
+          style="--label-1:'時數';--label-2:'冒險者 / 卡片';--label-3:'路線 / 難度';--label-4:'各層細節 (怪數/清場/坦)';--label-5:'擊殺 / 經驗';--label-6:'淨金幣';--label-7:'戰利品';">
+          <caption id="cap-combat" class="sr-only-caption">後台最近 66 ticks 戰鬥紀錄明細</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-type="number" aria-sort="descending"><button type="button" commandfor="tblCombat"
+                  command="--sort"><span>Tick</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblCombat"
+                  command="--sort"><span>冒險者 / 變身卡</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><button type="button" commandfor="tblCombat"
+                  command="--sort"><span>路線 / 難度 / 戰果</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><span>各層怪數 · 清怪比 · 坦比</span></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblCombat"
+                  command="--sort"><span>擊殺數</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="number" data-align="end"><button type="button" commandfor="tblCombat"
+                  command="--sort"><span>淨金幣</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+              <th scope="col" data-type="text"><span>掉落戰利品</span></th>
+            </tr>
+          </thead>
+          <tbody id="tbCombat"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <dialog id="npcDlg" closedby="any" aria-labelledby="npcDlgTitle">
@@ -1030,9 +1118,12 @@
       let WORLD = null;
       let ALL_SHOPS = [];
       let ALL_MKT = [];
+      let ALL_COMBAT = [];
       let SUPPLY_MAP = new Map();
       let BAG_MAP = new Map();       // npcId -> { items: [...], totalQty, totalVal, searchBlob }
       let BAG_SUPPLY = new Map();    // "id_ench" -> totalQty across all 70 NPCs
+      let CARD_MAP = new Map();      // npcId -> { tier, zh, name }
+      let COMBAT_MAP = new Map();    // npcId -> combatLog[] (newest first)
 
       function esc(s) {
         return String(s == null ? '' : s)
@@ -1096,7 +1187,7 @@
 
       // Sortable Tables (Invoker commands + Fallback click listener + Quick Select Sort)
       const sortStatus = document.getElementById('sortStatus');
-      const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket' };
+      const TABLE_SORT_SELECT = { tblShops: 'sShop', tblNpcs: 'sNpc', tblMarket: 'sMarket', tblCombat: 'sCombat' };
       function applyTableSort(table, idx, dir, announce) {
         const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[idx];
         if (!th || !table.tBodies.length) return;
@@ -1198,10 +1289,34 @@
           '<tr><td><span class="item-cell">' + iconHtml(b.id) + '<span>' + esc(b.disp) + ' <span class="badge">' + esc(b.catLabel) + '</span></span></span></td><td data-align="end">×' + fmtNum(b.qty) + '</td><td data-align="end">' + fmtNum(b.val) + ' 金</td></tr>'
         ).join('') : '';
 
+        const card = CARD_MAP.get(n.id);
+        const cardBadge = card ? ('<span class="badge card-' + esc(card.tier || 'white') + '">' + esc(card.zh) + ' · ' + esc(card.name) + '</span>') : '<span style="color:var(--muted)">尚未同步</span>';
+        const cLogs = COMBAT_MAP.get(n.id) || [];
+        const cWins = cLogs.filter(x => x.win).length;
+        const cRate = cLogs.length ? Math.round(cWins * 100 / cLogs.length) : 0;
+        const combatRows = cLogs.slice(0, 60).map(r => {
+          const flHtml = (r.fl || []).map(f => {
+            const cls = f.ok ? (f.bok === false ? 'fail' : 'ok') : 'fail';
+            const mobTxt = f.n === 1 ? '單王' : (f.n + '怪');
+            const ratioTxt = f.clr != null ? (' · 清' + f.clr + '/坦' + f.tk) : (' · 王勝' + Math.round((f.bp || 0) * 100) + '%');
+            return '<span class="fl-chip ' + cls + '">' + esc(f.m) + ' (' + mobTxt + ratioTxt + ')</span>';
+          }).join('');
+          const drTxt = (r.dr || []).slice(0, 4).map(d => (d.e > 0 ? '+' + d.e + ' ' : '') + d.nm + (d.n > 1 ? '×' + d.n : '')).join('、') || '-';
+          return '<tr>' +
+            '<td data-align="end">#' + r.t + '</td>' +
+            '<td><strong>' + esc(r.seg) + '</strong> <span class="badge">' + esc(r.diff) + '</span> ' +
+            '<span class="badge ' + (r.win ? 'res-win' : 'res-wipe') + '">' + (r.win ? '通關' : esc(r.stop || '撤退')) + '</span>' +
+            '<div class="combat-floors">' + flHtml + '</div></td>' +
+            '<td data-align="end">' + fmtNum(r.k) + ' 隻<br><span style="color:var(--accent)">' + fmtNum(r.g) + ' 金</span></td>' +
+            '<td style="font-size:0.82rem">' + esc(drTxt) + '</td>' +
+            '</tr>';
+        }).join('');
+
         const st = n.stats || {};
         dlgBody.innerHTML =
           '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px;font-size:0.92rem">' +
           '<span>狀態：<strong>' + (n.state === 'village' ? '奇岩村擺攤' : '練功打寶中') + '</strong></span>' +
+          '<span>變身卡：' + cardBadge + '</span>' +
           '<span>持有金幣：<strong style="color:var(--accent)">' + fmtNum(n.gold) + '</strong></span>' +
           '<span>力' + (st.str || 0) + ' 敏' + (st.dex || 0) + ' 體' + (st.con || 0) + ' 精' + (st.wis || 0) + ' 魅' + (st.cha || 0) + ' 智' + (st.int || 0) + '</span>' +
           '</div>' +
@@ -1215,7 +1330,11 @@
           '<h3 style="margin:16px 0 6px;font-size:0.98rem">背包物品 (' + (bagInfo ? (bagInfo.items.length + ' 種 / 合計 ' + fmtNum(bagInfo.totalQty) + ' 件 · 估值 ' + fmtNum(bagInfo.totalVal) + ' 金') : '尚未載入 npc_state.json') + ')</h3>' +
           (bagInfo && bagInfo.items.length
             ? '<table class="dlg-shop"><thead><tr><th>道具（依估值高到低）</th><th data-align="end">數量</th><th data-align="end">估值</th></tr></thead><tbody>' + bagRows + '</tbody></table>'
-            : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>');
+            : '<p style="color:var(--muted);margin:4px 0">目前背包內無物件（或尚未讀取到 npc_state.json）。</p>') +
+          '<h3 style="margin:16px 0 6px;font-size:0.98rem">最近 66 ticks 戰鬥紀錄 (' + cLogs.length + ' 場 · 通關率 ' + cRate + '%)</h3>' +
+          (cLogs.length
+            ? '<table class="dlg-shop"><thead><tr><th data-align="end">Tick</th><th>路線 / 各層詳情</th><th data-align="end">殺怪 / 金幣</th><th>主要掉落</th></tr></thead><tbody>' + combatRows + '</tbody></table>'
+            : '<p style="color:var(--muted);margin:4px 0">尚無最近戰鬥紀錄（推進模擬 tick 後會即時更新於後台）。</p>');
         dlg.showModal();
       }
 
@@ -1308,6 +1427,43 @@
         applyActiveSort(document.getElementById('tblMarket'));
       }
 
+      function renderCombat() {
+        const q = document.getElementById('qCombat').value.trim().toLowerCase();
+        const resF = document.getElementById('fCombatRes').value;
+        const diffF = document.getElementById('fCombatDiff').value;
+        const rows = ALL_COMBAT.filter(r => {
+          if (resF === 'win' && !r.win) return false;
+          if (resF === 'wipe' && r.win) return false;
+          if (diffF !== 'all' && r.diff !== diffF) return false;
+          if (q && !r.searchText.includes(q)) return false;
+          return true;
+        });
+        const shown = rows.slice(0, 300);
+        const winCnt = rows.filter(r => r.win).length;
+        const winPct = rows.length ? Math.round(winCnt * 100 / rows.length) : 0;
+        document.getElementById('nCombat').textContent =
+          (rows.length > 300 ? '顯示前 300 / ' : '顯示 ') + fmtNum(rows.length) + ' 場（通關率 ' + winPct + '%）';
+        document.getElementById('tbCombat').innerHTML = shown.map(r => {
+          const flHtml = (r.fl || []).map(f => {
+            const cls = f.ok ? (f.bok === false ? 'fail' : 'ok') : 'fail';
+            const mobTxt = f.n === 1 ? '單王' : (f.n + '怪');
+            const detail = f.clr != null ? ('清' + f.clr + '/坦' + f.tk + '/勝' + Math.round((f.p || 0) * 100) + '%') : ('王勝' + Math.round((f.bp || 0) * 100) + '%');
+            return '<span class="fl-chip ' + cls + '">' + esc(f.m) + ' ' + mobTxt + ' (' + detail + ')</span>';
+          }).join('');
+          const drTxt = (r.dr || []).slice(0, 5).map(d => (d.e > 0 ? '+' + d.e + ' ' : '') + d.nm + (d.n > 1 ? '×' + d.n : '')).join('、') || '-';
+          return '<tr>' +
+            '<td data-align="end" data-value="' + r.t + '"><strong>#' + r.t + '</strong></td>' +
+            '<th scope="row" data-value="' + esc(r.npcName) + '"><button type="button" class="link-btn" data-npc="' + esc(r.npcId) + '">' + esc(r.npcName) + '</button> <span class="badge">Lv.' + (r.lv || '-') + '</span><br><span class="badge card-' + esc(r.cardTier || 'white') + '">' + esc(r.cardZh || r.card || '白卡') + ' · 群×' + (r.aoe || 1) + '</span></th>' +
+            '<td data-value="' + esc(r.seg) + '"><strong>' + esc(r.seg) + '</strong><br><span class="badge">' + esc(r.diff) + '</span> <span class="badge ' + (r.win ? 'res-win' : 'res-wipe') + '">' + (r.win ? '通關' : esc(r.stop || '撤退')) + '</span></td>' +
+            '<td><div class="combat-floors">' + flHtml + '</div></td>' +
+            '<td data-align="end" data-value="' + r.k + '">' + fmtNum(r.k) + ' 隻<br><span style="color:var(--muted);font-size:0.78rem">EXP +' + fmtNum(r.exp) + '</span></td>' +
+            '<td data-align="end" data-value="' + r.g + '"><strong style="color:' + (r.g >= 0 ? 'var(--accent)' : 'var(--warn)') + '">' + fmtNum(r.g) + '</strong></td>' +
+            '<td style="font-size:0.84rem">' + esc(drTxt) + '</td>' +
+            '</tr>';
+        }).join('');
+        applyActiveSort(document.getElementById('tblCombat'));
+      }
+
       // Click delegation for NPC buttons
       document.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-npc]');
@@ -1317,6 +1473,7 @@
       for (const id of ['qShop', 'fShopCat']) document.getElementById(id).addEventListener('input', renderShops);
       for (const id of ['qNpc', 'fNpcTier', 'fNpcState']) document.getElementById(id).addEventListener('input', renderNpcs);
       for (const id of ['qMarket', 'fMktCat', 'chkMktStock']) document.getElementById(id).addEventListener('input', renderMarket);
+      for (const id of ['qCombat', 'fCombatRes', 'fCombatDiff']) document.getElementById(id).addEventListener('input', renderCombat);
 
       async function loadWorld() {
         const btn = document.getElementById('btnReload');
@@ -1428,11 +1585,31 @@
           }
           ALL_SHOPS.sort((a, b) => b.price - a.price);
 
-          // Build Bag maps from sim/npc_state.json
+          // Build Bag & CombatLog maps from sim/npc_state.json
           BAG_MAP = new Map();
           BAG_SUPPLY = new Map();
+          CARD_MAP = new Map();
+          COMBAT_MAP = new Map();
+          ALL_COMBAT = [];
           if (rawState && Array.isArray(rawState.npcs)) {
             for (const rn of rawState.npcs) {
+              if (rn.card) CARD_MAP.set(rn.id, rn.card);
+              const cTier = (rn.card && rn.card.tier) || 'white';
+              const cZh = (rn.card && rn.card.zh) || '白卡';
+              const npcLogs = Array.isArray(rn.combatLog) ? rn.combatLog.slice().reverse() : [];
+              COMBAT_MAP.set(rn.id, npcLogs);
+              for (const r of npcLogs) {
+                const flNames = (r.fl || []).map(f => f.m).join(' ');
+                const drNames = (r.dr || []).map(d => d.nm).join(' ');
+                ALL_COMBAT.push(Object.assign({}, r, {
+                  npcId: rn.id,
+                  npcName: rn.name,
+                  tier: rn.tier,
+                  cardTier: cTier,
+                  cardZh: cZh,
+                  searchText: (rn.name + ' ' + r.seg + ' ' + r.diff + ' ' + cZh + ' ' + (r.stop || '') + ' ' + flNames + ' ' + drNames).toLowerCase(),
+                }));
+              }
               const items = [];
               let totalQty = 0;
               let totalVal = 0;
@@ -1461,6 +1638,7 @@
               BAG_MAP.set(rn.id, { items, totalQty, totalVal, searchBlob: names.join(' ') });
             }
           }
+          ALL_COMBAT.sort((a, b) => b.t - a.t);
 
           // Build MarketRef list
           ALL_MKT = [];
@@ -1493,10 +1671,12 @@
           document.getElementById('cShops').textContent = fmtNum(ALL_SHOPS.length);
           document.getElementById('cNpcs').textContent = fmtNum(npcs.length);
           document.getElementById('cMarket').textContent = fmtNum(ALL_MKT.length);
+          document.getElementById('cCombat').textContent = fmtNum(ALL_COMBAT.length);
 
           renderShops();
           renderNpcs();
           renderMarket();
+          renderCombat();
         } catch (err) {
           document.getElementById('mVer').textContent = '載入失敗：' + err.message;
         } finally {
