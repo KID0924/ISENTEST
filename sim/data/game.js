@@ -365,7 +365,15 @@
     '10736', '10739', '11112', '11317', '12575', '14537', '21215', '21217', '21219', '21222', '21225', '21231',
     '21234', '21237', '21240', '21243', '21247', '21250', '21254', '21258', '21262', '21266', '21269', '21273'
   ]);
-  function isSkippedShadow(g) { return SKIP_BACKUP_SHADOWS && g != null && BACKUP_SHADOW_IDS.has(String(g)); }
+  const EMPTY_SHADOW_IDS = new Set([
+    '1151', '1185', '1203', '1205', '1598', '1611', '1763', '2148', '2418', '2444', '2490',
+    '2534', '3913', '3915', '3917', '3919', '3921', '3923', '3927', '3929', '3931'
+  ]);
+  function isSkippedShadow(g) {
+    if (g == null) return false;
+    const s = String(g);
+    return EMPTY_SHADOW_IDS.has(s) || (SKIP_BACKUP_SHADOWS && BACKUP_SHADOW_IDS.has(s));
+  }
   function key(g, f) { return g + '/' + f; }
   window.__loadGfx = function (g) { if (isSkippedShadow(g)) return Promise.resolve(); const ps = []; for (const f in META[g]) ps.push(new Promise(r => { const im = new Image(); im.onload = im.onerror = () => { r(); if (+g === 7539 || +g === 7540) { if (+f < 48 && im.decode) im.decode().then(() => { if (WARM) WARM.drawImage(im, 0, 0, 1, 1); }).catch(() => { }); } }; sprLoad(im, g, f); imgs[key(g, +f)] = im; })); return Promise.all(ps); };   // 安塔瑞斯的走路／待機／近戰圖載入後先解碼並上傳，避免第一次播放時卡一下
   const WARM = document.createElement('canvas').getContext('2d');
