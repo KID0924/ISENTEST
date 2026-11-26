@@ -1638,39 +1638,74 @@ def choose_segment_and_diff(
     target_entry = max(9, lv + tier_offset)
     max_entry = max(9, lv + (3 if tier == "whale" else 2 if tier == "regular" else 1))
 
-    # 嚴格依目前等級挑選合理入口路線，禁止 Lv.1~5 直接排進奇岩/海音/龍谷越級賭運氣
-    cands = [g for g in db.segments if g["entryRec"] <= max_entry]
-    if not cands:
-        cands = [db.segments[0]]
-    cands.sort(key=lambda g: (abs(g["entryRec"] - target_entry), abs(g["peakRec"] - target_entry)))
-    seg = rng.choice(cands[: min(3, len(cands))])
+    # 新手／一般／商人偶爾會往下挑選低於自己能力的關卡，改刷困難或惡夢拚經驗與掉寶
+    farm_low_prob = 0.38 if tier == "casual" else 0.35 if tier == "scalper" else 0.32 if tier == "regular" else 0.0
+    low_cands = [g for g in db.segments if g["peakRec"] <= max(10, lv - 2) and g["entryRec"] <= max(9, lv - 4)]
+    if lv >= 14 and low_cands and rng.random() < farm_low_prob:
+        low_target = max(9, lv - rng.randint(4, 9))
+        low_cands.sort(key=lambda g: (abs(g["entryRec"] - low_target), g["peakRec"]))
+        seg = rng.choice(low_cands[: min(4, len(low_cands))])
+    else:
+        # 嚴格依目前等級挑選合理入口路線，禁止 Lv.1~5 直接排進奇岩/海音/龍谷越級賭運氣
+        cands = [g for g in db.segments if g["entryRec"] <= max_entry]
+        if not cands:
+            cands = [db.segments[0]]
+        cands.sort(key=lambda g: (abs(g["entryRec"] - target_entry), abs(g["peakRec"] - target_entry)))
+        seg = rng.choice(cands[: min(3, len(cands))])
 
-    # 直接用起始層在「普通難度」的清怪/坦度實戰比決定難度，打不過就不亂開困難／惡夢
+    # 以實際路線中段層在 普通 / 困難 / 惡夢 的清怪與坦度比決定難度，確保刷高難度是挑實力能過關的低等區
     prof = npc_combat_profile(npc, db)
+    ref_stage = seg["stages"][len(seg["stages"]) // 2]
     norm_diff = db.diffs[1] if len(db.diffs) > 1 else db.diffs[0]
-    norm_eval = eval_floor_combat(prof, seg["stages"][0], norm_diff, 1.0)
-    rel = 0.48 * norm_eval["clr"] + 0.52 * norm_eval["tank"]
+    hard_diff = db.diffs[2] if len(db.diffs) > 2 else norm_diff
+    nm_diff = db.diffs[3] if len(db.diffs) > 3 else hard_diff
 
-    if rel < 0.72:
-        weights = [0.78, 0.22, 0.0, 0.0]
-    elif tier == "casual":
-        weights = [0.68, 0.30, 0.02, 0.0] if rel < 1.25 else [0.40, 0.52, 0.08, 0.0]
-    elif tier == "scalper":
-        weights = [0.35, 0.60, 0.05, 0.0] if rel < 1.25 else [0.15, 0.65, 0.20, 0.0]
-    elif tier == "regular":
-        if rel < 1.05:
-            weights = [0.42, 0.53, 0.05, 0.0]
-        elif rel < 1.40:
-            weights = [0.12, 0.58, 0.28, 0.02]
-        else:
-            weights = [0.05, 0.38, 0.47, 0.10]
-    else:  # whale
-        if rel < 1.05:
+    def _rel(d_obj: dict[str, Any]) -> float:
+        ev = eval_floor_combat(prof, ref_stage, d_obj, 1.0)
+        return 0.48 * ev["clr"] + 0.52 * ev["tank"]
+
+    rel = _rel(norm_diff)
+    rel_hard = _rel(hard_diff)
+    rel_nm = _rel(nm_diff)
+
+    if tier == "whale":
+        if rel < 0.72:
+            weights = [0.78, 0.22, 0.0, 0.0]
+        elif rel < 1.05:
             weights = [0.25, 0.58, 0.17, 0.0]
         elif rel < 1.40:
             weights = [0.05, 0.35, 0.48, 0.12]
         else:
             weights = [0.0, 0.18, 0.48, 0.34]
+    elif tier == "casual":
+        if rel_nm >= 0.92:
+            weights = [0.06, 0.18, 0.38, 0.38]
+        elif rel_hard >= 0.88:
+            weights = [0.16, 0.36, 0.38, 0.10 if rel_nm >= 0.75 else 0.0]
+        elif rel < 0.72:
+            weights = [0.78, 0.22, 0.0, 0.0]
+        else:
+            weights = [0.60, 0.34, 0.06, 0.0] if rel < 1.25 else [0.32, 0.52, 0.16, 0.0]
+    elif tier == "scalper":
+        if rel_nm >= 0.92:
+            weights = [0.0, 0.16, 0.40, 0.44]
+        elif rel_hard >= 0.88:
+            weights = [0.05, 0.38, 0.45, 0.12 if rel_nm >= 0.75 else 0.0]
+        elif rel < 0.72:
+            weights = [0.75, 0.25, 0.0, 0.0]
+        else:
+            weights = [0.35, 0.60, 0.05, 0.0]
+    else:  # regular
+        if rel_nm >= 0.92:
+            weights = [0.0, 0.14, 0.40, 0.46]
+        elif rel_hard >= 0.88:
+            weights = [0.05, 0.35, 0.46, 0.14 if rel_nm >= 0.75 else 0.0]
+        elif rel < 0.72:
+            weights = [0.72, 0.28, 0.0, 0.0]
+        elif rel < 1.05:
+            weights = [0.42, 0.53, 0.05, 0.0]
+        else:
+            weights = [0.12, 0.58, 0.28, 0.02]
 
     if force_hard and tier in ("whale", "regular") and rel >= 0.85:
         weights = [0.0, 0.25 * weights[0], weights[1] * 0.6 + weights[2], weights[3] + weights[1] * 0.4 + weights[0] * 0.75]
@@ -1694,6 +1729,7 @@ def simulate_tick(
     market: dict[str, int] = state.setdefault("market", {})
     ticker: list[str] = state.setdefault("ticker", [])
     retired_total = state.get("retiredCount", 0)
+    retired_by_tier = state.setdefault("retiredByTier", {t: 0 for t in TIER_COUNTS})
 
     # --- 0. 每日市場事件卡（每 24 ticks 換 1 張：20 張主軸卡 × 台美股 × 台北天氣）---
     cur_ev = state.get("dailyEvent")
@@ -2100,6 +2136,7 @@ def simulate_tick(
             old_name = npc["name"]
             old_cls = npc["cls"]
             old_tier = npc["tier"]
+            retired_by_tier[old_tier] = retired_by_tier.get(old_tier, 0) + 1
             old_lv = npc["lv"]
             used_names.discard(old_name)
             fresh = create_new_npc(i + 1, old_cls, old_tier, used_names, db, rng)
@@ -2797,6 +2834,7 @@ def build_public_world(state: dict[str, Any], db: GameDatabase, use_ai: bool = F
             "onlineBattle": bat_cnt,
             "avgLv": round(sum(lvs) / max(1, len(lvs)), 1),
             "retiredCount": state.get("retiredCount", 0),
+            "retiredByTier": {t: int((state.get("retiredByTier") or {}).get(t, 0)) for t in TIER_COUNTS},
             "totalListings": sum(len(n["shop"]) for n in npcs_pub),
         },
         "dailyEvent": state.get("dailyEvent"),
@@ -2850,6 +2888,7 @@ def main() -> None:
         state = {
             "tick": 0,
             "retiredCount": 0,
+            "retiredByTier": {t: 0 for t in TIER_COUNTS},
             "nextSeq": 1000,
             "market": {},
             "ticker": [],
