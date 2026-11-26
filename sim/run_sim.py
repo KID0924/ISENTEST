@@ -1056,7 +1056,7 @@ def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
         pass
 
     rets = [r for r in (tw_ret, us_ret) if r is not None]
-    avg_ret = sum(rets) / len(rets) if rets else 0.0
+    avg_ret = weighted_stock_ret(tw_ret, us_ret)
     _LIVE_SIGNAL_CACHE = {
         "liveWeather": w_ok,
         "tempC": temp_c,
@@ -1068,6 +1068,17 @@ def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
         "liveStocks": bool(rets),
     }
     return _LIVE_SIGNAL_CACHE
+
+
+def weighted_stock_ret(tw_ret: float | None, us_ret: float | None) -> float:
+    """取波動較強市場佔 70%、另一方佔 30%，避免一漲一跌過度互相抵銷"""
+    if tw_ret is not None and us_ret is not None:
+        return (tw_ret * 0.70 + us_ret * 0.30) if abs(tw_ret) >= abs(us_ret) else (us_ret * 0.70 + tw_ret * 0.30)
+    if tw_ret is not None:
+        return tw_ret
+    if us_ret is not None:
+        return us_ret
+    return 0.0
 
 
 def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, dict[str, float]]:
@@ -1084,7 +1095,7 @@ def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, 
 
 
 def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, allow_live: bool = False) -> dict[str, Any]:
-    """三層疊乘物價公式：20張突發事件卡(主) × 台美股(輔 ±15%) × 台北天氣(次輔 +4%~+8%)"""
+    """三層疊乘物價公式：20張突發事件卡(主 +15%~-45%) × 台美股(輔 ×14, ±20%) × 台北天氣(次輔 +4%~+8%)"""
     recent: list[str] = state.setdefault("recentEventIds", [])
     cands = [c for c in DAILY_EVENT_POOL if c["id"] not in recent[-5:]] or DAILY_EVENT_POOL
     card = rng.choice(cands)
@@ -1117,9 +1128,9 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
             tw_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
             us_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
             tw_lbl, us_lbl = f"{tw_ret * 100:+.2f}%", f"{us_ret * 100:+.2f}%"
-        avg_ret = (tw_ret + us_ret) / 2.0
+        avg_ret = weighted_stock_ret(tw_ret, us_ret)
 
-    stock_mult = max(0.85, min(1.15, 1.0 + avg_ret * 3.5))
+    stock_mult = max(0.80, min(1.20, 1.0 + avg_ret * 14.0))
     w_label, w_mults = weather_theme_mults(temp_c, precip, wcode)
     jitter = rng.uniform(0.96, 1.04)
 
@@ -1129,7 +1140,7 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
     for cat in EVENT_CATS:
         m_card = max(0.55, min(1.15, float(base_map.get(cat, default_card_m)) * jitter))
         m_weath = float(w_mults.get(cat, 1.0))
-        final_m = max(0.42, min(1.45, m_card * stock_mult * m_weath))
+        final_m = max(0.42, min(1.50, m_card * stock_mult * m_weath))
         resolved[cat] = round(final_m, 3)
 
     stock_pct = (stock_mult - 1.0) * 100
