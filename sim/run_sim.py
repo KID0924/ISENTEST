@@ -3525,7 +3525,7 @@ def main() -> None:
     parser.add_argument("--ticks", type=int, default=1, help="每次執行推進幾個虛擬小時 (預設 1)")
     parser.add_argument("--days", type=float, default=0, help="推進天數（會覆蓋 --ticks，如 --days 7）")
     parser.add_argument("--reset", action="store_true", help="重置世界並重跑開服狀態")
-    parser.add_argument("--warmup-ticks", type=int, default=66, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
+    parser.add_argument("--warmup-ticks", type=int, default=1000, help="重置時的暖機虛擬小時數（設 0 則 70 人全員自 tick=0 Lv.1 起步）")
     parser.add_argument("--seed", type=int, default=None, help="固定亂數種子方便測試重現")
     parser.add_argument("--retire-lv", type=int, default=50, help="滿級退坑門檻等級 (預設 50)")
     parser.add_argument("--offline", action="store_true", help="停用外部氣象/股市連線，純以內建亂數演算")
