@@ -1437,7 +1437,7 @@ def pick_unused_name(used: set[str], rng: random.Random, tier: str = "regular") 
 
 
 def create_new_npc(
-    idx: int,
+    idx: int | str,
     cls: str,
     tier: str,
     used_names: set[str],
@@ -1452,9 +1452,10 @@ def create_new_npc(
     start_w = db.startw.get(cls, 172)
     eq = {"weapon": {"id": start_w, "ench": 0, "n": 1}}
     gold = 0
+    npc_id = idx if isinstance(idx, str) and idx.startswith("npc_") else f"npc_{int(idx):02d}"
 
     npc_obj: dict[str, Any] = {
-        "id": f"npc_{idx:02d}",
+        "id": npc_id,
         "name": name,
         "cls": cls,
         "sex": rng.randint(0, 1),
@@ -2567,7 +2568,7 @@ def simulate_tick(
             old_lv = npc["lv"]
             used_names.discard(old_name)
             fresh = create_new_npc(
-                i + 1, old_cls, old_tier, used_names, db, rng, whale_retire=bool(npc.get("whaleRetire"))
+                npc["id"], old_cls, old_tier, used_names, db, rng, whale_retire=bool(npc.get("whaleRetire"))
             )
             npcs[i] = fresh
             ticker.append(
