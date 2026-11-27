@@ -3129,23 +3129,32 @@ def restock_npc_shop(
     state: dict[str, Any],
 ) -> None:
     shop: list[dict[str, Any]] = npc.setdefault("shop", [])
-    # 移除掛太久沒賣掉的舊貨（48 ticks 打 9 折但不破保底價；滿 60 ticks 退回背包以免本金與貨物蒸發）
+    HIGH_VALUE_KEEP = 5_000_000
+    # 移除或處理掛太久沒賣掉的舊貨：
+    # 1) 48~59 ticks 打 9 折促銷；
+    # 2) 第 1 次滿 60 ticks 沒賣掉 → 打折 (65%，不破保底 55%) 重新上架；
+    # 3) 重掛滿 60 ticks 仍沒賣掉 → 估值 >= 500 萬保留回背包，其餘直接賣遊戲商店回收
     kept: list[dict[str, Any]] = []
     for lst in shop:
         age = tick_id - lst.get("tick", tick_id)
         if age >= 48:
-            # 記錄流拍壓力供物價下修
             is_mc = "mcard" in lst
             mk = f"mc_{lst['mcard']}_{lst.get('star', 1)}" if is_mc else f"{lst['item']}_{lst.get('ench', 0)}"
             state.setdefault("unsoldPress", {})[mk] = state.get("unsoldPress", {}).get(mk, 0) + 1
+            if is_mc:
+                est_l = mcard_expected_price(db, int(lst["mcard"]), int(lst.get("star", 1)), state) * max(1, lst.get("n", 1))
+            else:
+                est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
             if age < 60:
-                if is_mc:
-                    est_l = mcard_expected_price(db, int(lst["mcard"]), int(lst.get("star", 1)), state) * max(1, lst.get("n", 1))
-                else:
-                    est_l = calc_live_price(db, lst["item"], lst.get("ench", 0), market, state) * max(1, lst.get("n", 1))
                 floor_r = 0.75 if npc["tier"] == "scalper" else 0.72
                 floor_p = max(50, int(est_l * floor_r))
                 lst["price"] = max(floor_p, int(lst["price"] * 0.90))
+                kept.append(lst)
+            elif not lst.get("relisted"):
+                relist_floor = max(50, int(est_l * 0.55))
+                lst["price"] = max(relist_floor, int(round(lst["price"] * 0.65 / 5.0) * 5))
+                lst["tick"] = tick_id
+                lst["relisted"] = True
                 kept.append(lst)
             else:
                 if is_mc:
@@ -3153,8 +3162,12 @@ def restock_npc_shop(
                     mc_arr = own_mc.setdefault(str(lst["mcard"]), [0, 0, 0])
                     mc_s = max(1, min(3, int(lst.get("star", 1))))
                     mc_arr[mc_s - 1] = int(mc_arr[mc_s - 1]) + max(1, int(lst.get("n", 1)))
-                else:
+                elif est_l >= HIGH_VALUE_KEEP:
                     self_bag_add(npc, lst["item"], lst.get("ench", 0), lst.get("n", 1), lst.get("aff"))
+                else:
+                    # 估值未達 500 萬且重掛仍流拍：直接賣給遊戲商店回收換水錢
+                    vendor_gold = max(25, int(est_l * 0.35))
+                    npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + vendor_gold)
         else:
             kept.append(lst)
     shop[:] = kept
@@ -3217,6 +3230,40 @@ def restock_npc_shop(
         )
     else:
         rng.shuffle(keys)
+
+    # 全職業背包裝備溢出清倉：多餘未穿戴裝備超過 16 件時，優先從最低價 +0 無詞綴裝直接賣遊戲商店（>= 500 萬保留）
+    gear_entries: list[tuple[int, int, str, int]] = []
+    total_bag_gear = 0
+    for gk in list(bag.keys()):
+        g_cnt = int(bag.get(gk, 0) or 0)
+        if g_cnt <= 0:
+            continue
+        gi_s, ge_s, ga_k = gk.split(":")
+        gi, ge = int(gi_s), int(ge_s)
+        g_it = db.items.get(gi)
+        if not g_it or g_it.get("kind") not in ("weapon", "armor"):
+            continue
+        total_bag_gear += g_cnt
+        if gi in db.no_sell or gi in db.no_drop:
+            continue
+        g_est = calc_expected_price(db, gi, ge, market)
+        if g_est >= HIGH_VALUE_KEEP:
+            continue
+        prio = 0 if (ge == 0 and not ga_k) else 1
+        gear_entries.append((prio, g_est, gk, g_cnt))
+    if total_bag_gear > 16 and gear_entries:
+        gear_entries.sort(key=lambda x: (x[0], x[1]))
+        to_trim = total_bag_gear - 16
+        for _, g_est, gk, g_cnt in gear_entries:
+            if to_trim <= 0:
+                break
+            sell_c = min(g_cnt, to_trim)
+            npc["gold"] = min(TIER_GOLD_CAP[npc["tier"]], npc["gold"] + max(25, int(g_est * 0.35)) * sell_c)
+            bag[gk] -= sell_c
+            if bag[gk] <= 0:
+                del bag[gk]
+            to_trim -= sell_c
+        keys = [k for k in keys if k in bag]
     for key in keys:
         cnt = bag.get(key, 0)
         if cnt <= 0:
