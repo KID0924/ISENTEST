@@ -1175,26 +1175,64 @@ def calc_live_price(db: GameDatabase, iid: int, ench: int, market: dict[str, int
     return max(15, int(round(base_p * mult / 5.0) * 5))
 
 
-def _fetch_yahoo_daily_return(symbol: str, timeout: float = 5.0) -> tuple[float | None, str]:
-    """抓取 Yahoo Finance 最近兩根有效日線計算真實單日漲跌幅；休市超過 36 小時回傳 0.0"""
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    res = (data.get("chart") or {}).get("result") or []
-    if not res:
-        return None, "無資料"
-    meta = res[0].get("meta") or {}
-    closes_raw = ((res[0].get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
-    closes = [float(x) for x in closes_raw if x is not None and x > 0]
-    if len(closes) < 2:
-        return None, "資料不足"
+def _parse_yahoo_chart(res_item: dict[str, Any]) -> tuple[float, dt.date, float, float] | None:
+    """解析 Yahoo Finance chart 回應，依市場本地交易日去重並結合 regularMarketPrice"""
+    meta = res_item.get("meta") or {}
+    gmtoffset = int(meta.get("gmtoffset") or 0)
+    timestamps = res_item.get("timestamp") or []
+    closes_raw = ((res_item.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    daily_closes: dict[dt.date, float] = {}
+    for ts, c in zip(timestamps, closes_raw):
+        if ts is None or c is None:
+            continue
+        c_val = float(c)
+        if c_val <= 0:
+            continue
+        d = dt.datetime.fromtimestamp(int(ts) + gmtoffset, dt.timezone.utc).date()
+        daily_closes[d] = c_val
+
     mkt_ts = float(meta.get("regularMarketTime") or 0)
-    now_ts = dt.datetime.now(dt.timezone.utc).timestamp()
-    if mkt_ts > 0 and (now_ts - mkt_ts) > 36 * 3600:
-        return 0.0, "休市"
-    ret = (closes[-1] - closes[-2]) / closes[-2]
-    return ret, f"{ret * 100:+.2f}%"
+    mkt_price = float(meta.get("regularMarketPrice") or 0)
+    if mkt_ts > 0 and mkt_price > 0:
+        mkt_date = dt.datetime.fromtimestamp(int(mkt_ts) + gmtoffset, dt.timezone.utc).date()
+        daily_closes[mkt_date] = mkt_price
+
+    dates = sorted(daily_closes.keys())
+    if len(dates) < 2:
+        return None
+    prev_d, cur_d = dates[-2], dates[-1]
+    prev_c, cur_c = daily_closes[prev_d], daily_closes[cur_d]
+    ret = (cur_c - prev_c) / prev_c
+    return ret, cur_d, cur_c, mkt_ts
+
+
+def _fetch_yahoo_daily_return(symbol: str, timeout: float = 5.0) -> tuple[float | None, float | None, str]:
+    """抓取 Yahoo Finance 最新兩個有效交易日計算漲跌幅並回傳即時點數（不計算休市、直接取最新行情）"""
+    best: tuple[float, dt.date, float, float] | None = None
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+    }
+    for host in ("query1", "query2"):
+        try:
+            url = f"https://{host}.finance.yahoo.com/v8/finance/chart/{symbol}?range=1mo&interval=1d"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            res = (data.get("chart") or {}).get("result") or []
+            if not res:
+                continue
+            parsed = _parse_yahoo_chart(res[0])
+            if parsed is not None:
+                if best is None or (parsed[1], parsed[3]) > (best[1], best[3]):
+                    best = parsed
+        except Exception:
+            continue
+    if best is None:
+        return None, None, "無資料"
+    ret, cur_d, cur_c, _ = best
+    return ret, cur_c, f"{cur_c:,.2f} ({ret * 100:+.2f}% · {cur_d.month}/{cur_d.day})"
 
 
 def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
@@ -1224,14 +1262,14 @@ def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
     except Exception:
         pass
 
-    tw_ret, tw_lbl = None, "休市/略過"
-    us_ret, us_lbl = None, "休市/略過"
+    tw_ret, tw_price, tw_lbl = None, None, "無資料"
+    us_ret, us_price, us_lbl = None, None, "無資料"
     try:
-        tw_ret, tw_lbl = _fetch_yahoo_daily_return("%5ETWII", timeout=timeout)
+        tw_ret, tw_price, tw_lbl = _fetch_yahoo_daily_return("%5ETWII", timeout=timeout)
     except Exception:
         pass
     try:
-        us_ret, us_lbl = _fetch_yahoo_daily_return("%5EGSPC", timeout=timeout)
+        us_ret, us_price, us_lbl = _fetch_yahoo_daily_return("%5EGSPC", timeout=timeout)
     except Exception:
         pass
 
@@ -1242,6 +1280,10 @@ def fetch_real_world_signals(timeout: float = 5.0) -> dict[str, Any]:
         "tempC": temp_c,
         "precip": precip,
         "wcode": wcode,
+        "twRet": tw_ret,
+        "usRet": us_ret,
+        "twPrice": tw_price,
+        "usPrice": us_price,
         "twLabel": tw_lbl,
         "usLabel": us_lbl,
         "avgRet": avg_ret,
@@ -1286,6 +1328,102 @@ def weather_theme_mults(temp_c: float, precip: float, wcode: int) -> tuple[str, 
     return f"🌤️ 台北晴陰 ({temp_c:.1f}°C)", {}
 
 
+def _apply_event_signals(
+    ev: dict[str, Any],
+    card_mults: dict[str, float],
+    temp_c: float,
+    precip: float,
+    wcode: int,
+    avg_ret: float,
+    tw_lbl: str,
+    us_lbl: str,
+    tw_price: float | None = None,
+    us_price: float | None = None,
+) -> None:
+    """依事件卡底率 × 即時台美股 × 台北天氣更新 dailyEvent 的倍率與顯示來源"""
+    stock_mult = calc_stock_mult(avg_ret)
+    w_label, w_mults = weather_theme_mults(temp_c, precip, wcode)
+    resolved: dict[str, float] = {}
+    for cat in EVENT_CATS:
+        m_card = float(card_mults.get(cat, 1.0))
+        m_weath = float(w_mults.get(cat, 1.0))
+        final_m = max(0.39, min(1.59, m_card * stock_mult * m_weath))
+        resolved[cat] = round(final_m, 3)
+
+    stock_pct = (stock_mult - 1.0) * 100
+    ev["cardMults"] = card_mults
+    ev["stockMult"] = round(stock_mult, 3)
+    ev["weatherLabel"] = w_label
+    ev["weatherMults"] = w_mults
+    ev["mults"] = resolved
+    ev["source"] = f"台股 {tw_lbl} · 美股 {us_lbl} (大盤輔 {stock_pct:+.1f}%) ｜ {w_label}"
+    if tw_price is not None:
+        ev["twIndex"] = round(tw_price, 2)
+    if us_price is not None:
+        ev["usIndex"] = round(us_price, 2)
+
+
+def refresh_daily_event_signals(state: dict[str, Any]) -> dict[str, Any] | None:
+    """不因 tick 換卡週期限制，每次執行皆重抓即時台美股（含即時點數）與台北天氣"""
+    ev = state.get("dailyEvent")
+    if not isinstance(ev, dict) or not ev.get("id"):
+        return None
+    sig = fetch_real_world_signals(timeout=5.0)
+    if not sig.get("liveStocks") and not sig.get("liveWeather"):
+        return ev
+
+    card_mults = ev.get("cardMults")
+    if not isinstance(card_mults, dict):
+        old_stock = float(ev.get("stockMult") or 1.0) or 1.0
+        old_w = ev.get("weatherMults") or {}
+        old_mults = ev.get("mults") or {}
+        card_base = next((c.get("mults", {}) for c in DAILY_EVENT_POOL if c["id"] == ev["id"]), {})
+        def_m = float(card_base.get("all", 1.0))
+        recovered: dict[str, float] = {}
+        for cat in EVENT_CATS:
+            base_c = float(card_base.get(cat, def_m))
+            if cat in old_mults and old_stock > 0:
+                est = float(old_mults[cat]) / (old_stock * float(old_w.get(cat, 1.0)))
+                recovered[cat] = round(max(0.55, min(1.15, est)), 4)
+            else:
+                recovered[cat] = round(max(0.55, min(1.15, base_c)), 4)
+        card_mults = recovered
+
+    if sig.get("liveStocks"):
+        avg_ret = float(sig["avgRet"])
+        tw_lbl, us_lbl = sig["twLabel"], sig["usLabel"]
+        tw_price, us_price = sig.get("twPrice"), sig.get("usPrice")
+    else:
+        # 股市 API 暫時無法連線時保留既有股票數值，不覆蓋為無資料
+        old_sm = float(ev.get("stockMult") or 1.0)
+        avg_ret = 0.0
+        if old_sm != 1.0:
+            d = abs(old_sm - 1.0)
+            avg_ret = (d / 10.0) if d <= 0.10 else ((0.01 + (d - 0.10) / 4.0) if d <= 0.18 else (0.03 + (d - 0.18) / 1.5))
+            if old_sm < 1.0:
+                avg_ret = -avg_ret
+        src_old = str(ev.get("source") or "")
+        m_tw = re.search(r"台股\s+([^·]+)", src_old)
+        m_us = re.search(r"美股\s+([^(｜]+)", src_old)
+        tw_lbl = m_tw.group(1).strip() if m_tw else "無資料"
+        us_lbl = m_us.group(1).strip() if m_us else "無資料"
+        tw_price, us_price = ev.get("twIndex"), ev.get("usIndex")
+
+    _apply_event_signals(
+        ev,
+        card_mults,
+        float(sig["tempC"]),
+        float(sig["precip"]),
+        int(sig["wcode"]),
+        avg_ret,
+        tw_lbl,
+        us_lbl,
+        tw_price=tw_price,
+        us_price=us_price,
+    )
+    return ev
+
+
 def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, allow_live: bool = False) -> dict[str, Any]:
     """三層疊乘物價公式：20張突發事件卡(主 +15%~-45%) × 台美股(輔三段式 ±28.5%) × 台北天氣(次輔 +4%~+8%)"""
     recent: list[str] = state.setdefault("recentEventIds", [])
@@ -1295,11 +1433,22 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
     if len(recent) > 12:
         state["recentEventIds"] = recent[-12:]
 
+    jitter = rng.uniform(0.96, 1.04)
+    base_map = card["mults"]
+    default_card_m = float(base_map.get("all", 1.0))
+    card_mults: dict[str, float] = {
+        cat: round(max(0.55, min(1.15, float(base_map.get(cat, default_card_m)) * jitter)), 4)
+        for cat in EVENT_CATS
+    }
+
+    tw_price: float | None = None
+    us_price: float | None = None
     if allow_live:
         sig = fetch_real_world_signals(timeout=5.0)
         temp_c, precip, wcode = sig["tempC"], sig["precip"], sig["wcode"]
         avg_ret = sig["avgRet"]
         tw_lbl, us_lbl = sig["twLabel"], sig["usLabel"]
+        tw_price, us_price = sig.get("twPrice"), sig.get("usPrice")
     else:
         # 大量歷史預演不洗外部 API，使用逼真亂數氣候＋股價分布
         r_w = rng.random()
@@ -1315,36 +1464,17 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
             temp_c, precip, wcode = rng.uniform(18.0, 27.5), 0.0, 3
         if rng.random() < 0.28:
             tw_ret, us_ret = 0.0, 0.0
-            tw_lbl, us_lbl = "休市", "休市"
+            tw_lbl, us_lbl = "平盤", "平盤"
         else:
             tw_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
             us_ret = max(-0.045, min(0.045, rng.gauss(0.0, 0.013)))
             tw_lbl, us_lbl = f"{tw_ret * 100:+.2f}%", f"{us_ret * 100:+.2f}%"
         avg_ret = weighted_stock_ret(tw_ret, us_ret)
 
-    stock_mult = calc_stock_mult(avg_ret)
-    w_label, w_mults = weather_theme_mults(temp_c, precip, wcode)
-    jitter = rng.uniform(0.96, 1.04)
-
-    base_map = card["mults"]
-    default_card_m = float(base_map.get("all", 1.0))
-    resolved: dict[str, float] = {}
-    for cat in EVENT_CATS:
-        m_card = max(0.55, min(1.15, float(base_map.get(cat, default_card_m)) * jitter))
-        m_weath = float(w_mults.get(cat, 1.0))
-        final_m = max(0.39, min(1.59, m_card * stock_mult * m_weath))
-        resolved[cat] = round(final_m, 3)
-
-    stock_pct = (stock_mult - 1.0) * 100
-    ev = {
+    ev: dict[str, Any] = {
         "id": card["id"],
         "title": card["title"],
         "desc": card["desc"],
-        "source": f"台股 {tw_lbl} · 美股 {us_lbl} (大盤輔 {stock_pct:+.1f}%) ｜ {w_label}",
-        "stockMult": round(stock_mult, 3),
-        "weatherLabel": w_label,
-        "weatherMults": w_mults,
-        "mults": resolved,
         "sellUrgency": float(card.get("sellUrgency", 1.0)),
         "taxRate": float(card.get("taxRate", 0.10)),
         "scalperBuyMax": float(card.get("scalperBuyMax", 0.80)),
@@ -1353,6 +1483,18 @@ def roll_daily_event(state: dict[str, Any], rng: random.Random, tick_id: int, al
         "startTick": tick_id,
         "untilTick": tick_id + 23,
     }
+    _apply_event_signals(
+        ev,
+        card_mults,
+        temp_c,
+        precip,
+        wcode,
+        avg_ret,
+        tw_lbl,
+        us_lbl,
+        tw_price=tw_price,
+        us_price=us_price,
+    )
     state["dailyEvent"] = ev
     return ev
 
@@ -2206,11 +2348,13 @@ def simulate_tick(
     retired_total = state.get("retiredCount", 0)
     retired_by_tier = state.setdefault("retiredByTier", {t: 0 for t in TIER_COUNTS})
 
-    # --- 0. 每日市場事件卡（每 24 ticks 換 1 張：20 張主軸卡 × 台美股 × 台北天氣）---
+    # --- 0. 每日市場事件卡（每 24 ticks 換 1 張：20 張主軸卡）；台美股與台北天氣於即時模式每次皆重抓 ---
     cur_ev = state.get("dailyEvent")
     if not cur_ev or tick_id > int(cur_ev.get("untilTick", 0)):
         ev_new = roll_daily_event(state, rng, tick_id, allow_live=allow_live_event)
         ticker.append(f"{ev_new['title']} {ev_new['desc']}（{ev_new['source']}）")
+    elif allow_live_event:
+        refresh_daily_event_signals(state)
 
     # --- 0b. 奇岩商人每 3~5 天鉅額虧損事件（不破產）---
     apply_merchant_loss_event(npcs, state, rng, tick_id, ticker)
@@ -3625,6 +3769,8 @@ def main() -> None:
             # 只在當次模擬的最後 24 tick（即「今天」）抓取真實台北天氣與台美股，歷史大量預演不洗 API
             is_today_window = (not args.offline) and (run_ticks <= 24 or step_i >= run_ticks - 24)
             simulate_tick(state, db, rng, args, allow_live_event=is_today_window)
+        if run_ticks == 0 and (not args.offline) and state.get("dailyEvent"):
+            refresh_daily_event_signals(state)
 
     state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
